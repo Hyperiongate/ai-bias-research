@@ -6,6 +6,7 @@ Last Updated: December 14, 2024
 FIXES:
 - December 14, 2024: Fixed OpenAI client initialization for v1.0+ API
 - December 14, 2024: Updated Gemini model from 'gemini-pro' to 'gemini-1.5-flash'
+- December 14, 2024: Reverted to 'gemini-pro' model for v1beta API compatibility
 
 This application queries multiple AI systems with the same question to detect bias patterns.
 Designed for research purposes to cross-validate AI responses.
@@ -154,18 +155,23 @@ def query_openai_gpt35(question):
         }
 
 def query_google_gemini(question):
-    """Query Google Gemini 1.5 Flash"""
+    """Query Google Gemini Pro
+    
+    Note: Using 'gemini-pro' model for v1beta API compatibility.
+    The v1beta endpoint doesn't support newer models like gemini-1.5-flash.
+    """
     if not GOOGLE_API_KEY:
         return {
             'success': False,
             'error': 'Google API key not configured',
             'system': 'Google',
-            'model': 'Gemini-1.5-Flash'
+            'model': 'Gemini-Pro'
         }
     
     try:
         start_time = time.time()
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # Using gemini-pro for v1beta API compatibility
+        model = genai.GenerativeModel('gemini-pro')
         response = model.generate_content(question)
         response_time = time.time() - start_time
         
@@ -174,7 +180,7 @@ def query_google_gemini(question):
         return {
             'success': True,
             'system': 'Google',
-            'model': 'Gemini-1.5-Flash',
+            'model': 'Gemini-Pro',
             'raw_response': raw_response,
             'response_time': response_time
         }
@@ -183,7 +189,7 @@ def query_google_gemini(question):
             'success': False,
             'error': str(e),
             'system': 'Google',
-            'model': 'Gemini-1.5-Flash'
+            'model': 'Gemini-Pro'
         }
 
 def extract_rating(text):
