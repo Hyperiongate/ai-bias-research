@@ -1,7 +1,11 @@
 """
 AI Bias Research Tool - Main Application
 Created: December 13, 2024
-Last Updated: December 13, 2024
+Last Updated: December 14, 2024
+
+FIXES:
+- December 14, 2024: Fixed OpenAI client initialization for v1.0+ API
+- December 14, 2024: Updated Gemini model from 'gemini-pro' to 'gemini-1.5-flash'
 
 This application queries multiple AI systems with the same question to detect bias patterns.
 Designed for research purposes to cross-validate AI responses.
@@ -14,7 +18,7 @@ from flask import Flask, render_template, request, jsonify
 import os
 import sqlite3
 from datetime import datetime
-import openai
+from openai import OpenAI
 import google.generativeai as genai
 import json
 import time
@@ -26,8 +30,9 @@ OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
 
 # Initialize APIs
+openai_client = None
 if OPENAI_API_KEY:
-    openai.api_key = OPENAI_API_KEY
+    openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 if GOOGLE_API_KEY:
     genai.configure(api_key=GOOGLE_API_KEY)
@@ -72,7 +77,7 @@ init_db()
 
 def query_openai_gpt4(question):
     """Query OpenAI GPT-4"""
-    if not OPENAI_API_KEY:
+    if not openai_client:
         return {
             'success': False,
             'error': 'OpenAI API key not configured',
@@ -82,7 +87,7 @@ def query_openai_gpt4(question):
     
     try:
         start_time = time.time()
-        response = openai.chat.completions.create(
+        response = openai_client.chat.completions.create(
             model="gpt-4",
             messages=[
                 {"role": "user", "content": question}
@@ -111,7 +116,7 @@ def query_openai_gpt4(question):
 
 def query_openai_gpt35(question):
     """Query OpenAI GPT-3.5 Turbo"""
-    if not OPENAI_API_KEY:
+    if not openai_client:
         return {
             'success': False,
             'error': 'OpenAI API key not configured',
@@ -121,7 +126,7 @@ def query_openai_gpt35(question):
     
     try:
         start_time = time.time()
-        response = openai.chat.completions.create(
+        response = openai_client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "user", "content": question}
@@ -149,18 +154,18 @@ def query_openai_gpt35(question):
         }
 
 def query_google_gemini(question):
-    """Query Google Gemini Pro"""
+    """Query Google Gemini 1.5 Flash"""
     if not GOOGLE_API_KEY:
         return {
             'success': False,
             'error': 'Google API key not configured',
             'system': 'Google',
-            'model': 'Gemini-Pro'
+            'model': 'Gemini-1.5-Flash'
         }
     
     try:
         start_time = time.time()
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(question)
         response_time = time.time() - start_time
         
@@ -169,7 +174,7 @@ def query_google_gemini(question):
         return {
             'success': True,
             'system': 'Google',
-            'model': 'Gemini-Pro',
+            'model': 'Gemini-1.5-Flash',
             'raw_response': raw_response,
             'response_time': response_time
         }
@@ -178,7 +183,7 @@ def query_google_gemini(question):
             'success': False,
             'error': str(e),
             'system': 'Google',
-            'model': 'Gemini-Pro'
+            'model': 'Gemini-1.5-Flash'
         }
 
 def extract_rating(text):
