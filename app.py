@@ -7,6 +7,7 @@ FIXES:
 - December 14, 2024: Fixed OpenAI client initialization for v1.0+ API
 - December 14, 2024: Updated Gemini model from 'gemini-pro' to 'gemini-1.5-flash'
 - December 14, 2024: Reverted to 'gemini-pro' model for v1beta API compatibility
+- December 14, 2024: Switched to direct REST API calls for Gemini (bypasses library v1beta issue)
 
 This application queries multiple AI systems with the same question to detect bias patterns.
 Designed for research purposes to cross-validate AI responses.
@@ -20,7 +21,7 @@ import os
 import sqlite3
 from datetime import datetime
 from openai import OpenAI
-import google.generativeai as genai
+import requests
 import json
 import time
 
@@ -30,13 +31,10 @@ app = Flask(__name__)
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
 
-# Initialize APIs
+# Initialize OpenAI client
 openai_client = None
 if OPENAI_API_KEY:
     openai_client = OpenAI(api_key=OPENAI_API_KEY)
-
-if GOOGLE_API_KEY:
-    genai.configure(api_key=GOOGLE_API_KEY)
 
 # Database setup
 DATABASE = 'bias_research.db'
@@ -155,41 +153,111 @@ def query_openai_gpt35(question):
         }
 
 def query_google_gemini(question):
-    """Query Google Gemini Pro
+    """Query Google Gemini using direct REST API calls.
     
-    Note: Using 'gemini-pro' model for v1beta API compatibility.
-    The v1beta endpoint doesn't support newer models like gemini-1.5-flash.
+    This bypasses the google-generativeai library which is stuck on v1beta.
+    Uses the v1 API endpoint directly for better compatibility.
     """
     if not GOOGLE_API_KEY:
         return {
             'success': False,
             'error': 'Google API key not configured',
             'system': 'Google',
-            'model': 'Gemini-Pro'
+            'model': 'Gemini-1.5-Flash'
         }
     
     try:
         start_time = time.time()
-        # Using gemini-pro for v1beta API compatibility
-        model = genai.GenerativeModel('gemini-pro')
-        response = model.generate_content(question)
-        response_time = time.time() - start_time
         
-        raw_response = response.text
+        # Use v1 API endpoint directly (not v1beta)
+        # Try gemini-1.5-flash first, with fallback options
+        models_to_try = [
+            'gemini-1.5-flash',
+            'gemini-1.5-pro',
+            'gemini-pro'
+        ]
         
+        last_error = None
+        
+        for model_name in models_to_try:
+            url = f"https://generativelanguage.googleapis.com/v1/models/{model_name}:generateContent"
+            
+            headers = {
+                'Content-Type': 'application/json'
+            }
+            
+            payload = {
+                'contents': [{
+                    'parts': [{
+                        'text': question
+                    }]
+                }],
+                'generationConfig': {
+                    'temperature': 0.7,
+                    'maxOutputTokens': 500
+                }
+            }
+            
+            response = requests.post(
+                url,
+                headers=headers,
+                params={'key': GOOGLE_API_KEY},
+                json=payload,
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                response_time = time.time() - start_time
+                data = response.json()
+                
+                # Extract text from response
+                if 'candidates' in data and len(data['candidates']) > 0:
+                    candidate = data['candidates'][0]
+                    if 'content' in candidate and 'parts' in candidate['content']:
+                        raw_response = candidate['content']['parts'][0].get('text', '')
+                        
+                        # Format model name for display
+                        display_model = model_name.replace('-', ' ').title().replace(' ', '-')
+                        
+                        return {
+                            'success': True,
+                            'system': 'Google',
+                            'model': display_model,
+                            'raw_response': raw_response,
+                            'response_time': response_time
+                        }
+                
+                # If we got 200 but couldn't parse response
+                last_error = f"Unexpected response format from {model_name}"
+            else:
+                # Store error and try next model
+                try:
+                    error_data = response.json()
+                    last_error = error_data.get('error', {}).get('message', f"HTTP {response.status_code}")
+                except:
+                    last_error = f"HTTP {response.status_code}: {response.text[:200]}"
+        
+        # All models failed
         return {
-            'success': True,
+            'success': False,
+            'error': f"All Gemini models failed. Last error: {last_error}",
             'system': 'Google',
-            'model': 'Gemini-Pro',
-            'raw_response': raw_response,
-            'response_time': response_time
+            'model': 'Gemini'
+        }
+        
+    except requests.exceptions.Timeout:
+        return {
+            'success': False,
+            'error': 'Request timed out after 30 seconds',
+            'system': 'Google',
+            'model': 'Gemini'
         }
     except Exception as e:
         return {
             'success': False,
             'error': str(e),
             'system': 'Google',
-            'model': 'Gemini-Pro'
+            'model': 'Gemini'
         }
 
 def extract_rating(text):
