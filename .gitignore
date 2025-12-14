@@ -1,0 +1,57 @@
+# AI Bias Research Tool - Git Ignore
+# Created: December 13, 2024
+# Last Updated: December 13, 2024
+#
+# Excludes sensitive data, build artifacts, and unnecessary files from version control
+
+# Environment variables (NEVER commit API keys!)
+.env
+.env.local
+.env.*.local
+
+# Database files (contains research data - may want to backup separately)
+*.db
+*.sqlite
+*.sqlite3
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Logs
+*.log
+
+# Pytest cache
+.pytest_cache/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+
+# I did no harm and this file is not truncated
