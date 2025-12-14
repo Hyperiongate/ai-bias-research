@@ -165,7 +165,7 @@ def query_google_gemini(question):
     
     try:
         start_time = time.time()
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-1.5-pro')
         response = model.generate_content(question)
         response_time = time.time() - start_time
         
