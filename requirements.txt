@@ -11,7 +11,7 @@
 Flask==3.0.0
 openai==1.54.0
 httpx==0.27.2
-google-generativeai==0.8.3
+google-generativeai==0.3.1
 gunicorn==21.2.0
 
 # I did no harm and this file is not truncated
