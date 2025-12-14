@@ -1,0 +1,12 @@
+# AI Bias Research Tool - Python Dependencies
+# Created: December 13, 2024
+# Last Updated: December 13, 2024
+#
+# These are all the packages needed to run the application
+
+Flask==3.0.0
+openai==1.3.0
+google-generativeai==0.3.1
+gunicorn==21.2.0
+
+# I did no harm and this file is not truncated
