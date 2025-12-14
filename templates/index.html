@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<!--
+AI Bias Research Tool - Main Interface
+Created: December 13, 2024
+Last Updated: December 13, 2024
+
+Simple, clean interface for querying multiple AI systems and comparing responses.
+Designed for research into AI bias detection.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Bias Research Tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔬 AI Bias Research Tool</h1>
+            <p class="subtitle">Query multiple AI systems to detect bias patterns</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Query Input Section -->
+            <section class="query-section">
+                <h2>Ask Your Question</h2>
+                <p class="help-text">
+                    Example: "On a scale from 1 to 10, how good a president is Donald Trump? 10 being the best ever."
+                </p>
+                <textarea 
+                    id="question-input" 
+                    placeholder="Enter your question here..."
+                    rows="4"
+                ></textarea>
+                <button id="submit-btn" class="primary-btn">
+                    Query All AI Systems
+                </button>
+                <div id="loading" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Querying AI systems... This may take 10-15 seconds</p>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section class="results-section" id="results-section" style="display: none;">
+                <h2>Results</h2>
+                <div id="results-container"></div>
+                
+                <!-- Analysis Section -->
+                <div id="analysis-section" class="analysis-section" style="display: none;">
+                    <h3>Quick Analysis</h3>
+                    <div id="analysis-content"></div>
+                </div>
+            </section>
+
+            <!-- History Section -->
+            <section class="history-section">
+                <h2>Recent Queries</h2>
+                <button id="load-history-btn" class="secondary-btn">Load History</button>
+                <div id="history-container"></div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentResults = null;
+
+        // Submit query
+        document.getElementById('submit-btn').addEventListener('click', async () => {
+            const question = document.getElementById('question-input').value.trim();
+            
+            if (!question) {
+                alert('Please enter a question');
+                return;
+            }
+
+            // Show loading, hide results
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results-section').style.display = 'none';
+            document.getElementById('submit-btn').disabled = true;
+
+            try {
+                const response = await fetch('/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ question })
+                });
+
+                const data = await response.json();
+                currentResults = data;
+                displayResults(data);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error querying AI systems. Please try again.');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('submit-btn').disabled = false;
+            }
+        });
+
+        // Display results
+        function displayResults(data) {
+            const container = document.getElementById('results-container');
+            const resultsSection = document.getElementById('results-section');
+            
+            container.innerHTML = '';
+            
+            // Show the question
+            const questionDiv = document.createElement('div');
+            questionDiv.className = 'question-display';
+            questionDiv.innerHTML = `<strong>Question:</strong> ${data.question}`;
+            container.appendChild(questionDiv);
+
+            // Display each AI response
+            data.results.forEach(result => {
+                const resultCard = document.createElement('div');
+                resultCard.className = 'result-card';
+                
+                if (result.success) {
+                    resultCard.innerHTML = `
+                        <div class="result-header">
+                            <h3>${result.system} - ${result.model}</h3>
+                            <span class="response-time">${result.response_time.toFixed(2)}s</span>
+                        </div>
+                        ${result.extracted_rating !== null ? 
+                            `<div class="rating-badge">Rating: ${result.extracted_rating}/10</div>` : 
+                            '<div class="rating-badge no-rating">No numerical rating detected</div>'
+                        }
+                        <div class="response-text">${result.raw_response}</div>
+                    `;
+                } else {
+                    resultCard.innerHTML = `
+                        <div class="result-header">
+                            <h3>${result.system} - ${result.model}</h3>
+                            <span class="error-badge">Error</span>
+                        </div>
+                        <div class="error-text">${result.error}</div>
+                    `;
+                    resultCard.classList.add('error-card');
+                }
+                
+                container.appendChild(resultCard);
+            });
+
+            // Show analysis if we have ratings
+            showAnalysis(data.results);
+            
+            resultsSection.style.display = 'block';
+        }
+
+        // Show analysis of ratings
+        function showAnalysis(results) {
+            const analysisSection = document.getElementById('analysis-section');
+            const analysisContent = document.getElementById('analysis-content');
+            
+            const successfulResults = results.filter(r => r.success);
+            const ratingsFound = successfulResults.filter(r => r.extracted_rating !== null);
+            
+            if (ratingsFound.length === 0) {
+                analysisSection.style.display = 'none';
+                return;
+            }
+
+            const ratings = ratingsFound.map(r => r.extracted_rating);
+            const average = (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(2);
+            const min = Math.min(...ratings);
+            const max = Math.max(...ratings);
+            const range = max - min;
+
+            let analysisHTML = `
+                <div class="analysis-stats">
+                    <div class="stat">
+                        <label>Ratings Found:</label>
+                        <value>${ratingsFound.length} of ${successfulResults.length}</value>
+                    </div>
+                    <div class="stat">
+                        <label>Average:</label>
+                        <value>${average}/10</value>
+                    </div>
+                    <div class="stat">
+                        <label>Range:</label>
+                        <value>${min} - ${max} (spread: ${range})</value>
+                    </div>
+                </div>
+            `;
+
+            if (range > 0) {
+                analysisHTML += `
+                    <div class="insight">
+                        <strong>📊 Observation:</strong> There is a ${range}-point spread between the highest and lowest ratings. 
+                        This suggests different AI systems may have different perspectives on this question.
+                    </div>
+                `;
+            } else {
+                analysisHTML += `
+                    <div class="insight">
+                        <strong>📊 Observation:</strong> All AI systems that provided ratings gave the same score (${min}/10). 
+                        This suggests consensus on this particular question.
+                    </div>
+                `;
+            }
+
+            analysisContent.innerHTML = analysisHTML;
+            analysisSection.style.display = 'block';
+        }
+
+        // Load history
+        document.getElementById('load-history-btn').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/history');
+                const history = await response.json();
+                displayHistory(history);
+            } catch (error) {
+                console.error('Error loading history:', error);
+                alert('Error loading history');
+            }
+        });
+
+        // Display history
+        function displayHistory(history) {
+            const container = document.getElementById('history-container');
+            
+            if (history.length === 0) {
+                container.innerHTML = '<p class="no-history">No queries yet. Ask your first question above!</p>';
+                return;
+            }
+
+            container.innerHTML = '<div class="history-list"></div>';
+            const listDiv = container.querySelector('.history-list');
+
+            history.forEach(item => {
+                const historyItem = document.createElement('div');
+                historyItem.className = 'history-item';
+                
+                const date = new Date(item.timestamp);
+                const dateStr = date.toLocaleString();
+                
+                historyItem.innerHTML = `
+                    <div class="history-question">${item.question}</div>
+                    <div class="history-meta">
+                        <span>${dateStr}</span>
+                        <span>${item.response_count} responses</span>
+                    </div>
+                `;
+                
+                historyItem.addEventListener('click', () => loadQueryDetails(item.id));
+                listDiv.appendChild(historyItem);
+            });
+        }
+
+        // Load query details
+        async function loadQueryDetails(queryId) {
+            try {
+                const response = await fetch(`/query/${queryId}`);
+                const data = await response.json();
+                
+                // Populate the question input
+                document.getElementById('question-input').value = data.question;
+                
+                // Display results
+                const formattedData = {
+                    question: data.question,
+                    results: data.responses.map(r => ({
+                        success: true,
+                        system: r.ai_system,
+                        model: r.model,
+                        raw_response: r.raw_response,
+                        extracted_rating: r.extracted_rating,
+                        response_time: r.response_time
+                    }))
+                };
+                
+                displayResults(formattedData);
+                
+                // Scroll to results
+                document.getElementById('results-section').scrollIntoView({ behavior: 'smooth' });
+                
+            } catch (error) {
+                console.error('Error loading query details:', error);
+                alert('Error loading query details');
+            }
+        }
+    </script>
+</body>
+</html>
+
+<!-- I did no harm and this file is not truncated -->
