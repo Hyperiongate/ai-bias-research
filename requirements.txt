@@ -4,11 +4,13 @@
 #
 # UPDATES:
 # December 14, 2024: Updated openai to 1.54.0 to fix Client() initialization issue
+# December 14, 2024: Pinned httpx to 0.27.2 to fix 'proxies' argument compatibility
 #
 # These are all the packages needed to run the application
 
 Flask==3.0.0
 openai==1.54.0
+httpx==0.27.2
 google-generativeai==0.3.1
 gunicorn==21.2.0
 
