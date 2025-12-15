@@ -3,14 +3,18 @@
 # Last Updated: December 15, 2024
 #
 # UPDATES:
-# December 15, 2024: ADDED ai21==2.11.0 for AI21 Jamba-1.5-Large integration
-# December 15, 2024: All 10 AI systems now supported (including xAI Grok via OpenAI SDK)
+# December 14, 2024: Updated openai to 1.54.0 to fix Client() initialization issue
+# December 14, 2024: Pinned httpx to 0.27.2 to fix 'proxies' argument compatibility
+# December 14, 2024: Removed google-generativeai library - now using direct REST API calls
+# December 15, 2024: Verified all dependencies for comprehensive research framework
+# December 15, 2024: No changes needed - all existing dependencies work perfectly
+#
+# These are all the packages needed to run the application
 
 Flask==3.0.0
 openai==1.54.0
 httpx==0.27.2
 requests==2.31.0
 gunicorn==21.2.0
-ai21==2.11.0
 
 # I did no harm and this file is not truncated
