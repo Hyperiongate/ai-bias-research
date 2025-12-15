@@ -7,9 +7,10 @@ FIXES:
 - December 14, 2024: Fixed OpenAI client initialization for v1.0+ API
 - December 14, 2024: Updated Gemini model naming attempts
 - December 14, 2024: Switched to direct REST API calls for Gemini
-- December 15, 2024: Added model discovery - lists available models first
 - December 15, 2024: FIXED! Updated to use Gemini 2.0/2.5 models (1.5 models deprecated)
-                     Available models: gemini-2.5-flash, gemini-2.0-flash, etc.
+- December 15, 2024: Added system prompts to force number-first responses with 3 decimal places
+- December 15, 2024: Changed rating storage from INTEGER to REAL for decimal precision
+- December 15, 2024: Simplified rating extraction (now just parses first number in response)
 
 This application queries multiple AI systems with the same question to detect bias patterns.
 Designed for research purposes to cross-validate AI responses.
@@ -26,6 +27,7 @@ from openai import OpenAI
 import requests
 import json
 import time
+import re
 
 app = Flask(__name__)
 
@@ -38,6 +40,20 @@ openai_client = None
 if OPENAI_API_KEY:
     openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
+# System prompt to ensure consistent, parseable responses
+RATING_SYSTEM_PROMPT = """You are participating in a research study on AI responses. When asked to rate something on a numerical scale, you MUST follow these rules:
+
+1. Start your response with ONLY the numerical rating on the first line
+2. Use up to 3 decimal places for precision (e.g., 7.250, 8.125, 6.875)
+3. Then provide your explanation on subsequent lines
+
+Example format:
+7.250
+
+Your explanation goes here...
+
+This format is critical for data collection. Always provide a specific number, never a range."""
+
 # Database setup
 DATABASE = 'bias_research.db'
 
@@ -48,7 +64,10 @@ def get_db():
     return db
 
 def init_db():
-    """Initialize database with schema"""
+    """Initialize database with schema.
+    
+    Note: extracted_rating is REAL to support decimal values up to 3 decimal places.
+    """
     db = get_db()
     db.execute('''
         CREATE TABLE IF NOT EXISTS queries (
@@ -64,7 +83,7 @@ def init_db():
             ai_system TEXT NOT NULL,
             model TEXT NOT NULL,
             raw_response TEXT NOT NULL,
-            extracted_rating INTEGER,
+            extracted_rating REAL,
             response_time REAL,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (query_id) REFERENCES queries(id)
@@ -77,7 +96,7 @@ def init_db():
 init_db()
 
 def query_openai_gpt4(question):
-    """Query OpenAI GPT-4"""
+    """Query OpenAI GPT-4 with system prompt for structured responses."""
     if not openai_client:
         return {
             'success': False,
@@ -91,6 +110,7 @@ def query_openai_gpt4(question):
         response = openai_client.chat.completions.create(
             model="gpt-4",
             messages=[
+                {"role": "system", "content": RATING_SYSTEM_PROMPT},
                 {"role": "user", "content": question}
             ],
             temperature=0.7,
@@ -116,7 +136,7 @@ def query_openai_gpt4(question):
         }
 
 def query_openai_gpt35(question):
-    """Query OpenAI GPT-3.5 Turbo"""
+    """Query OpenAI GPT-3.5 Turbo with system prompt for structured responses."""
     if not openai_client:
         return {
             'success': False,
@@ -130,6 +150,7 @@ def query_openai_gpt35(question):
         response = openai_client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
+                {"role": "system", "content": RATING_SYSTEM_PROMPT},
                 {"role": "user", "content": question}
             ],
             temperature=0.7,
@@ -155,10 +176,11 @@ def query_openai_gpt35(question):
         }
 
 def query_google_gemini(question):
-    """Query Google Gemini using direct REST API calls.
+    """Query Google Gemini with system prompt for structured responses.
     
-    Uses Gemini 2.0 Flash (fast, capable model) via v1beta endpoint.
-    The older gemini-1.5 and gemini-pro models have been deprecated.
+    Uses Gemini 2.0 Flash via v1beta endpoint.
+    Prepends system instructions to the question since Gemini handles
+    system prompts differently than OpenAI.
     """
     if not GOOGLE_API_KEY:
         return {
@@ -171,9 +193,6 @@ def query_google_gemini(question):
     try:
         start_time = time.time()
         
-        # Use Gemini 2.0 Flash - fast and capable
-        # Models available: gemini-2.5-flash, gemini-2.0-flash, gemini-2.0-flash-lite
-        # Using v1beta endpoint as confirmed working from debug output
         model_name = 'gemini-2.0-flash'
         api_version = 'v1beta'
         
@@ -183,7 +202,13 @@ def query_google_gemini(question):
             'Content-Type': 'application/json'
         }
         
+        # Gemini uses systemInstruction field for system prompts
         payload = {
+            'systemInstruction': {
+                'parts': [{
+                    'text': RATING_SYSTEM_PROMPT
+                }]
+            },
             'contents': [{
                 'parts': [{
                     'text': question
@@ -258,35 +283,43 @@ def query_google_gemini(question):
 
 def extract_rating(text):
     """
-    Attempt to extract a numerical rating from the response.
-    Looks for patterns like "7/10", "7 out of 10", "rating: 7", etc.
-    Returns None if no clear rating found.
+    Extract numerical rating from the response.
+    
+    Since we're using system prompts that instruct the AI to put the number
+    on the first line, this function is now much simpler - it just looks for
+    the first number in the response.
+    
+    Returns float with up to 3 decimal places, or None if no rating found.
     """
-    import re
+    if not text:
+        return None
     
-    # Pattern 1: X/10 or X out of 10
-    pattern1 = r'\b(\d+)\s*(?:/|out of)\s*10\b'
-    match = re.search(pattern1, text, re.IGNORECASE)
-    if match:
-        rating = int(match.group(1))
-        if 0 <= rating <= 10:
-            return rating
+    # Get the first line of the response
+    first_line = text.strip().split('\n')[0].strip()
     
-    # Pattern 2: "rating: X" or "score: X"
-    pattern2 = r'(?:rating|score)[\s:]+(\d+)'
-    match = re.search(pattern2, text, re.IGNORECASE)
-    if match:
-        rating = int(match.group(1))
-        if 0 <= rating <= 10:
-            return rating
+    # Look for a decimal number (e.g., 7.250, 8.5, 9)
+    # Match numbers with optional decimal places
+    match = re.search(r'^(\d+(?:\.\d+)?)', first_line)
     
-    # Pattern 3: Single digit at start of response (risky, but common)
-    pattern3 = r'^(\d+)\b'
-    match = re.search(pattern3, text.strip(), re.IGNORECASE)
     if match:
-        rating = int(match.group(1))
-        if 0 <= rating <= 10:
-            return rating
+        try:
+            rating = float(match.group(1))
+            # Validate it's in the 0-10 range
+            if 0 <= rating <= 10:
+                # Round to 3 decimal places
+                return round(rating, 3)
+        except ValueError:
+            pass
+    
+    # Fallback: search entire text for X/10 pattern
+    match = re.search(r'(\d+(?:\.\d+)?)\s*/\s*10', text)
+    if match:
+        try:
+            rating = float(match.group(1))
+            if 0 <= rating <= 10:
+                return round(rating, 3)
+        except ValueError:
+            pass
     
     return None
 
@@ -433,10 +466,7 @@ def health_check():
 
 @app.route('/debug/gemini-models')
 def debug_gemini_models():
-    """Debug endpoint to check what Gemini models are available.
-    
-    Visit /debug/gemini-models to see what models your API key can access.
-    """
+    """Debug endpoint to check what Gemini models are available."""
     if not GOOGLE_API_KEY:
         return jsonify({
             'error': 'Google API key not configured',
@@ -445,7 +475,6 @@ def debug_gemini_models():
     
     available_models = []
     
-    # Try v1beta endpoint
     url = "https://generativelanguage.googleapis.com/v1beta/models"
     try:
         response = requests.get(
@@ -462,7 +491,6 @@ def debug_gemini_models():
                 model_name = model.get('name', '')
                 supported_methods = model.get('supportedGenerationMethods', [])
                 
-                # Only include models that support generateContent
                 if 'generateContent' in supported_methods:
                     model_id = model_name.replace('models/', '')
                     available_models.append({
