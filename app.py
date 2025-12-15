@@ -11,9 +11,9 @@ FIXES:
 - December 15, 2024: Added system prompts to force number-first responses with 3 decimal places
 - December 15, 2024: Changed rating storage from INTEGER to REAL for decimal precision
 - December 15, 2024: Simplified rating extraction (now just parses first number in response)
-- December 15, 2024: ADDED! Anthropic Claude 3.5 Sonnet as 4th AI system for broader comparison
-- December 15, 2024: ADDED! Reset button functionality in frontend
-- December 15, 2024: ADDED! Mistral AI (Large 2) as 5th AI system - European perspective
+- December 15, 2024: FIXED ANTHROPIC! Updated Claude model from claude-3-5-sonnet-20241022 
+                      to claude-sonnet-4-20250514 (Claude Sonnet 4) - old model was deprecated
+                      and returning 404 not_found_error
 
 This application queries multiple AI systems with the same question to detect bias patterns.
 Designed for research purposes to cross-validate AI responses.
@@ -287,16 +287,22 @@ def query_google_gemini(question):
         }
 
 def query_anthropic_claude(question):
-    """Query Anthropic Claude 3.5 Sonnet with system prompt for structured responses.
+    """Query Anthropic Claude with system prompt for structured responses.
     
-    Uses Claude 3.5 Sonnet via Anthropic's Messages API.
+    Uses Claude Sonnet 4 via direct REST API calls (no SDK required).
+    
+    API Version: 2023-06-01
+    Model: claude-sonnet-4-20250514 (Claude Sonnet 4 - released May 2025)
+    
+    Previous model claude-3-5-sonnet-20241022 was deprecated and returned 404.
+    Updated December 15, 2024 to use Claude Sonnet 4.
     """
     if not ANTHROPIC_API_KEY:
         return {
             'success': False,
             'error': 'Anthropic API key not configured',
             'system': 'Anthropic',
-            'model': 'Claude-3.5-Sonnet'
+            'model': 'Claude'
         }
     
     try:
@@ -310,15 +316,18 @@ def query_anthropic_claude(question):
             'anthropic-version': '2023-06-01'
         }
         
+        # Claude Sonnet 4 - current stable model as of December 2024
+        # Previous model (claude-3-5-sonnet-20241022) was deprecated
         payload = {
-            'model': 'claude-3-5-sonnet-20241022',
+            'model': 'claude-sonnet-4-20250514',
             'max_tokens': 500,
-            'temperature': 0.7,
             'system': RATING_SYSTEM_PROMPT,
-            'messages': [{
-                'role': 'user',
-                'content': question
-            }]
+            'messages': [
+                {
+                    'role': 'user',
+                    'content': question
+                }
+            ]
         }
         
         response = requests.post(
@@ -339,29 +348,31 @@ def query_anthropic_claude(question):
                 return {
                     'success': True,
                     'system': 'Anthropic',
-                    'model': 'Claude-3.5-Sonnet',
+                    'model': 'Claude-Sonnet-4',
                     'raw_response': raw_response,
                     'response_time': response_time
                 }
             
             return {
                 'success': False,
-                'error': 'Unexpected response format',
+                'error': 'Unexpected response format from Anthropic API',
                 'system': 'Anthropic',
-                'model': 'Claude-3.5-Sonnet'
+                'model': 'Claude-Sonnet-4'
             }
         else:
             try:
                 error_data = response.json()
+                error_type = error_data.get('error', {}).get('type', 'unknown')
                 error_msg = error_data.get('error', {}).get('message', f"HTTP {response.status_code}")
+                full_error = f"{error_type}: {error_msg}"
             except:
-                error_msg = f"HTTP {response.status_code}: {response.text[:200]}"
+                full_error = f"HTTP {response.status_code}: {response.text[:200]}"
             
             return {
                 'success': False,
-                'error': error_msg,
+                'error': full_error,
                 'system': 'Anthropic',
-                'model': 'Claude-3.5-Sonnet'
+                'model': 'Claude-Sonnet-4'
             }
         
     except requests.exceptions.Timeout:
@@ -369,28 +380,28 @@ def query_anthropic_claude(question):
             'success': False,
             'error': 'Request timed out after 30 seconds',
             'system': 'Anthropic',
-            'model': 'Claude-3.5-Sonnet'
+            'model': 'Claude-Sonnet-4'
         }
     except Exception as e:
         return {
             'success': False,
             'error': str(e),
             'system': 'Anthropic',
-            'model': 'Claude-3.5-Sonnet'
+            'model': 'Claude-Sonnet-4'
         }
 
-def query_mistral_ai(question):
-    """Query Mistral AI (Large 2) with system prompt for structured responses.
+def query_mistral_large(question):
+    """Query Mistral Large with system prompt for structured responses.
     
-    Uses Mistral Large 2 via Mistral's Chat API.
-    European AI perspective for geographic bias comparison.
+    Uses Mistral Large 2 (mistral-large-latest) via REST API.
+    Provides European perspective on AI responses.
     """
     if not MISTRAL_API_KEY:
         return {
             'success': False,
             'error': 'Mistral API key not configured',
             'system': 'Mistral',
-            'model': 'Mistral-Large-2'
+            'model': 'Large-2'
         }
     
     try:
@@ -432,23 +443,21 @@ def query_mistral_ai(question):
             
             # Extract text from response
             if 'choices' in data and len(data['choices']) > 0:
-                choice = data['choices'][0]
-                if 'message' in choice and 'content' in choice['message']:
-                    raw_response = choice['message']['content']
-                    
-                    return {
-                        'success': True,
-                        'system': 'Mistral',
-                        'model': 'Mistral-Large-2',
-                        'raw_response': raw_response,
-                        'response_time': response_time
-                    }
+                raw_response = data['choices'][0].get('message', {}).get('content', '')
+                
+                return {
+                    'success': True,
+                    'system': 'Mistral',
+                    'model': 'Large-2',
+                    'raw_response': raw_response,
+                    'response_time': response_time
+                }
             
             return {
                 'success': False,
-                'error': 'Unexpected response format',
+                'error': 'Unexpected response format from Mistral API',
                 'system': 'Mistral',
-                'model': 'Mistral-Large-2'
+                'model': 'Large-2'
             }
         else:
             try:
@@ -461,7 +470,7 @@ def query_mistral_ai(question):
                 'success': False,
                 'error': error_msg,
                 'system': 'Mistral',
-                'model': 'Mistral-Large-2'
+                'model': 'Large-2'
             }
         
     except requests.exceptions.Timeout:
@@ -469,14 +478,14 @@ def query_mistral_ai(question):
             'success': False,
             'error': 'Request timed out after 30 seconds',
             'system': 'Mistral',
-            'model': 'Mistral-Large-2'
+            'model': 'Large-2'
         }
     except Exception as e:
         return {
             'success': False,
             'error': str(e),
             'system': 'Mistral',
-            'model': 'Mistral-Large-2'
+            'model': 'Large-2'
         }
 
 def extract_rating(text):
@@ -596,8 +605,8 @@ def query_ais():
         claude_result['extracted_rating'] = extracted_rating
     results.append(claude_result)
     
-    # Mistral AI
-    mistral_result = query_mistral_ai(question)
+    # Mistral Large
+    mistral_result = query_mistral_large(question)
     if mistral_result['success']:
         extracted_rating = extract_rating(mistral_result['raw_response'])
         db.execute('''
@@ -679,6 +688,23 @@ def get_query_details(query_id):
     db.close()
     return jsonify(result)
 
+@app.route('/reset', methods=['POST'])
+def reset_database():
+    """Reset the database by clearing all queries and responses.
+    
+    This is useful during development/testing to start fresh.
+    """
+    db = get_db()
+    db.execute('DELETE FROM responses')
+    db.execute('DELETE FROM queries')
+    db.commit()
+    db.close()
+    
+    return jsonify({
+        'success': True,
+        'message': 'Database has been reset. All queries and responses have been cleared.'
+    })
+
 @app.route('/health')
 def health_check():
     """Health check endpoint for Render"""
@@ -734,101 +760,122 @@ def debug_gemini_models():
     })
 
 @app.route('/debug/test-anthropic')
-def test_anthropic():
-    """Test Anthropic API directly and return detailed error information"""
+def debug_test_anthropic():
+    """Debug endpoint to test Anthropic Claude API configuration.
+    
+    This helps diagnose issues with the Anthropic API integration.
+    Returns detailed error information including HTTP status codes.
+    """
     if not ANTHROPIC_API_KEY:
         return jsonify({
             'status': 'error',
-            'message': 'ANTHROPIC_API_KEY not configured in environment variables',
-            'fix': 'Add ANTHROPIC_API_KEY to Render environment variables'
+            'api_key_configured': False,
+            'error_message': 'ANTHROPIC_API_KEY environment variable not set',
+            'suggestions': [
+                'Add ANTHROPIC_API_KEY to Render environment variables',
+                'Get your API key from: https://console.anthropic.com/settings/keys'
+            ]
         })
     
-    try:
-        url = "https://api.anthropic.com/v1/messages"
-        
-        headers = {
-            'Content-Type': 'application/json',
-            'x-api-key': ANTHROPIC_API_KEY,
-            'anthropic-version': '2023-06-01'
-        }
-        
-        payload = {
-            'model': 'claude-3-5-sonnet-20241022',
-            'max_tokens': 50,
-            'messages': [{
+    # Test the API with a simple request
+    url = "https://api.anthropic.com/v1/messages"
+    
+    headers = {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+    }
+    
+    # Using the updated Claude Sonnet 4 model
+    payload = {
+        'model': 'claude-sonnet-4-20250514',
+        'max_tokens': 50,
+        'messages': [
+            {
                 'role': 'user',
-                'content': 'Say hello in 3 words'
-            }]
-        }
-        
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
+                'content': 'Say "Hello, this is a test" and nothing else.'
+            }
+        ]
+    }
+    
+    try:
+        response = requests.post(
+            url,
+            headers=headers,
+            json=payload,
+            timeout=15
+        )
         
         if response.status_code == 200:
             data = response.json()
             return jsonify({
                 'status': 'success',
-                'message': 'Anthropic API is working!',
-                'model': 'claude-3-5-sonnet-20241022',
-                'response': data.get('content', [{}])[0].get('text', ''),
-                'usage': data.get('usage', {})
+                'api_key_configured': True,
+                'api_key_prefix': ANTHROPIC_API_KEY[:20] + '...',
+                'model_tested': 'claude-sonnet-4-20250514',
+                'http_status': 200,
+                'response_preview': data.get('content', [{}])[0].get('text', '')[:100]
             })
         else:
-            # Get error details
             try:
                 error_data = response.json()
-                error_message = error_data.get('error', {}).get('message', 'Unknown error')
-                error_type = error_data.get('error', {}).get('type', 'Unknown')
+                error_type = error_data.get('error', {}).get('type', 'unknown')
+                error_msg = error_data.get('error', {}).get('message', 'No message')
             except:
-                error_message = response.text[:500]
-                error_type = 'Parse error'
+                error_type = 'unknown'
+                error_msg = response.text[:200]
             
-            # Provide helpful suggestions
             suggestions = []
             if response.status_code == 401:
                 suggestions = [
-                    'API key is invalid or not properly formatted',
-                    'Check your key starts with: sk-ant-api03-',
-                    'Verify key at: https://console.anthropic.com/settings/keys'
+                    'Invalid API key',
+                    'Check that the key is correctly copied',
+                    'Regenerate key at: https://console.anthropic.com/settings/keys'
                 ]
             elif response.status_code == 403:
                 suggestions = [
-                    'Billing is not set up',
-                    'Add payment method at: https://console.anthropic.com/settings/billing',
-                    'Check spending limits at: https://console.anthropic.com/settings/limits'
+                    'API key lacks permissions or billing issue',
+                    'Check billing at: https://console.anthropic.com/settings/billing',
+                    'Check limits at: https://console.anthropic.com/settings/limits'
                 ]
             elif response.status_code == 404:
                 suggestions = [
                     'Model name is incorrect',
-                    'Try: claude-3-5-sonnet-20240620',
+                    'Try: claude-sonnet-4-20250514',
                     'Check available models at: https://docs.anthropic.com/en/docs/about-claude/models'
                 ]
             elif response.status_code == 429:
                 suggestions = [
                     'Rate limit exceeded',
-                    'Wait a few seconds and try again'
+                    'Wait a few minutes and try again',
+                    'Check your usage limits'
                 ]
             
             return jsonify({
                 'status': 'error',
+                'api_key_configured': True,
+                'api_key_prefix': ANTHROPIC_API_KEY[:20] + '...',
                 'http_status': response.status_code,
                 'error_type': error_type,
-                'error_message': error_message,
-                'suggestions': suggestions,
-                'api_key_configured': True,
-                'api_key_prefix': ANTHROPIC_API_KEY[:20] + '...' if len(ANTHROPIC_API_KEY) > 20 else 'TOO SHORT'
+                'error_message': error_msg,
+                'suggestions': suggestions
             })
             
     except requests.exceptions.Timeout:
         return jsonify({
             'status': 'error',
-            'message': 'Request timed out after 30 seconds',
-            'suggestions': ['Check internet connectivity', 'Anthropic API might be down']
+            'api_key_configured': True,
+            'error_type': 'timeout',
+            'error_message': 'Request timed out after 15 seconds',
+            'suggestions': ['Try again - API might be temporarily slow']
         })
     except Exception as e:
         return jsonify({
             'status': 'error',
-            'message': f'Unexpected error: {str(e)}',
-            'error_type': type(e).__name__
+            'api_key_configured': True,
+            'error_type': 'exception',
+            'error_message': str(e),
+            'suggestions': ['Check network connectivity', 'Try again']
         })
 
 if __name__ == '__main__':
