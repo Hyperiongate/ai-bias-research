@@ -16,7 +16,8 @@ FIXES:
                       and returning 404 not_found_error
 - December 15, 2024: ADDED DEEPSEEK! Integrated DeepSeek AI from China (deepseek-chat model)
                       using OpenAI-compatible API format. Adds geographic diversity to research.
-                      Now have 6 AI systems: 4 US, 1 French, 1 Chinese
+- December 15, 2024: ADDED COHERE! Integrated Cohere Command R+ from Canada.
+                      Now have 7 AI systems: 4 US, 1 French, 1 Chinese, 1 Canadian
 
 This application queries multiple AI systems with the same question to detect bias patterns.
 Designed for research purposes to cross-validate AI responses.
@@ -24,13 +25,14 @@ Designed for research purposes to cross-validate AI responses.
 Author: Jim (Hyperiongate)
 Purpose: Discover if there's "any there there" in AI bias detection
 
-AI SYSTEMS INTEGRATED (6 total):
+AI SYSTEMS INTEGRATED (7 total):
 - OpenAI GPT-4 (USA)
 - OpenAI GPT-3.5-Turbo (USA)
 - Google Gemini-2.0-Flash (USA)
 - Anthropic Claude-Sonnet-4 (USA)
 - Mistral Large-2 (France)
-- DeepSeek Chat (China) - NEW!
+- DeepSeek Chat (China)
+- Cohere Command R+ (Canada) - NEW!
 """
 
 from flask import Flask, render_template, request, jsonify
@@ -51,6 +53,7 @@ GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
 MISTRAL_API_KEY = os.environ.get('MISTRAL_API_KEY')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
+COHERE_API_KEY = os.environ.get('COHERE_API_KEY')
 
 # Initialize OpenAI client
 openai_client = None
@@ -560,6 +563,117 @@ def query_deepseek_chat(question):
             'model': 'Chat-V3'
         }
 
+def query_cohere_command(question):
+    """Query Cohere Command R+ with system prompt for structured responses.
+    
+    Uses Cohere Command R+ via REST API.
+    Provides Canadian AI perspective on responses.
+    
+    Cohere is a Canadian AI company focused on enterprise NLP.
+    Command R+ is their flagship model optimized for RAG and tool use.
+    
+    API Endpoint: https://api.cohere.com/v2/chat
+    Model: command-r-plus
+    
+    Added December 15, 2024 for geographic diversity in bias research.
+    """
+    if not COHERE_API_KEY:
+        return {
+            'success': False,
+            'error': 'Cohere API key not configured',
+            'system': 'Cohere',
+            'model': 'Command-R+'
+        }
+    
+    try:
+        start_time = time.time()
+        
+        url = "https://api.cohere.com/v2/chat"
+        
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {COHERE_API_KEY}'
+        }
+        
+        # Cohere v2 API uses a different format
+        payload = {
+            'model': 'command-r-plus',
+            'messages': [
+                {
+                    'role': 'system',
+                    'content': RATING_SYSTEM_PROMPT
+                },
+                {
+                    'role': 'user',
+                    'content': question
+                }
+            ],
+            'temperature': 0.7,
+            'max_tokens': 500
+        }
+        
+        response = requests.post(
+            url,
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            response_time = time.time() - start_time
+            data = response.json()
+            
+            # Cohere v2 returns message.content array
+            if 'message' in data and 'content' in data['message']:
+                content = data['message']['content']
+                if isinstance(content, list) and len(content) > 0:
+                    raw_response = content[0].get('text', '')
+                else:
+                    raw_response = str(content)
+                
+                return {
+                    'success': True,
+                    'system': 'Cohere',
+                    'model': 'Command-R+',
+                    'raw_response': raw_response,
+                    'response_time': response_time
+                }
+            
+            return {
+                'success': False,
+                'error': 'Unexpected response format from Cohere API',
+                'system': 'Cohere',
+                'model': 'Command-R+'
+            }
+        else:
+            try:
+                error_data = response.json()
+                error_msg = error_data.get('message', f"HTTP {response.status_code}")
+            except:
+                error_msg = f"HTTP {response.status_code}: {response.text[:200]}"
+            
+            return {
+                'success': False,
+                'error': error_msg,
+                'system': 'Cohere',
+                'model': 'Command-R+'
+            }
+        
+    except requests.exceptions.Timeout:
+        return {
+            'success': False,
+            'error': 'Request timed out after 30 seconds',
+            'system': 'Cohere',
+            'model': 'Command-R+'
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e),
+            'system': 'Cohere',
+            'model': 'Command-R+'
+        }
+
 def extract_rating(text):
     """
     Extract numerical rating from the response.
@@ -703,6 +817,19 @@ def query_ais():
         deepseek_result['extracted_rating'] = extracted_rating
     results.append(deepseek_result)
     
+    # Cohere Command R+ (Canada)
+    cohere_result = query_cohere_command(question)
+    if cohere_result['success']:
+        extracted_rating = extract_rating(cohere_result['raw_response'])
+        db.execute('''
+            INSERT INTO responses 
+            (query_id, ai_system, model, raw_response, extracted_rating, response_time)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (query_id, cohere_result['system'], cohere_result['model'], 
+              cohere_result['raw_response'], extracted_rating, cohere_result['response_time']))
+        cohere_result['extracted_rating'] = extracted_rating
+    results.append(cohere_result)
+    
     db.commit()
     db.close()
     
@@ -799,7 +926,8 @@ def health_check():
         'google_configured': GOOGLE_API_KEY is not None,
         'anthropic_configured': ANTHROPIC_API_KEY is not None,
         'mistral_configured': MISTRAL_API_KEY is not None,
-        'deepseek_configured': DEEPSEEK_API_KEY is not None
+        'deepseek_configured': DEEPSEEK_API_KEY is not None,
+        'cohere_configured': COHERE_API_KEY is not None
     })
 
 @app.route('/debug/gemini-models')
@@ -1044,6 +1172,123 @@ def debug_test_deepseek():
             'api_key_prefix': DEEPSEEK_API_KEY[:15] + '...',
             'error_message': error_str,
             'suggestions': suggestions
+        })
+
+@app.route('/debug/test-cohere')
+def debug_test_cohere():
+    """Debug endpoint to test Cohere API configuration.
+    
+    This helps diagnose issues with the Cohere API integration.
+    Returns detailed error information.
+    """
+    if not COHERE_API_KEY:
+        return jsonify({
+            'status': 'error',
+            'api_key_configured': False,
+            'error_message': 'COHERE_API_KEY environment variable not set',
+            'suggestions': [
+                'Add COHERE_API_KEY to Render environment variables',
+                'Get your API key from: https://dashboard.cohere.com/api-keys'
+            ]
+        })
+    
+    try:
+        start_time = time.time()
+        
+        url = "https://api.cohere.com/v2/chat"
+        
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {COHERE_API_KEY}'
+        }
+        
+        payload = {
+            'model': 'command-r-plus',
+            'messages': [
+                {
+                    'role': 'user',
+                    'content': "Say 'Hello, this is a test' and nothing else."
+                }
+            ],
+            'max_tokens': 50
+        }
+        
+        response = requests.post(
+            url,
+            headers=headers,
+            json=payload,
+            timeout=15
+        )
+        
+        response_time = time.time() - start_time
+        
+        if response.status_code == 200:
+            data = response.json()
+            # Extract response text from Cohere v2 format
+            response_text = ''
+            if 'message' in data and 'content' in data['message']:
+                content = data['message']['content']
+                if isinstance(content, list) and len(content) > 0:
+                    response_text = content[0].get('text', '')[:100]
+            
+            return jsonify({
+                'status': 'success',
+                'api_key_configured': True,
+                'api_key_prefix': COHERE_API_KEY[:15] + '...',
+                'model_tested': 'command-r-plus',
+                'response_time': round(response_time, 2),
+                'response_preview': response_text
+            })
+        else:
+            try:
+                error_data = response.json()
+                error_msg = error_data.get('message', f"HTTP {response.status_code}")
+            except:
+                error_msg = f"HTTP {response.status_code}: {response.text[:200]}"
+            
+            suggestions = []
+            if response.status_code == 401:
+                suggestions = [
+                    'Invalid API key',
+                    'Check that the key is correctly copied',
+                    'Regenerate key at: https://dashboard.cohere.com/api-keys'
+                ]
+            elif response.status_code == 429:
+                suggestions = [
+                    'Rate limit exceeded (free tier: 1000 calls/month)',
+                    'Wait and try again',
+                    'Consider upgrading your Cohere plan'
+                ]
+            else:
+                suggestions = [
+                    'Check API key is valid',
+                    'Visit https://dashboard.cohere.com for account status'
+                ]
+            
+            return jsonify({
+                'status': 'error',
+                'api_key_configured': True,
+                'api_key_prefix': COHERE_API_KEY[:15] + '...',
+                'http_status': response.status_code,
+                'error_message': error_msg,
+                'suggestions': suggestions
+            })
+        
+    except requests.exceptions.Timeout:
+        return jsonify({
+            'status': 'error',
+            'api_key_configured': True,
+            'error_type': 'timeout',
+            'error_message': 'Request timed out after 15 seconds',
+            'suggestions': ['Try again - API might be temporarily slow']
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'api_key_configured': True,
+            'error_type': 'exception',
+            'error_message': str(e),
+            'suggestions': ['Check network connectivity', 'Try again']
         })
 
 if __name__ == '__main__':
