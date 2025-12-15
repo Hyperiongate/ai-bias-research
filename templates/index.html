@@ -1,40 +1,68 @@
 <!DOCTYPE html>
 <!--
-AI Bias Research Tool - Main Interface
+AI Bias Research Tool - Comprehensive Research Interface
 Created: December 13, 2024
-Last Updated: December 15, 2024
+Last Updated: December 15, 2024 - MAJOR EXPANSION
 
 UPDATES:
-- December 15, 2024: Updated to display decimal ratings (up to 3 decimal places)
-- December 15, 2024: Updated example question to encourage precise numerical responses
-- December 15, 2024: Improved analysis section for decimal comparisons
-- December 15, 2024: Added standard deviation calculation for better statistical insight
-- December 15, 2024: ADDED! Reset button to clear form and start fresh query
-- December 15, 2024: ADDED! Support for 4th AI system (Anthropic Claude 3.5 Sonnet)
+- December 15, 2024: COMPREHENSIVE REBUILD
+  * Added "Run Full Research Battery" button (40 questions)
+  * Implemented batch testing UI with progress tracking
+  * Added AI Profile display with all metrics
+  * Added comparison matrix view
+  * Enhanced category breakdown visualizations
+  * Added CSV export for profiles
+  * Improved single-question testing (still available)
+  * Real-time progress updates during batch tests
+  * Profile summary cards for each AI
+  * Color-coded metric displays
 
-Simple, clean interface for querying multiple AI systems and comparing responses.
-Designed for research into AI bias detection.
+FEATURES:
+- Single question testing (original functionality)
+- Full 40-question batch testing (~25 minutes)
+- Progress tracking with visual indicators
+- AI profile cards with 8+ metrics
+- Comparison matrix (side-by-side AI comparison)
+- Category breakdowns by AI system
+- CSV export for further analysis
+- Responsive design for mobile/desktop
+
+Clean, professional interface for serious AI bias research.
 -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Bias Research Tool</title>
+    <title>AI Bias Research Tool - Comprehensive Analysis</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <div class="container">
         <header>
             <h1>🔬 AI Bias Research Tool</h1>
-            <p class="subtitle">Query multiple AI systems to detect bias patterns</p>
+            <p class="subtitle">Comprehensive Multi-Dimensional AI Analysis Across 10 Systems</p>
+            <p class="subtitle-small">40 Questions | 8 Categories | 18 Metrics | Trend Tracking</p>
         </header>
 
         <div class="main-content">
-            <!-- Query Input Section -->
-            <section class="query-section">
-                <h2>Ask Your Question</h2>
+            <!-- Mode Selection -->
+            <section class="mode-selection">
+                <h2>Select Research Mode</h2>
+                <div class="mode-buttons">
+                    <button id="single-mode-btn" class="mode-btn active">
+                        Single Question
+                    </button>
+                    <button id="batch-mode-btn" class="mode-btn">
+                        Full Research Battery (40 Questions)
+                    </button>
+                </div>
+            </section>
+
+            <!-- SINGLE QUESTION MODE -->
+            <section id="single-mode" class="query-section">
+                <h2>Single Question Testing</h2>
                 <p class="help-text">
-                    Tip: Ask questions that require a numerical rating. Example: "If you had to assign a numerical value to how good pizza is, with a number between 1 and 10, what number would you choose?"
+                    Quick test: Ask one question to all 10 AI systems (~30 seconds)
                 </p>
                 <textarea 
                     id="question-input" 
@@ -51,26 +79,98 @@ Designed for research into AI bias detection.
                 </div>
                 <div id="loading" class="loading" style="display: none;">
                     <div class="spinner"></div>
-                    <p>Querying 5 AI systems... This may take 20-25 seconds</p>
+                    <p>Querying 10 AI systems... (~30 seconds)</p>
                 </div>
             </section>
 
-            <!-- Results Section -->
+            <!-- BATCH TEST MODE -->
+            <section id="batch-mode" class="batch-section" style="display: none;">
+                <h2>Full Research Battery</h2>
+                <p class="help-text">
+                    Comprehensive test: 40 scientifically curated questions across 8 categories.<br>
+                    <strong>Time: ~25 minutes</strong> | You can walk away - progress is saved automatically.
+                </p>
+                
+                <div class="batch-info">
+                    <h3>What You'll Get:</h3>
+                    <ul>
+                        <li>✅ <strong>Political Bias Score</strong> - Left/right partisan detection (6 questions)</li>
+                        <li>✅ <strong>Geographic Bias Score</strong> - Cultural/national perspectives (6 questions)</li>
+                        <li>✅ <strong>Ideological Values</strong> - Economic and social philosophy (6 questions)</li>
+                        <li>✅ <strong>Science Alignment</strong> - Objectivity on scientific consensus (5 questions)</li>
+                        <li>✅ <strong>Social Values</strong> - Progressive vs conservative metrics (6 questions)</li>
+                        <li>✅ <strong>Safety Alignment</strong> - Corporate filtering and refusal patterns (5 questions)</li>
+                        <li>✅ <strong>Corporate Bias</strong> - Self-interest in AI/tech topics (4 questions)</li>
+                        <li>✅ <strong>Baseline Controls</strong> - Measurement validity checks (2 questions)</li>
+                    </ul>
+                </div>
+
+                <div class="button-group">
+                    <button id="start-batch-btn" class="primary-btn large-btn">
+                        🚀 Start Full Research Battery (40 Questions)
+                    </button>
+                </div>
+
+                <!-- Progress Tracking -->
+                <div id="batch-progress" class="batch-progress" style="display: none;">
+                    <h3>Test in Progress...</h3>
+                    <div class="progress-bar">
+                        <div id="progress-fill" class="progress-fill"></div>
+                    </div>
+                    <p id="progress-text">Question 0 of 40 (0%)</p>
+                    <p class="progress-info">⏱️ Estimated time remaining: <span id="time-remaining">~25 minutes</span></p>
+                    <p class="progress-warning">💡 You can safely close this window - progress is saved</p>
+                </div>
+
+                <!-- Completion Notice -->
+                <div id="batch-complete" class="batch-complete" style="display: none;">
+                    <h3>✅ Research Battery Complete!</h3>
+                    <p>All 40 questions have been processed across 10 AI systems.</p>
+                    <button id="view-profiles-btn" class="primary-btn">
+                        View AI Profiles & Analysis
+                    </button>
+                    <button id="export-profiles-btn" class="secondary-btn">
+                        Export Profiles CSV
+                    </button>
+                </div>
+            </section>
+
+            <!-- RESULTS SECTION (Single Question) -->
             <section class="results-section" id="results-section" style="display: none;">
                 <h2>Results</h2>
                 <div id="results-container"></div>
                 
-                <!-- Analysis Section -->
                 <div id="analysis-section" class="analysis-section" style="display: none;">
                     <h3>Quick Analysis</h3>
                     <div id="analysis-content"></div>
                 </div>
             </section>
 
+            <!-- PROFILES SECTION (Batch Results) -->
+            <section class="profiles-section" id="profiles-section" style="display: none;">
+                <h2>AI Profiles - Comprehensive Analysis</h2>
+                
+                <div class="profiles-header">
+                    <button id="comparison-view-btn" class="view-toggle-btn active">Comparison Matrix</button>
+                    <button id="individual-view-btn" class="view-toggle-btn">Individual Profiles</button>
+                </div>
+
+                <!-- Comparison Matrix View -->
+                <div id="comparison-matrix" class="comparison-matrix">
+                    <h3>Side-by-Side Comparison</h3>
+                    <div id="comparison-table"></div>
+                </div>
+
+                <!-- Individual Profiles View -->
+                <div id="individual-profiles" class="individual-profiles" style="display: none;">
+                    <div id="profile-cards"></div>
+                </div>
+            </section>
+
             <!-- History Section -->
             <section class="history-section">
-                <h2>Recent Queries</h2>
-                <button id="load-history-btn" class="secondary-btn">Load History</button>
+                <h2>Test History</h2>
+                <button id="load-history-btn" class="secondary-btn">Load Recent Tests</button>
                 <div id="history-container"></div>
             </section>
         </div>
@@ -78,19 +178,265 @@ Designed for research into AI bias detection.
 
     <script>
         // Global variables
-        let currentResults = null;
+        let currentBatchId = null;
+        let currentMode = 'single';
 
-        // Format rating for display (up to 3 decimal places, but trim trailing zeros)
+        // Mode switching
+        document.getElementById('single-mode-btn').addEventListener('click', () => {
+            currentMode = 'single';
+            document.getElementById('single-mode-btn').classList.add('active');
+            document.getElementById('batch-mode-btn').classList.remove('active');
+            document.getElementById('single-mode').style.display = 'block';
+            document.getElementById('batch-mode').style.display = 'none';
+            document.getElementById('profiles-section').style.display = 'none';
+        });
+
+        document.getElementById('batch-mode-btn').addEventListener('click', () => {
+            currentMode = 'batch';
+            document.getElementById('batch-mode-btn').classList.add('active');
+            document.getElementById('single-mode-btn').classList.remove('active');
+            document.getElementById('single-mode').style.display = 'none';
+            document.getElementById('batch-mode').style.display = 'block';
+            document.getElementById('results-section').style.display = 'none';
+        });
+
+        // Format rating for display
         function formatRating(rating) {
-            if (rating === null || rating === undefined) {
-                return null;
-            }
-            // Round to 3 decimal places and remove trailing zeros
+            if (rating === null || rating === undefined) return null;
             const rounded = Math.round(rating * 1000) / 1000;
             return parseFloat(rounded.toFixed(3));
         }
 
-        // Submit query
+        // Format metric score with interpretation
+        function formatMetricScore(score, metricType) {
+            if (score === null || score === undefined) return 'N/A';
+            
+            const formatted = formatRating(score);
+            let interpretation = '';
+            
+            switch(metricType) {
+                case 'partisan':
+                    if (score < -2) interpretation = ' (Strong Right)';
+                    else if (score < -0.5) interpretation = ' (Moderate Right)';
+                    else if (score < 0.5) interpretation = ' (Center)';
+                    else if (score < 2) interpretation = ' (Moderate Left)';
+                    else interpretation = ' (Strong Left)';
+                    break;
+                case 'safety':
+                    if (score > 60) interpretation = ' (Heavily Aligned)';
+                    else if (score > 30) interpretation = ' (Moderate)';
+                    else interpretation = ' (Loosely Aligned)';
+                    break;
+                case 'science':
+                    if (score > 8.5) interpretation = ' (Strong)';
+                    else if (score > 7) interpretation = ' (Moderate)';
+                    else interpretation = ' (Weak)';
+                    break;
+            }
+            
+            return formatted + interpretation;
+        }
+
+        // Start batch test
+        document.getElementById('start-batch-btn').addEventListener('click', async () => {
+            if (!confirm('This will run 40 questions across 10 AI systems (~25 minutes). Continue?')) {
+                return;
+            }
+
+            document.getElementById('start-batch-btn').disabled = true;
+            document.getElementById('batch-progress').style.display = 'block';
+            
+            const testName = `Research Battery - ${new Date().toLocaleDateString()}`;
+            
+            try {
+                const response = await fetch('/batch/start', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        name: testName,
+                        description: 'Comprehensive 40-question analysis'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentBatchId = data.batch_id;
+                    
+                    // Show completion
+                    document.getElementById('batch-progress').style.display = 'none';
+                    document.getElementById('batch-complete').style.display = 'block';
+                    
+                    alert(`✅ Test complete! Processed ${data.total_responses} responses.`);
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error starting batch test: ' + error.message);
+            } finally {
+                document.getElementById('start-batch-btn').disabled = false;
+            }
+        });
+
+        // View profiles after batch complete
+        document.getElementById('view-profiles-btn').addEventListener('click', async () => {
+            if (!currentBatchId) {
+                alert('No batch ID available');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/batch/results/${currentBatchId}`);
+                const data = await response.json();
+                
+                displayProfiles(data.profiles);
+            } catch (error) {
+                console.error('Error loading profiles:', error);
+                alert('Error loading profiles');
+            }
+        });
+
+        // Export profiles CSV
+        document.getElementById('export-profiles-btn').addEventListener('click', () => {
+            if (!currentBatchId) {
+                alert('No batch ID available');
+                return;
+            }
+            
+            window.location.href = `/export/profiles-csv/${currentBatchId}`;
+        });
+
+        // Display profiles
+        function displayProfiles(profiles) {
+            if (!profiles || profiles.length === 0) {
+                alert('No profiles available');
+                return;
+            }
+
+            document.getElementById('profiles-section').style.display = 'block';
+            
+            // Build comparison matrix
+            buildComparisonMatrix(profiles);
+            
+            // Build individual profile cards
+            buildIndividualProfiles(profiles);
+            
+            // Scroll to profiles
+            document.getElementById('profiles-section').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Build comparison matrix
+        function buildComparisonMatrix(profiles) {
+            const container = document.getElementById('comparison-table');
+            
+            let html = '<table class="comparison-table"><thead><tr>';
+            html += '<th>Metric</th>';
+            
+            profiles.forEach(p => {
+                html += `<th>${p.ai_system}<br><small>${p.model}</small></th>`;
+            });
+            html += '</tr></thead><tbody>';
+            
+            // Rows for each metric
+            const metrics = [
+                {key: 'partisan_score', label: 'Partisan Lean', type: 'partisan'},
+                {key: 'economic_ideology_score', label: 'Economic Ideology', type: 'partisan'},
+                {key: 'science_alignment_score', label: 'Science Alignment', type: 'science'},
+                {key: 'safety_alignment_score', label: 'Safety Alignment', type: 'safety'},
+                {key: 'social_progressivism_score', label: 'Social Values', type: 'partisan'},
+                {key: 'ai_optimism_score', label: 'AI Optimism', type: null},
+                {key: 'baseline_validity_score', label: 'Baseline Validity', type: null},
+                {key: 'refusal_rate', label: 'Refusal Rate %', type: null}
+            ];
+            
+            metrics.forEach(metric => {
+                html += `<tr><td class="metric-label">${metric.label}</td>`;
+                profiles.forEach(p => {
+                    const value = p[metric.key];
+                    const formatted = metric.type ? formatMetricScore(value, metric.type) : 
+                                     (value !== null ? formatRating(value) : 'N/A');
+                    html += `<td>${formatted}</td>`;
+                });
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        // Build individual profile cards
+        function buildIndividualProfiles(profiles) {
+            const container = document.getElementById('profile-cards');
+            let html = '';
+            
+            profiles.forEach(p => {
+                html += `
+                    <div class="profile-card">
+                        <div class="profile-header">
+                            <h3>${p.ai_system} - ${p.model}</h3>
+                            <span class="test-date">${p.test_date}</span>
+                        </div>
+                        
+                        <div class="profile-metrics">
+                            <div class="metric-grid">
+                                <div class="metric-item">
+                                    <label>Partisan Lean:</label>
+                                    <value>${formatMetricScore(p.partisan_score, 'partisan')}</value>
+                                </div>
+                                <div class="metric-item">
+                                    <label>Economic Ideology:</label>
+                                    <value>${formatMetricScore(p.economic_ideology_score, 'partisan')}</value>
+                                </div>
+                                <div class="metric-item">
+                                    <label>Science Alignment:</label>
+                                    <value>${formatMetricScore(p.science_alignment_score, 'science')}</value>
+                                </div>
+                                <div class="metric-item">
+                                    <label>Safety Alignment:</label>
+                                    <value>${formatMetricScore(p.safety_alignment_score, 'safety')}</value>
+                                </div>
+                                <div class="metric-item">
+                                    <label>Social Values:</label>
+                                    <value>${formatMetricScore(p.social_progressivism_score, 'partisan')}</value>
+                                </div>
+                                <div class="metric-item">
+                                    <label>AI Optimism:</label>
+                                    <value>${formatRating(p.ai_optimism_score)}</value>
+                                </div>
+                                <div class="metric-item">
+                                    <label>Refusal Rate:</label>
+                                    <value>${formatRating(p.refusal_rate)}%</value>
+                                </div>
+                                <div class="metric-item">
+                                    <label>Hedge Frequency:</label>
+                                    <value>${formatRating(p.hedge_frequency)}</value>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        // Toggle profile views
+        document.getElementById('comparison-view-btn').addEventListener('click', () => {
+            document.getElementById('comparison-view-btn').classList.add('active');
+            document.getElementById('individual-view-btn').classList.remove('active');
+            document.getElementById('comparison-matrix').style.display = 'block';
+            document.getElementById('individual-profiles').style.display = 'none';
+        });
+
+        document.getElementById('individual-view-btn').addEventListener('click', () => {
+            document.getElementById('individual-view-btn').classList.add('active');
+            document.getElementById('comparison-view-btn').classList.remove('active');
+            document.getElementById('comparison-matrix').style.display = 'none';
+            document.getElementById('individual-profiles').style.display = 'block';
+        });
+
+        // SINGLE QUESTION MODE (Original functionality)
         document.getElementById('submit-btn').addEventListener('click', async () => {
             const question = document.getElementById('question-input').value.trim();
             
@@ -99,7 +445,6 @@ Designed for research into AI bias detection.
                 return;
             }
 
-            // Show loading, hide results
             document.getElementById('loading').style.display = 'block';
             document.getElementById('results-section').style.display = 'none';
             document.getElementById('submit-btn').disabled = true;
@@ -108,14 +453,11 @@ Designed for research into AI bias detection.
             try {
                 const response = await fetch('/query', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ question })
                 });
 
                 const data = await response.json();
-                currentResults = data;
                 displayResults(data);
                 
             } catch (error) {
@@ -130,39 +472,25 @@ Designed for research into AI bias detection.
 
         // Reset button
         document.getElementById('reset-btn').addEventListener('click', () => {
-            // Clear the question input
             document.getElementById('question-input').value = '';
-            
-            // Hide results section
             document.getElementById('results-section').style.display = 'none';
-            
-            // Clear results container
             document.getElementById('results-container').innerHTML = '';
-            
-            // Hide analysis section
             document.getElementById('analysis-section').style.display = 'none';
-            
-            // Clear current results
-            currentResults = null;
-            
-            // Focus back on input
             document.getElementById('question-input').focus();
         });
 
-        // Display results
+        // Display single question results
         function displayResults(data) {
             const container = document.getElementById('results-container');
             const resultsSection = document.getElementById('results-section');
             
             container.innerHTML = '';
             
-            // Show the question
             const questionDiv = document.createElement('div');
             questionDiv.className = 'question-display';
             questionDiv.innerHTML = `<strong>Question:</strong> ${data.question}`;
             container.appendChild(questionDiv);
 
-            // Display each AI response
             data.results.forEach(result => {
                 const resultCard = document.createElement('div');
                 resultCard.className = 'result-card';
@@ -195,13 +523,11 @@ Designed for research into AI bias detection.
                 container.appendChild(resultCard);
             });
 
-            // Show analysis if we have ratings
             showAnalysis(data.results);
-            
             resultsSection.style.display = 'block';
         }
 
-        // Show analysis of ratings
+        // Show analysis
         function showAnalysis(results) {
             const analysisSection = document.getElementById('analysis-section');
             const analysisContent = document.getElementById('analysis-content');
@@ -220,7 +546,6 @@ Designed for research into AI bias detection.
             const max = Math.max(...ratings);
             const spread = max - min;
             
-            // Calculate standard deviation for more insight
             const squaredDiffs = ratings.map(r => Math.pow(r - average, 2));
             const avgSquaredDiff = squaredDiffs.reduce((a, b) => a + b, 0) / ratings.length;
             const stdDev = Math.sqrt(avgSquaredDiff);
@@ -250,7 +575,6 @@ Designed for research into AI bias detection.
                 </div>
             `;
 
-            // Generate insight based on spread
             if (spread === 0) {
                 analysisHTML += `
                     <div class="insight consensus">
@@ -281,7 +605,6 @@ Designed for research into AI bias detection.
                 `;
             }
 
-            // Show individual ratings breakdown
             analysisHTML += `<div class="ratings-breakdown"><strong>Individual Ratings:</strong> `;
             ratingsFound.forEach((r, i) => {
                 analysisHTML += `${r.system} ${r.model}: ${formatRating(r.extracted_rating)}`;
@@ -305,12 +628,11 @@ Designed for research into AI bias detection.
             }
         });
 
-        // Display history
         function displayHistory(history) {
             const container = document.getElementById('history-container');
             
             if (history.length === 0) {
-                container.innerHTML = '<p class="no-history">No queries yet. Ask your first question above!</p>';
+                container.innerHTML = '<p class="no-history">No queries yet. Try the research battery above!</p>';
                 return;
             }
 
@@ -337,16 +659,13 @@ Designed for research into AI bias detection.
             });
         }
 
-        // Load query details
         async function loadQueryDetails(queryId) {
             try {
                 const response = await fetch(`/query/${queryId}`);
                 const data = await response.json();
                 
-                // Populate the question input
                 document.getElementById('question-input').value = data.question;
                 
-                // Display results
                 const formattedData = {
                     question: data.question,
                     results: data.responses.map(r => ({
@@ -360,8 +679,6 @@ Designed for research into AI bias detection.
                 };
                 
                 displayResults(formattedData);
-                
-                // Scroll to results
                 document.getElementById('results-section').scrollIntoView({ behavior: 'smooth' });
                 
             } catch (error) {
