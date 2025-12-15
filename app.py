@@ -16,13 +16,12 @@ FIXES:
 - December 15, 2024: ADDED DEEPSEEK! Integrated DeepSeek AI from China (deepseek-chat model)
 - December 15, 2024: ADDED COHERE! Integrated Cohere Command R+ from Canada
 - December 15, 2024: ADDED LLAMA! Integrated Meta Llama 3.1 70B via Groq (open-source model)
-- December 15, 2024: ADDED QWEN! Integrated Alibaba Qwen from China (qwen-plus model)
-                      Now have 9 AI systems with 2 Chinese AIs for comparison
 - December 15, 2024: FIXED COHERE! Updated from deprecated command-r-plus to command-a-03-2025
                       (Command A - Cohere's most performant model)
 - December 15, 2024: FIXED GROQ/LLAMA! Updated from deprecated llama-3.1-70b-versatile 
                       to llama-3.3-70b-versatile (Meta Llama 3.3 with quality improvements)
-- December 15, 2024: IMPROVED QWEN ERROR HANDLING! Better error messages when API key not configured
+- December 15, 2024: REPLACED QWEN WITH AI21! Swapped Alibaba Qwen Plus for AI21 Jamba-1.5-Large
+                      (Israeli AI with 256K context, hybrid Mamba-Transformer architecture)
 
 This application queries multiple AI systems with the same question to detect bias patterns.
 Designed for research purposes to cross-validate AI responses.
@@ -39,7 +38,7 @@ AI SYSTEMS INTEGRATED (9 total):
 - DeepSeek Chat (China) - Proprietary
 - Cohere Command A (Canada) - Proprietary - UPDATED TO LATEST MODEL!
 - Meta Llama 3.3 70B via Groq (USA) - OPEN SOURCE - UPDATED TO LATEST MODEL!
-- Alibaba Qwen Plus (China) - Proprietary
+- AI21 Jamba-1.5-Large (Israel) - Proprietary - NEW! Replaces Qwen
 """
 
 from flask import Flask, render_template, request, jsonify
@@ -47,6 +46,8 @@ import os
 import sqlite3
 from datetime import datetime
 from openai import OpenAI
+from ai21 import AI21Client
+from ai21.models.chat import ChatMessage as AI21ChatMessage
 import requests
 import json
 import time
@@ -62,7 +63,7 @@ MISTRAL_API_KEY = os.environ.get('MISTRAL_API_KEY')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
 COHERE_API_KEY = os.environ.get('COHERE_API_KEY')
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
-QWEN_API_KEY = os.environ.get('QWEN_API_KEY')
+AI21_API_KEY = os.environ.get('AI21_API_KEY')
 
 # Initialize OpenAI client
 openai_client = None
@@ -85,13 +86,10 @@ if GROQ_API_KEY:
         base_url="https://api.groq.com/openai/v1"
     )
 
-# Initialize Qwen client (uses OpenAI-compatible API via DashScope)
-qwen_client = None
-if QWEN_API_KEY:
-    qwen_client = OpenAI(
-        api_key=QWEN_API_KEY,
-        base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
-    )
+# Initialize AI21 client
+ai21_client = None
+if AI21_API_KEY:
+    ai21_client = AI21Client(api_key=AI21_API_KEY)
 
 # System prompt to ensure consistent, parseable responses
 RATING_SYSTEM_PROMPT = """You are participating in a research study on AI responses. When asked to rate something on a numerical scale, you MUST follow these rules:
@@ -729,63 +727,70 @@ def query_groq_llama(question):
             'model': 'Llama-3.3-70B'
         }
 
-def query_qwen_plus(question):
-    """Query Alibaba Qwen Plus with system prompt for structured responses.
+def query_ai21_jamba(question):
+    """Query AI21 Jamba-1.5-Large with system prompt for structured responses.
     
-    Uses Qwen Plus via DashScope OpenAI-compatible API.
-    Provides second Chinese AI perspective (compare with DeepSeek).
+    Uses Jamba-1.5-Large via AI21 Python SDK.
+    Provides Israeli AI perspective on responses.
     
-    Alibaba Cloud's Qwen is one of China's leading AI models.
+    AI21 Labs' Jamba is a hybrid SSM-Transformer (Mamba-Transformer) model with:
+    - 256K context window (one of the largest available)
+    - Efficient processing of long documents
+    - Excellent instruction-following capabilities
     
-    API Endpoint: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
-    Model: qwen-plus
+    API Endpoint: https://api.ai21.com/studio/v1/chat/completions
+    Model: jamba-1.5-large
     
-    Added December 15, 2024 for additional Chinese AI perspective.
-    Improved error handling December 15, 2024 for clearer setup instructions.
+    ADDED December 15, 2024 to replace Alibaba Qwen Plus.
+    Provides Middle Eastern AI perspective (Israel) for geographic diversity.
     """
-    if not qwen_client:
+    if not ai21_client:
         return {
             'success': False,
-            'error': 'Qwen API key not configured. Get your API key from: https://dashscope.console.aliyun.com/',
-            'system': 'Alibaba',
-            'model': 'Qwen-Plus'
+            'error': 'AI21 API key not configured. Get your API key from: https://studio.ai21.com/account/api-key',
+            'system': 'AI21',
+            'model': 'Jamba-1.5-Large'
         }
     
     try:
         start_time = time.time()
-        response = qwen_client.chat.completions.create(
-            model="qwen-plus",
-            messages=[
-                {"role": "system", "content": RATING_SYSTEM_PROMPT},
-                {"role": "user", "content": question}
-            ],
-            temperature=0.7,
-            max_tokens=500
+        
+        messages = [
+            AI21ChatMessage(role="system", content=RATING_SYSTEM_PROMPT),
+            AI21ChatMessage(role="user", content=question)
+        ]
+        
+        response = ai21_client.chat.completions.create(
+            model="jamba-1.5-large",
+            messages=messages,
+            max_tokens=500,
+            temperature=0.7
         )
+        
         response_time = time.time() - start_time
         
         raw_response = response.choices[0].message.content
         
         return {
             'success': True,
-            'system': 'Alibaba',
-            'model': 'Qwen-Plus',
+            'system': 'AI21',
+            'model': 'Jamba-1.5-Large',
             'raw_response': raw_response,
             'response_time': response_time
         }
     except Exception as e:
         error_msg = str(e)
         # Add helpful context for common errors
-        if 'Incorrect API key' in error_msg or 'Invalid Authentication' in error_msg:
-            error_msg += ' - Verify your QWEN_API_KEY in Render environment variables'
+        if 'Unauthorized' in error_msg or 'Invalid API key' in error_msg:
+            error_msg += ' - Verify your AI21_API_KEY in Render environment variables'
         elif 'Model not found' in error_msg:
-            error_msg += ' - Model qwen-plus may not be available in your region'
+            error_msg += ' - Model jamba-1.5-large may not be available'
         
         return {
             'success': False,
             'error': error_msg,
-            'system': 'Alibaba',
-            'model': 'Qwen-Plus'
+            'system': 'AI21',
+            'model': 'Jamba-1.5-Large'
         }
 
 def extract_rating(text):
@@ -948,18 +953,18 @@ def query_ais():
         llama_result['extracted_rating'] = extracted_rating
     results.append(llama_result)
     
-    # Alibaba Qwen Plus (China)
-    qwen_result = query_qwen_plus(question)
-    if qwen_result['success']:
-        extracted_rating = extract_rating(qwen_result['raw_response'])
+    # AI21 Jamba-1.5-Large (Israel) - NEW!
+    jamba_result = query_ai21_jamba(question)
+    if jamba_result['success']:
+        extracted_rating = extract_rating(jamba_result['raw_response'])
         db.execute('''
             INSERT INTO responses 
             (query_id, ai_system, model, raw_response, extracted_rating, response_time)
             VALUES (?, ?, ?, ?, ?, ?)
-        ''', (query_id, qwen_result['system'], qwen_result['model'], 
-              qwen_result['raw_response'], extracted_rating, qwen_result['response_time']))
-        qwen_result['extracted_rating'] = extracted_rating
-    results.append(qwen_result)
+        ''', (query_id, jamba_result['system'], jamba_result['model'], 
+              jamba_result['raw_response'], extracted_rating, jamba_result['response_time']))
+        jamba_result['extracted_rating'] = extracted_rating
+    results.append(jamba_result)
     
     db.commit()
     db.close()
@@ -1057,44 +1062,50 @@ def health_check():
         'deepseek_configured': DEEPSEEK_API_KEY is not None,
         'cohere_configured': COHERE_API_KEY is not None,
         'groq_configured': GROQ_API_KEY is not None,
-        'qwen_configured': QWEN_API_KEY is not None
+        'ai21_configured': AI21_API_KEY is not None
     })
 
-@app.route('/debug/test-qwen')
-def debug_test_qwen():
-    """Debug endpoint to test Alibaba Qwen API configuration."""
-    if not QWEN_API_KEY:
+@app.route('/debug/test-ai21')
+def debug_test_ai21():
+    """Debug endpoint to test AI21 Jamba API configuration."""
+    if not AI21_API_KEY:
         return jsonify({
             'status': 'error',
             'api_key_configured': False,
-            'error_message': 'QWEN_API_KEY environment variable not set',
+            'error_message': 'AI21_API_KEY environment variable not set',
             'suggestions': [
-                'Add QWEN_API_KEY to Render environment variables',
-                'Get your API key from: https://dashscope.console.aliyun.com/'
+                'Add AI21_API_KEY to Render environment variables',
+                'Get your API key from: https://studio.ai21.com/account/api-key'
             ]
         })
     
-    if not qwen_client:
+    if not ai21_client:
         return jsonify({
             'status': 'error',
             'api_key_configured': True,
-            'error_message': 'Qwen client failed to initialize'
+            'error_message': 'AI21 client failed to initialize'
         })
     
     try:
         start_time = time.time()
-        response = qwen_client.chat.completions.create(
-            model="qwen-plus",
-            messages=[{"role": "user", "content": "Say 'Hello' and nothing else."}],
+        
+        messages = [
+            AI21ChatMessage(role="user", content="Say 'Hello' and nothing else.")
+        ]
+        
+        response = ai21_client.chat.completions.create(
+            model="jamba-1.5-large",
+            messages=messages,
             max_tokens=50
         )
+        
         response_time = time.time() - start_time
         
         return jsonify({
             'status': 'success',
             'api_key_configured': True,
-            'api_key_prefix': QWEN_API_KEY[:15] + '...',
-            'model_tested': 'qwen-plus',
+            'api_key_prefix': AI21_API_KEY[:15] + '...',
+            'model_tested': 'jamba-1.5-large',
             'response_time': round(response_time, 2),
             'response_preview': response.choices[0].message.content[:100]
         })
