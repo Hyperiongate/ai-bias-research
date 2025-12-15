@@ -18,6 +18,11 @@ FIXES:
 - December 15, 2024: ADDED LLAMA! Integrated Meta Llama 3.1 70B via Groq (open-source model)
 - December 15, 2024: ADDED QWEN! Integrated Alibaba Qwen from China (qwen-plus model)
                       Now have 9 AI systems with 2 Chinese AIs for comparison
+- December 15, 2024: FIXED COHERE! Updated from deprecated command-r-plus to command-a-03-2025
+                      (Command A - Cohere's most performant model)
+- December 15, 2024: FIXED GROQ/LLAMA! Updated from deprecated llama-3.1-70b-versatile 
+                      to llama-3.3-70b-versatile (Meta Llama 3.3 with quality improvements)
+- December 15, 2024: IMPROVED QWEN ERROR HANDLING! Better error messages when API key not configured
 
 This application queries multiple AI systems with the same question to detect bias patterns.
 Designed for research purposes to cross-validate AI responses.
@@ -32,9 +37,9 @@ AI SYSTEMS INTEGRATED (9 total):
 - Anthropic Claude-Sonnet-4 (USA) - Proprietary
 - Mistral Large-2 (France) - Proprietary
 - DeepSeek Chat (China) - Proprietary
-- Cohere Command R+ (Canada) - Proprietary
-- Meta Llama 3.1 70B via Groq (USA) - OPEN SOURCE
-- Alibaba Qwen Plus (China) - Proprietary - NEW!
+- Cohere Command A (Canada) - Proprietary - UPDATED TO LATEST MODEL!
+- Meta Llama 3.3 70B via Groq (USA) - OPEN SOURCE - UPDATED TO LATEST MODEL!
+- Alibaba Qwen Plus (China) - Proprietary
 """
 
 from flask import Flask, render_template, request, jsonify
@@ -566,20 +571,25 @@ def query_deepseek_chat(question):
         }
 
 def query_cohere_command(question):
-    """Query Cohere Command R+ with system prompt for structured responses.
+    """Query Cohere Command A with system prompt for structured responses.
     
-    Uses Cohere Command R+ via REST API.
+    Uses Cohere Command A (command-a-03-2025) via REST API v2.
+    This is Cohere's most performant model, replacing the deprecated Command R+.
+    
+    UPDATED December 15, 2024: Changed from deprecated 'command-r-plus' to 'command-a-03-2025'
+    Command A is Cohere's flagship model with 111B parameters, 256K context, and best performance.
+    
     Provides Canadian AI perspective on responses.
     
     API Endpoint: https://api.cohere.com/v2/chat
-    Model: command-r-plus
+    Model: command-a-03-2025
     """
     if not COHERE_API_KEY:
         return {
             'success': False,
             'error': 'Cohere API key not configured',
             'system': 'Cohere',
-            'model': 'Command-R+'
+            'model': 'Command-A'
         }
     
     try:
@@ -593,7 +603,7 @@ def query_cohere_command(question):
         }
         
         payload = {
-            'model': 'command-r-plus',
+            'model': 'command-a-03-2025',
             'messages': [
                 {
                     'role': 'system',
@@ -629,7 +639,7 @@ def query_cohere_command(question):
                 return {
                     'success': True,
                     'system': 'Cohere',
-                    'model': 'Command-R+',
+                    'model': 'Command-A',
                     'raw_response': raw_response,
                     'response_time': response_time
                 }
@@ -638,7 +648,7 @@ def query_cohere_command(question):
                 'success': False,
                 'error': 'Unexpected response format from Cohere API',
                 'system': 'Cohere',
-                'model': 'Command-R+'
+                'model': 'Command-A'
             }
         else:
             try:
@@ -651,7 +661,7 @@ def query_cohere_command(question):
                 'success': False,
                 'error': error_msg,
                 'system': 'Cohere',
-                'model': 'Command-R+'
+                'model': 'Command-A'
             }
         
     except requests.exceptions.Timeout:
@@ -659,37 +669,40 @@ def query_cohere_command(question):
             'success': False,
             'error': 'Request timed out after 30 seconds',
             'system': 'Cohere',
-            'model': 'Command-R+'
+            'model': 'Command-A'
         }
     except Exception as e:
         return {
             'success': False,
             'error': str(e),
             'system': 'Cohere',
-            'model': 'Command-R+'
+            'model': 'Command-A'
         }
 
 def query_groq_llama(question):
-    """Query Meta Llama 3.1 70B via Groq with system prompt for structured responses.
+    """Query Meta Llama 3.3 70B via Groq with system prompt for structured responses.
     
-    Uses Llama 3.1 70B via Groq's ultra-fast LPU inference.
+    Uses Llama 3.3 70B (llama-3.3-70b-versatile) via Groq's ultra-fast LPU inference.
     This is an OPEN SOURCE model, unlike all other proprietary models.
     
+    UPDATED December 15, 2024: Changed from deprecated 'llama-3.1-70b-versatile' 
+    to 'llama-3.3-70b-versatile' with significant quality improvements.
+    
     API Endpoint: https://api.groq.com/openai/v1
-    Model: llama-3.1-70b-versatile
+    Model: llama-3.3-70b-versatile
     """
     if not groq_client:
         return {
             'success': False,
             'error': 'Groq API key not configured',
             'system': 'Meta',
-            'model': 'Llama-3.1-70B'
+            'model': 'Llama-3.3-70B'
         }
     
     try:
         start_time = time.time()
         response = groq_client.chat.completions.create(
-            model="llama-3.1-70b-versatile",
+            model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": RATING_SYSTEM_PROMPT},
                 {"role": "user", "content": question}
@@ -704,7 +717,7 @@ def query_groq_llama(question):
         return {
             'success': True,
             'system': 'Meta (via Groq)',
-            'model': 'Llama-3.1-70B',
+            'model': 'Llama-3.3-70B',
             'raw_response': raw_response,
             'response_time': response_time
         }
@@ -713,7 +726,7 @@ def query_groq_llama(question):
             'success': False,
             'error': str(e),
             'system': 'Meta (via Groq)',
-            'model': 'Llama-3.1-70B'
+            'model': 'Llama-3.3-70B'
         }
 
 def query_qwen_plus(question):
@@ -728,11 +741,12 @@ def query_qwen_plus(question):
     Model: qwen-plus
     
     Added December 15, 2024 for additional Chinese AI perspective.
+    Improved error handling December 15, 2024 for clearer setup instructions.
     """
     if not qwen_client:
         return {
             'success': False,
-            'error': 'Qwen API key not configured',
+            'error': 'Qwen API key not configured. Get your API key from: https://dashscope.console.aliyun.com/',
             'system': 'Alibaba',
             'model': 'Qwen-Plus'
         }
@@ -760,9 +774,16 @@ def query_qwen_plus(question):
             'response_time': response_time
         }
     except Exception as e:
+        error_msg = str(e)
+        # Add helpful context for common errors
+        if 'Incorrect API key' in error_msg or 'Invalid Authentication' in error_msg:
+            error_msg += ' - Verify your QWEN_API_KEY in Render environment variables'
+        elif 'Model not found' in error_msg:
+            error_msg += ' - Model qwen-plus may not be available in your region'
+        
         return {
             'success': False,
-            'error': str(e),
+            'error': error_msg,
             'system': 'Alibaba',
             'model': 'Qwen-Plus'
         }
@@ -901,7 +922,7 @@ def query_ais():
         deepseek_result['extracted_rating'] = extracted_rating
     results.append(deepseek_result)
     
-    # Cohere Command R+ (Canada)
+    # Cohere Command A (Canada) - UPDATED MODEL!
     cohere_result = query_cohere_command(question)
     if cohere_result['success']:
         extracted_rating = extract_rating(cohere_result['raw_response'])
@@ -914,7 +935,7 @@ def query_ais():
         cohere_result['extracted_rating'] = extracted_rating
     results.append(cohere_result)
     
-    # Meta Llama 3.1 70B via Groq (Open Source)
+    # Meta Llama 3.3 70B via Groq (Open Source) - UPDATED MODEL!
     llama_result = query_groq_llama(question)
     if llama_result['success']:
         extracted_rating = extract_rating(llama_result['raw_response'])
@@ -1087,7 +1108,7 @@ def debug_test_qwen():
 
 @app.route('/debug/test-groq')
 def debug_test_groq():
-    """Debug endpoint to test Groq/Llama API configuration."""
+    """Debug endpoint to test Groq/Llama API configuration with UPDATED model."""
     if not GROQ_API_KEY:
         return jsonify({
             'status': 'error',
@@ -1105,7 +1126,7 @@ def debug_test_groq():
     try:
         start_time = time.time()
         response = groq_client.chat.completions.create(
-            model="llama-3.1-70b-versatile",
+            model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": "Say 'Hello' and nothing else."}],
             max_tokens=50
         )
@@ -1115,7 +1136,8 @@ def debug_test_groq():
             'status': 'success',
             'api_key_configured': True,
             'api_key_prefix': GROQ_API_KEY[:15] + '...',
-            'model_tested': 'llama-3.1-70b-versatile',
+            'model_tested': 'llama-3.3-70b-versatile',
+            'model_note': 'UPDATED from deprecated llama-3.1-70b-versatile',
             'response_time': round(response_time, 2),
             'response_preview': response.choices[0].message.content[:100]
         })
@@ -1171,7 +1193,7 @@ def debug_test_deepseek():
 
 @app.route('/debug/test-cohere')
 def debug_test_cohere():
-    """Debug endpoint to test Cohere API configuration."""
+    """Debug endpoint to test Cohere API configuration with UPDATED model."""
     if not COHERE_API_KEY:
         return jsonify({
             'status': 'error',
@@ -1188,7 +1210,7 @@ def debug_test_cohere():
             'Authorization': f'Bearer {COHERE_API_KEY}'
         }
         payload = {
-            'model': 'command-r-plus',
+            'model': 'command-a-03-2025',
             'messages': [{'role': 'user', 'content': "Say 'Hello' and nothing else."}],
             'max_tokens': 50
         }
@@ -1208,7 +1230,8 @@ def debug_test_cohere():
                 'status': 'success',
                 'api_key_configured': True,
                 'api_key_prefix': COHERE_API_KEY[:15] + '...',
-                'model_tested': 'command-r-plus',
+                'model_tested': 'command-a-03-2025',
+                'model_note': 'UPDATED from deprecated command-r-plus',
                 'response_time': round(response_time, 2),
                 'response_preview': response_text
             })
