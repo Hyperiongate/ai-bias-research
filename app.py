@@ -14,14 +14,14 @@ FIXES:
 - December 15, 2024: FIXED ANTHROPIC! Updated Claude model from claude-3-5-sonnet-20241022 
                       to claude-sonnet-4-20250514 (Claude Sonnet 4) - old model was deprecated
 - December 15, 2024: ADDED DEEPSEEK! Integrated DeepSeek AI from China (deepseek-chat model)
-- December 15, 2024: ADDED COHERE! Integrated Cohere Command R+ from Canada
-- December 15, 2024: ADDED LLAMA! Integrated Meta Llama 3.1 70B via Groq (open-source model)
 - December 15, 2024: FIXED COHERE! Updated from deprecated command-r-plus to command-a-03-2025
                       (Command A - Cohere's most performant model)
 - December 15, 2024: FIXED GROQ/LLAMA! Updated from deprecated llama-3.1-70b-versatile 
                       to llama-3.3-70b-versatile (Meta Llama 3.3 with quality improvements)
 - December 15, 2024: REPLACED QWEN WITH AI21! Swapped Alibaba Qwen Plus for AI21 Jamba-1.5-Large
                       (Israeli AI with 256K context, hybrid Mamba-Transformer architecture)
+- December 15, 2024: ADDED GROK! Integrated xAI Grok-Beta as 10th AI system
+                      (Elon Musk's AI with real-time X data access capabilities)
 
 This application queries multiple AI systems with the same question to detect bias patterns.
 Designed for research purposes to cross-validate AI responses.
@@ -29,7 +29,7 @@ Designed for research purposes to cross-validate AI responses.
 Author: Jim (Hyperiongate)
 Purpose: Discover if there's "any there there" in AI bias detection
 
-AI SYSTEMS INTEGRATED (9 total):
+AI SYSTEMS INTEGRATED (10 total):
 - OpenAI GPT-4 (USA) - Proprietary
 - OpenAI GPT-3.5-Turbo (USA) - Proprietary
 - Google Gemini-2.0-Flash (USA) - Proprietary
@@ -39,6 +39,7 @@ AI SYSTEMS INTEGRATED (9 total):
 - Cohere Command A (Canada) - Proprietary - UPDATED TO LATEST MODEL!
 - Meta Llama 3.3 70B via Groq (USA) - OPEN SOURCE - UPDATED TO LATEST MODEL!
 - AI21 Jamba-1.5-Large (Israel) - Proprietary - NEW! Replaces Qwen
+- xAI Grok-Beta (USA) - Proprietary - NEW! 10th AI system!
 """
 
 from flask import Flask, render_template, request, jsonify
@@ -64,6 +65,7 @@ DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
 COHERE_API_KEY = os.environ.get('COHERE_API_KEY')
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 AI21_API_KEY = os.environ.get('AI21_API_KEY')
+XAI_API_KEY = os.environ.get('XAI_API_KEY')
 
 # Initialize OpenAI client
 openai_client = None
@@ -90,6 +92,14 @@ if GROQ_API_KEY:
 ai21_client = None
 if AI21_API_KEY:
     ai21_client = AI21Client(api_key=AI21_API_KEY)
+
+# Initialize xAI Grok client (uses OpenAI-compatible API)
+xai_client = None
+if XAI_API_KEY:
+    xai_client = OpenAI(
+        api_key=XAI_API_KEY,
+        base_url="https://api.x.ai/v1"
+    )
 
 # System prompt to ensure consistent, parseable responses
 RATING_SYSTEM_PROMPT = """You are participating in a research study on AI responses. When asked to rate something on a numerical scale, you MUST follow these rules:
@@ -793,6 +803,66 @@ def query_ai21_jamba(question):
             'model': 'Jamba-1.5-Large'
         }
 
+def query_xai_grok(question):
+    """Query xAI Grok-Beta with system prompt for structured responses.
+    
+    Uses Grok-Beta via OpenAI-compatible API.
+    Provides xAI (Elon Musk's AI) perspective on responses.
+    
+    xAI's Grok is designed to be "maximally truth-seeking" and has access to real-time
+    X (Twitter) data, giving it unique current events capabilities.
+    
+    API Endpoint: https://api.x.ai/v1
+    Model: grok-beta
+    
+    ADDED December 15, 2024 as 10th AI system.
+    Provides additional USA perspective with unique real-time data access.
+    """
+    if not xai_client:
+        return {
+            'success': False,
+            'error': 'xAI API key not configured. Get your API key from: https://console.x.ai',
+            'system': 'xAI',
+            'model': 'Grok-Beta'
+        }
+    
+    try:
+        start_time = time.time()
+        response = xai_client.chat.completions.create(
+            model="grok-beta",
+            messages=[
+                {"role": "system", "content": RATING_SYSTEM_PROMPT},
+                {"role": "user", "content": question}
+            ],
+            temperature=0.7,
+            max_tokens=500
+        )
+        response_time = time.time() - start_time
+        
+        raw_response = response.choices[0].message.content
+        
+        return {
+            'success': True,
+            'system': 'xAI',
+            'model': 'Grok-Beta',
+            'raw_response': raw_response,
+            'response_time': response_time
+        }
+    except Exception as e:
+        error_msg = str(e)
+        # Add helpful context for common errors
+        if 'Unauthorized' in error_msg or 'Invalid API key' in error_msg:
+            error_msg += ' - Verify your XAI_API_KEY in Render environment variables'
+        elif 'Model not found' in error_msg:
+            error_msg += ' - Model grok-beta may not be available. Try grok-4 if available.'
+        
+        return {
+            'success': False,
+            'error': error_msg,
+            'system': 'xAI',
+            'model': 'Grok-Beta'
+        }
+
 def extract_rating(text):
     """
     Extract numerical rating from the response.
@@ -835,7 +905,7 @@ def index():
 
 @app.route('/query', methods=['POST'])
 def query_ais():
-    """Query multiple AI systems with the same question"""
+    """Query all 10 AI systems with the same question"""
     data = request.json
     question = data.get('question', '').strip()
     
@@ -966,6 +1036,19 @@ def query_ais():
         jamba_result['extracted_rating'] = extracted_rating
     results.append(jamba_result)
     
+    # xAI Grok-Beta (USA) - NEW! 10th AI system!
+    grok_result = query_xai_grok(question)
+    if grok_result['success']:
+        extracted_rating = extract_rating(grok_result['raw_response'])
+        db.execute('''
+            INSERT INTO responses 
+            (query_id, ai_system, model, raw_response, extracted_rating, response_time)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (query_id, grok_result['system'], grok_result['model'], 
+              grok_result['raw_response'], extracted_rating, grok_result['response_time']))
+        grok_result['extracted_rating'] = extracted_rating
+    results.append(grok_result)
+    
     db.commit()
     db.close()
     
@@ -1055,14 +1138,28 @@ def health_check():
     """Health check endpoint for Render"""
     return jsonify({
         'status': 'healthy',
-        'openai_configured': OPENAI_API_KEY is not None,
-        'google_configured': GOOGLE_API_KEY is not None,
-        'anthropic_configured': ANTHROPIC_API_KEY is not None,
-        'mistral_configured': MISTRAL_API_KEY is not None,
-        'deepseek_configured': DEEPSEEK_API_KEY is not None,
-        'cohere_configured': COHERE_API_KEY is not None,
-        'groq_configured': GROQ_API_KEY is not None,
-        'ai21_configured': AI21_API_KEY is not None
+        'ai_systems_configured': {
+            'openai': OPENAI_API_KEY is not None,
+            'google': GOOGLE_API_KEY is not None,
+            'anthropic': ANTHROPIC_API_KEY is not None,
+            'mistral': MISTRAL_API_KEY is not None,
+            'deepseek': DEEPSEEK_API_KEY is not None,
+            'cohere': COHERE_API_KEY is not None,
+            'groq': GROQ_API_KEY is not None,
+            'ai21': AI21_API_KEY is not None,
+            'xai': XAI_API_KEY is not None
+        },
+        'total_systems': sum([
+            OPENAI_API_KEY is not None,
+            GOOGLE_API_KEY is not None,
+            ANTHROPIC_API_KEY is not None,
+            MISTRAL_API_KEY is not None,
+            DEEPSEEK_API_KEY is not None,
+            COHERE_API_KEY is not None,
+            GROQ_API_KEY is not None,
+            AI21_API_KEY is not None,
+            XAI_API_KEY is not None
+        ])
     })
 
 @app.route('/debug/test-ai21')
@@ -1106,6 +1203,52 @@ def debug_test_ai21():
             'api_key_configured': True,
             'api_key_prefix': AI21_API_KEY[:15] + '...',
             'model_tested': 'jamba-1.5-large',
+            'response_time': round(response_time, 2),
+            'response_preview': response.choices[0].message.content[:100]
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'api_key_configured': True,
+            'error_message': str(e)
+        })
+
+@app.route('/debug/test-xai')
+def debug_test_xai():
+    """Debug endpoint to test xAI Grok API configuration."""
+    if not XAI_API_KEY:
+        return jsonify({
+            'status': 'error',
+            'api_key_configured': False,
+            'error_message': 'XAI_API_KEY environment variable not set',
+            'suggestions': [
+                'Add XAI_API_KEY to Render environment variables',
+                'Get your API key from: https://console.x.ai'
+            ]
+        })
+    
+    if not xai_client:
+        return jsonify({
+            'status': 'error',
+            'api_key_configured': True,
+            'error_message': 'xAI client failed to initialize'
+        })
+    
+    try:
+        start_time = time.time()
+        response = xai_client.chat.completions.create(
+            model="grok-beta",
+            messages=[{"role": "user", "content": "Say 'Hello' and nothing else."}],
+            max_tokens=50
+        )
+        response_time = time.time() - start_time
+        
+        return jsonify({
+            'status': 'success',
+            'api_key_configured': True,
+            'api_key_prefix': XAI_API_KEY[:15] + '...',
+            'model_tested': 'grok-beta',
             'response_time': round(response_time, 2),
             'response_preview': response.choices[0].message.content[:100]
         })
