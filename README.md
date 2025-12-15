@@ -15,7 +15,7 @@ This tool queries multiple AI systems with the same question to detect bias patt
 
 ## Current Status - December 15, 2024
 
-✅ **WORKING**: OpenAI GPT-4, GPT-3.5-Turbo, Google Gemini-2.0-Flash, Anthropic Claude 3.5 Sonnet  
+✅ **WORKING**: OpenAI GPT-4, GPT-3.5-Turbo, Google Gemini-2.0-Flash, Anthropic Claude 3.5 Sonnet, Mistral Large 2  
 ✅ **DEPLOYED**: https://ai-bias-research.onrender.com  
 ✅ **REPOSITORY**: https://github.com/Hyperiongate/ai-bias-research
 
@@ -26,18 +26,19 @@ This tool queries multiple AI systems with the same question to detect bias patt
 - ✅ Fixed Procfile for proper Render deployment
 - ✅ **NEW!** Added Anthropic Claude 3.5 Sonnet as 4th AI system
 - ✅ **NEW!** Added Reset button for easy new queries
+- ✅ **NEW!** Added Mistral Large 2 as 5th AI system - European perspective
 
 ---
 
 ## Features
 
-- ✅ Query 4 AI systems simultaneously (OpenAI GPT-4, GPT-3.5, Google Gemini, Anthropic Claude)
+- ✅ Query 5 AI systems simultaneously (OpenAI GPT-4, GPT-3.5, Google Gemini, Anthropic Claude, Mistral AI)
 - ✅ Extract and compare numerical ratings with decimal precision
 - ✅ Store all queries and responses in SQLite database
 - ✅ View query history and past results
 - ✅ Simple, clean interface focused on research
 - ✅ Automated statistical analysis (mean, std dev, spread)
-- ✅ Real-time comparison of AI perspectives
+- ✅ Real-time comparison of AI perspectives across US, European models
 - ✅ Reset button to quickly start fresh queries
 
 ---
@@ -59,6 +60,7 @@ This tool queries multiple AI systems with the same question to detect bias patt
 2. **OpenAI GPT-3.5-Turbo** - Requires `OPENAI_API_KEY`
 3. **Google Gemini-2.0-Flash** - Requires `GOOGLE_API_KEY`
 4. **Anthropic Claude 3.5 Sonnet** - Requires `ANTHROPIC_API_KEY`
+5. **Mistral Large 2** - Requires `MISTRAL_API_KEY` (European AI)
 
 More AI systems can be easily added in future iterations.
 
@@ -101,6 +103,7 @@ Create a `.env` file in the project root (NEVER commit this file):
 OPENAI_API_KEY=your_openai_key_here
 GOOGLE_API_KEY=your_google_key_here
 ANTHROPIC_API_KEY=your_anthropic_key_here
+MISTRAL_API_KEY=your_mistral_key_here
 ```
 
 Or export them in your terminal:
@@ -110,11 +113,13 @@ Or export them in your terminal:
 export OPENAI_API_KEY="your_openai_key_here"
 export GOOGLE_API_KEY="your_google_key_here"
 export ANTHROPIC_API_KEY="your_anthropic_key_here"
+export MISTRAL_API_KEY="your_mistral_key_here"
 
 # Windows PowerShell
 $env:OPENAI_API_KEY="your_openai_key_here"
 $env:GOOGLE_API_KEY="your_google_key_here"
 $env:ANTHROPIC_API_KEY="your_anthropic_key_here"
+$env:MISTRAL_API_KEY="your_mistral_key_here"
 ```
 
 ### Step 5: Run the Application
@@ -154,6 +159,7 @@ In Render dashboard, go to "Environment" tab and add:
 - `OPENAI_API_KEY` = your OpenAI key
 - `GOOGLE_API_KEY` = your Google Gemini key
 - `ANTHROPIC_API_KEY` = your Anthropic key
+- `MISTRAL_API_KEY` = your Mistral key
 
 ### Step 4: Deploy
 
