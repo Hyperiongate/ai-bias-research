@@ -1,12 +1,13 @@
 # AI Bias Research Tool - Python Dependencies
 # Created: December 13, 2024
-# Last Updated: December 14, 2024
+# Last Updated: December 15, 2024
 #
 # UPDATES:
 # December 14, 2024: Updated openai to 1.54.0 to fix Client() initialization issue
 # December 14, 2024: Pinned httpx to 0.27.2 to fix 'proxies' argument compatibility
 # December 14, 2024: Removed google-generativeai library - now using direct REST API calls
 #                    This bypasses the v1beta API issue completely
+# December 15, 2024: Verified all dependencies for production deployment
 #
 # These are all the packages needed to run the application
 
