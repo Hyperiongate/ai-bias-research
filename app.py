@@ -1162,6 +1162,175 @@ def health_check():
         ])
     })
 
+@app.route('/export/csv')
+def export_csv():
+    """Export all queries and responses to CSV format for Google Sheets import.
+    
+    Downloads a CSV file with columns:
+    Query ID, Question, Timestamp, AI System, Model, Rating, Response Time, Raw Response
+    """
+    import csv
+    from io import StringIO
+    from flask import make_response
+    
+    db = get_db()
+    
+    # Get all queries with their responses
+    data = db.execute('''
+        SELECT 
+            q.id as query_id,
+            q.question,
+            q.timestamp as query_timestamp,
+            r.ai_system,
+            r.model,
+            r.extracted_rating,
+            r.response_time,
+            r.raw_response,
+            r.timestamp as response_timestamp
+        FROM queries q
+        LEFT JOIN responses r ON q.id = r.query_id
+        ORDER BY q.timestamp DESC, r.id
+    ''').fetchall()
+    
+    db.close()
+    
+    # Create CSV in memory
+    output = StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow([
+        'Query ID',
+        'Question',
+        'Query Date',
+        'AI System',
+        'Model',
+        'Rating (0-10)',
+        'Response Time (sec)',
+        'Full Response',
+        'Response Date'
+    ])
+    
+    # Write data rows
+    for row in data:
+        writer.writerow([
+            row['query_id'],
+            row['question'],
+            row['query_timestamp'],
+            row['ai_system'] or '',
+            row['model'] or '',
+            row['extracted_rating'] if row['extracted_rating'] else '',
+            round(row['response_time'], 2) if row['response_time'] else '',
+            row['raw_response'] or '',
+            row['response_timestamp'] or ''
+        ])
+    
+    # Prepare response
+    output.seek(0)
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/csv'
+    response.headers['Content-Disposition'] = f'attachment; filename=ai_bias_research_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+    
+    return response
+
+@app.route('/export/summary-csv')
+def export_summary_csv():
+    """Export summary statistics per query to CSV.
+    
+    Downloads a CSV with one row per query showing:
+    Query ID, Question, Date, # Responses, Avg Rating, Min Rating, Max Rating, Spread, Std Dev
+    """
+    import csv
+    from io import StringIO
+    from flask import make_response
+    import math
+    
+    db = get_db()
+    
+    # Get all queries
+    queries = db.execute('SELECT * FROM queries ORDER BY timestamp DESC').fetchall()
+    
+    output = StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow([
+        'Query ID',
+        'Question',
+        'Date',
+        'Responses Count',
+        'Ratings Found',
+        'Average Rating',
+        'Min Rating',
+        'Max Rating',
+        'Spread',
+        'Std Deviation',
+        'AI Systems'
+    ])
+    
+    # Write summary for each query
+    for query in queries:
+        # Get all responses for this query
+        responses = db.execute('''
+            SELECT ai_system, model, extracted_rating 
+            FROM responses 
+            WHERE query_id = ?
+        ''', (query['id'],)).fetchall()
+        
+        ratings = [r['extracted_rating'] for r in responses if r['extracted_rating'] is not None]
+        ai_systems = ', '.join([f"{r['ai_system']}-{r['model']}" for r in responses if r['ai_system']])
+        
+        if ratings:
+            avg_rating = sum(ratings) / len(ratings)
+            min_rating = min(ratings)
+            max_rating = max(ratings)
+            spread = max_rating - min_rating
+            
+            # Calculate standard deviation
+            if len(ratings) > 1:
+                variance = sum((r - avg_rating) ** 2 for r in ratings) / len(ratings)
+                std_dev = math.sqrt(variance)
+            else:
+                std_dev = 0
+            
+            writer.writerow([
+                query['id'],
+                query['question'],
+                query['timestamp'],
+                len(responses),
+                len(ratings),
+                round(avg_rating, 3),
+                round(min_rating, 3),
+                round(max_rating, 3),
+                round(spread, 3),
+                round(std_dev, 3),
+                ai_systems
+            ])
+        else:
+            writer.writerow([
+                query['id'],
+                query['question'],
+                query['timestamp'],
+                len(responses),
+                0,
+                '',
+                '',
+                '',
+                '',
+                '',
+                ai_systems
+            ])
+    
+    db.close()
+    
+    # Prepare response
+    output.seek(0)
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/csv'
+    response.headers['Content-Disposition'] = f'attachment; filename=ai_bias_summary_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+    
+    return response
+
 @app.route('/debug/test-ai21')
 def debug_test_ai21():
     """Debug endpoint to test AI21 Jamba API configuration."""
