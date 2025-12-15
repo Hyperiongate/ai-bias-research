@@ -8,6 +8,8 @@ UPDATES:
 - December 15, 2024: Added insight severity colors (consensus, moderate, divergent)
 - December 15, 2024: Added ratings breakdown styling
 - December 15, 2024: Enhanced analysis section for better statistical presentation
+- December 15, 2024: ADDED! Button group styling for reset button
+- December 15, 2024: ADDED! Reset button styles (red theme for clear action)
 
 Clean, professional styling for research interface.
 Focus on readability and clear data presentation.
@@ -90,6 +92,13 @@ header h1 {
     border-color: #667eea;
 }
 
+.button-group {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-top: 15px;
+}
+
 .primary-btn {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
@@ -98,9 +107,9 @@ header h1 {
     font-size: 1.1em;
     border-radius: 8px;
     cursor: pointer;
-    margin-top: 15px;
     transition: transform 0.2s, box-shadow 0.2s;
     font-weight: 600;
+    flex: 1;
 }
 
 .primary-btn:hover {
@@ -109,6 +118,31 @@ header h1 {
 }
 
 .primary-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.reset-btn {
+    background: white;
+    color: #e53e3e;
+    border: 2px solid #e53e3e;
+    padding: 15px 30px;
+    font-size: 1.1em;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 600;
+}
+
+.reset-btn:hover {
+    background: #e53e3e;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(229, 62, 62, 0.4);
+}
+
+.reset-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
     transform: none;
@@ -379,6 +413,15 @@ header h1 {
     
     .main-content {
         padding: 20px;
+    }
+    
+    .button-group {
+        flex-direction: column;
+    }
+    
+    .primary-btn,
+    .reset-btn {
+        width: 100%;
     }
     
     .result-header {
