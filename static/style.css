@@ -1,7 +1,12 @@
 /*
 AI Bias Research Tool - Stylesheet
 Created: December 13, 2024
-Last Updated: December 13, 2024
+Last Updated: December 15, 2024
+
+UPDATES:
+- December 15, 2024: Added styles for decimal rating display
+- December 15, 2024: Added insight severity colors (consensus, moderate, divergent)
+- December 15, 2024: Added ratings breakdown styling
 
 Clean, professional styling for research interface.
 Focus on readability and clear data presentation.
@@ -212,6 +217,7 @@ header h1 {
     font-weight: 600;
     margin-bottom: 15px;
     font-size: 1.1em;
+    font-family: 'Courier New', monospace;
 }
 
 .rating-badge.no-rating {
@@ -253,7 +259,7 @@ header h1 {
 
 .analysis-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 15px;
     margin-bottom: 20px;
 }
@@ -275,8 +281,9 @@ header h1 {
 .stat value {
     display: block;
     color: #38b2ac;
-    font-size: 1.5em;
+    font-size: 1.3em;
     font-weight: 600;
+    font-family: 'Courier New', monospace;
 }
 
 .insight {
@@ -284,6 +291,28 @@ header h1 {
     padding: 15px;
     border-radius: 8px;
     line-height: 1.6;
+    margin-bottom: 15px;
+}
+
+.insight.consensus {
+    border-left: 4px solid #48bb78;
+}
+
+.insight.moderate {
+    border-left: 4px solid #ed8936;
+}
+
+.insight.divergent {
+    border-left: 4px solid #e53e3e;
+}
+
+.ratings-breakdown {
+    background: white;
+    padding: 12px 15px;
+    border-radius: 8px;
+    font-size: 0.95em;
+    color: #555;
+    font-family: 'Courier New', monospace;
 }
 
 /* History Section */
@@ -357,6 +386,12 @@ header h1 {
         gap: 10px;
     }
     
+    .analysis-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
     .analysis-stats {
         grid-template-columns: 1fr;
     }
