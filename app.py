@@ -1,14 +1,14 @@
 """
 AI Bias Research Tool - Main Application
 Created: December 13, 2024
-Last Updated: December 14, 2024
+Last Updated: December 15, 2024
 
 FIXES:
 - December 14, 2024: Fixed OpenAI client initialization for v1.0+ API
-- December 14, 2024: Updated Gemini model from 'gemini-pro' to 'gemini-1.5-flash'
-- December 14, 2024: Reverted to 'gemini-pro' model for v1beta API compatibility
-- December 14, 2024: Switched to direct REST API calls for Gemini (bypasses library issue)
-- December 14, 2024: Using v1beta endpoint with REST API (Google's supported endpoint for Gemini)
+- December 14, 2024: Updated Gemini model naming attempts
+- December 14, 2024: Switched to direct REST API calls for Gemini
+- December 15, 2024: Added model discovery - lists available models first, then uses correct one
+- December 15, 2024: Added debug endpoint to check available Gemini models
 
 This application queries multiple AI systems with the same question to detect bias patterns.
 Designed for research purposes to cross-validate AI responses.
@@ -153,11 +153,57 @@ def query_openai_gpt35(question):
             'model': 'GPT-3.5-Turbo'
         }
 
+def get_available_gemini_models():
+    """Get list of available Gemini models that support generateContent."""
+    if not GOOGLE_API_KEY:
+        return []
+    
+    available_models = []
+    
+    # Try both API versions
+    for api_version in ['v1beta', 'v1']:
+        url = f"https://generativelanguage.googleapis.com/{api_version}/models"
+        
+        try:
+            response = requests.get(
+                url,
+                params={'key': GOOGLE_API_KEY},
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                models = data.get('models', [])
+                
+                for model in models:
+                    model_name = model.get('name', '')
+                    supported_methods = model.get('supportedGenerationMethods', [])
+                    
+                    # Only include models that support generateContent
+                    if 'generateContent' in supported_methods:
+                        # Extract just the model ID (e.g., "gemini-pro" from "models/gemini-pro")
+                        model_id = model_name.replace('models/', '')
+                        available_models.append({
+                            'api_version': api_version,
+                            'model_id': model_id,
+                            'display_name': model.get('displayName', model_id),
+                            'full_name': model_name
+                        })
+                
+                # If we found models, no need to check other API version
+                if available_models:
+                    break
+                    
+        except Exception as e:
+            continue
+    
+    return available_models
+
 def query_google_gemini(question):
     """Query Google Gemini using direct REST API calls.
     
-    Uses v1beta endpoint which is Google's supported API for Gemini.
-    Tries multiple model names to find one that works.
+    First discovers available models, then uses the best one.
+    Prefers gemini-1.5-flash or gemini-pro.
     """
     if not GOOGLE_API_KEY:
         return {
@@ -170,90 +216,117 @@ def query_google_gemini(question):
     try:
         start_time = time.time()
         
-        # Models to try - using v1beta endpoint which Google supports
-        # Order: newest first, then fallbacks
-        models_to_try = [
-            ('v1beta', 'gemini-1.5-flash'),
-            ('v1beta', 'gemini-1.5-pro'),  
-            ('v1beta', 'gemini-pro'),
-            ('v1', 'gemini-1.5-flash'),
-            ('v1', 'gemini-pro'),
-        ]
+        # Get available models
+        available_models = get_available_gemini_models()
         
-        last_error = None
+        if not available_models:
+            return {
+                'success': False,
+                'error': 'No Gemini models available. Check API key permissions.',
+                'system': 'Google',
+                'model': 'Gemini'
+            }
         
-        for api_version, model_name in models_to_try:
-            url = f"https://generativelanguage.googleapis.com/{api_version}/models/{model_name}:generateContent"
-            
-            headers = {
-                'Content-Type': 'application/json'
+        # Prefer these models in order
+        preferred_models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro', 'gemini-1.0-pro']
+        
+        # Find the best available model
+        selected_model = None
+        for preferred in preferred_models:
+            for model in available_models:
+                if preferred in model['model_id']:
+                    selected_model = model
+                    break
+            if selected_model:
+                break
+        
+        # If no preferred model found, use first available
+        if not selected_model and available_models:
+            selected_model = available_models[0]
+        
+        if not selected_model:
+            return {
+                'success': False,
+                'error': 'No suitable Gemini model found',
+                'system': 'Google',
+                'model': 'Gemini'
             }
-            
-            payload = {
-                'contents': [{
-                    'parts': [{
-                        'text': question
-                    }]
-                }],
-                'generationConfig': {
-                    'temperature': 0.7,
-                    'maxOutputTokens': 500
-                }
+        
+        # Make the API call
+        api_version = selected_model['api_version']
+        model_id = selected_model['model_id']
+        
+        url = f"https://generativelanguage.googleapis.com/{api_version}/models/{model_id}:generateContent"
+        
+        headers = {
+            'Content-Type': 'application/json'
+        }
+        
+        payload = {
+            'contents': [{
+                'parts': [{
+                    'text': question
+                }]
+            }],
+            'generationConfig': {
+                'temperature': 0.7,
+                'maxOutputTokens': 500
             }
+        }
+        
+        response = requests.post(
+            url,
+            headers=headers,
+            params={'key': GOOGLE_API_KEY},
+            json=payload,
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            response_time = time.time() - start_time
+            data = response.json()
             
+            # Extract text from response
+            if 'candidates' in data and len(data['candidates']) > 0:
+                candidate = data['candidates'][0]
+                if 'content' in candidate and 'parts' in candidate['content']:
+                    raw_response = candidate['content']['parts'][0].get('text', '')
+                    
+                    return {
+                        'success': True,
+                        'system': 'Google',
+                        'model': selected_model.get('display_name', model_id),
+                        'raw_response': raw_response,
+                        'response_time': response_time
+                    }
+            
+            return {
+                'success': False,
+                'error': f"Unexpected response format from {model_id}",
+                'system': 'Google',
+                'model': model_id
+            }
+        else:
             try:
-                response = requests.post(
-                    url,
-                    headers=headers,
-                    params={'key': GOOGLE_API_KEY},
-                    json=payload,
-                    timeout=30
-                )
-                
-                if response.status_code == 200:
-                    response_time = time.time() - start_time
-                    data = response.json()
-                    
-                    # Extract text from response
-                    if 'candidates' in data and len(data['candidates']) > 0:
-                        candidate = data['candidates'][0]
-                        if 'content' in candidate and 'parts' in candidate['content']:
-                            raw_response = candidate['content']['parts'][0].get('text', '')
-                            
-                            # Format model name for display
-                            display_model = model_name.replace('-', ' ').title().replace(' ', '-')
-                            
-                            return {
-                                'success': True,
-                                'system': 'Google',
-                                'model': display_model,
-                                'raw_response': raw_response,
-                                'response_time': response_time
-                            }
-                    
-                    # If we got 200 but couldn't parse response
-                    last_error = f"Unexpected response format from {api_version}/{model_name}"
-                else:
-                    # Store error and try next model
-                    try:
-                        error_data = response.json()
-                        error_msg = error_data.get('error', {}).get('message', f"HTTP {response.status_code}")
-                        last_error = f"{api_version}/{model_name}: {error_msg}"
-                    except:
-                        last_error = f"{api_version}/{model_name}: HTTP {response.status_code}"
-                        
-            except requests.exceptions.RequestException as e:
-                last_error = f"{api_version}/{model_name}: {str(e)}"
-                continue
+                error_data = response.json()
+                error_msg = error_data.get('error', {}).get('message', f"HTTP {response.status_code}")
+            except:
+                error_msg = f"HTTP {response.status_code}: {response.text[:200]}"
+            
+            return {
+                'success': False,
+                'error': f"{model_id}: {error_msg}",
+                'system': 'Google',
+                'model': model_id
+            }
         
-        # All models failed
+    except requests.exceptions.Timeout:
         return {
             'success': False,
-            'error': f"All Gemini endpoints failed. Last error: {last_error}",
+            'error': 'Request timed out after 30 seconds',
             'system': 'Google',
             'model': 'Gemini'
         }
-        
     except Exception as e:
         return {
             'success': False,
@@ -435,6 +508,44 @@ def health_check():
         'status': 'healthy',
         'openai_configured': OPENAI_API_KEY is not None,
         'google_configured': GOOGLE_API_KEY is not None
+    })
+
+@app.route('/debug/gemini-models')
+def debug_gemini_models():
+    """Debug endpoint to check what Gemini models are available.
+    
+    Visit /debug/gemini-models to see what models your API key can access.
+    """
+    if not GOOGLE_API_KEY:
+        return jsonify({
+            'error': 'Google API key not configured',
+            'available_models': []
+        })
+    
+    models = get_available_gemini_models()
+    
+    # Also try to get raw response from list models endpoint
+    raw_responses = {}
+    for api_version in ['v1beta', 'v1']:
+        url = f"https://generativelanguage.googleapis.com/{api_version}/models"
+        try:
+            response = requests.get(
+                url,
+                params={'key': GOOGLE_API_KEY},
+                timeout=10
+            )
+            raw_responses[api_version] = {
+                'status_code': response.status_code,
+                'response': response.json() if response.status_code == 200 else response.text[:500]
+            }
+        except Exception as e:
+            raw_responses[api_version] = {'error': str(e)}
+    
+    return jsonify({
+        'google_api_key_configured': True,
+        'google_api_key_prefix': GOOGLE_API_KEY[:10] + '...' if GOOGLE_API_KEY else None,
+        'available_models_for_generateContent': models,
+        'raw_api_responses': raw_responses
     })
 
 if __name__ == '__main__':
