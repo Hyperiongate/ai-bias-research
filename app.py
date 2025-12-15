@@ -733,6 +733,104 @@ def debug_gemini_models():
         'recommended_model': 'gemini-2.0-flash'
     })
 
+@app.route('/debug/test-anthropic')
+def test_anthropic():
+    """Test Anthropic API directly and return detailed error information"""
+    if not ANTHROPIC_API_KEY:
+        return jsonify({
+            'status': 'error',
+            'message': 'ANTHROPIC_API_KEY not configured in environment variables',
+            'fix': 'Add ANTHROPIC_API_KEY to Render environment variables'
+        })
+    
+    try:
+        url = "https://api.anthropic.com/v1/messages"
+        
+        headers = {
+            'Content-Type': 'application/json',
+            'x-api-key': ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01'
+        }
+        
+        payload = {
+            'model': 'claude-3-5-sonnet-20241022',
+            'max_tokens': 50,
+            'messages': [{
+                'role': 'user',
+                'content': 'Say hello in 3 words'
+            }]
+        }
+        
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        
+        if response.status_code == 200:
+            data = response.json()
+            return jsonify({
+                'status': 'success',
+                'message': 'Anthropic API is working!',
+                'model': 'claude-3-5-sonnet-20241022',
+                'response': data.get('content', [{}])[0].get('text', ''),
+                'usage': data.get('usage', {})
+            })
+        else:
+            # Get error details
+            try:
+                error_data = response.json()
+                error_message = error_data.get('error', {}).get('message', 'Unknown error')
+                error_type = error_data.get('error', {}).get('type', 'Unknown')
+            except:
+                error_message = response.text[:500]
+                error_type = 'Parse error'
+            
+            # Provide helpful suggestions
+            suggestions = []
+            if response.status_code == 401:
+                suggestions = [
+                    'API key is invalid or not properly formatted',
+                    'Check your key starts with: sk-ant-api03-',
+                    'Verify key at: https://console.anthropic.com/settings/keys'
+                ]
+            elif response.status_code == 403:
+                suggestions = [
+                    'Billing is not set up',
+                    'Add payment method at: https://console.anthropic.com/settings/billing',
+                    'Check spending limits at: https://console.anthropic.com/settings/limits'
+                ]
+            elif response.status_code == 404:
+                suggestions = [
+                    'Model name is incorrect',
+                    'Try: claude-3-5-sonnet-20240620',
+                    'Check available models at: https://docs.anthropic.com/en/docs/about-claude/models'
+                ]
+            elif response.status_code == 429:
+                suggestions = [
+                    'Rate limit exceeded',
+                    'Wait a few seconds and try again'
+                ]
+            
+            return jsonify({
+                'status': 'error',
+                'http_status': response.status_code,
+                'error_type': error_type,
+                'error_message': error_message,
+                'suggestions': suggestions,
+                'api_key_configured': True,
+                'api_key_prefix': ANTHROPIC_API_KEY[:20] + '...' if len(ANTHROPIC_API_KEY) > 20 else 'TOO SHORT'
+            })
+            
+    except requests.exceptions.Timeout:
+        return jsonify({
+            'status': 'error',
+            'message': 'Request timed out after 30 seconds',
+            'suggestions': ['Check internet connectivity', 'Anthropic API might be down']
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Unexpected error: {str(e)}',
+            'error_type': type(e).__name__
+        })
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
