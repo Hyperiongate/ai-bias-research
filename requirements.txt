@@ -3,15 +3,8 @@
 # Last Updated: December 15, 2024
 #
 # UPDATES:
-# December 14, 2024: Updated openai to 1.54.0 to fix Client() initialization issue
-# December 14, 2024: Pinned httpx to 0.27.2 to fix 'proxies' argument compatibility
-# December 14, 2024: Removed google-generativeai library - now using direct REST API calls
-#                    This bypasses the v1beta API issue completely
-# December 15, 2024: Verified all dependencies for production deployment
-# December 15, 2024: ADDED ai21 library for AI21 Jamba-1.5-Large integration
-#                    Replaces Qwen/Alibaba integration
-#
-# These are all the packages needed to run the application
+# December 15, 2024: ADDED ai21==2.11.0 for AI21 Jamba-1.5-Large integration
+# December 15, 2024: All 10 AI systems now supported (including xAI Grok via OpenAI SDK)
 
 Flask==3.0.0
 openai==1.54.0
