@@ -9,6 +9,8 @@ UPDATES:
 - December 15, 2024: Updated example question to encourage precise numerical responses
 - December 15, 2024: Improved analysis section for decimal comparisons
 - December 15, 2024: Added standard deviation calculation for better statistical insight
+- December 15, 2024: ADDED! Reset button to clear form and start fresh query
+- December 15, 2024: ADDED! Support for 4th AI system (Anthropic Claude 3.5 Sonnet)
 
 Simple, clean interface for querying multiple AI systems and comparing responses.
 Designed for research into AI bias detection.
@@ -39,12 +41,17 @@ Designed for research into AI bias detection.
                     placeholder="Enter your question here. For best results, ask for a rating on a scale of 1-10..."
                     rows="4"
                 ></textarea>
-                <button id="submit-btn" class="primary-btn">
-                    Query All AI Systems
-                </button>
+                <div class="button-group">
+                    <button id="submit-btn" class="primary-btn">
+                        Query All AI Systems
+                    </button>
+                    <button id="reset-btn" class="reset-btn">
+                        Reset
+                    </button>
+                </div>
                 <div id="loading" class="loading" style="display: none;">
                     <div class="spinner"></div>
-                    <p>Querying AI systems... This may take 10-15 seconds</p>
+                    <p>Querying AI systems... This may take 15-20 seconds</p>
                 </div>
             </section>
 
@@ -96,6 +103,7 @@ Designed for research into AI bias detection.
             document.getElementById('loading').style.display = 'block';
             document.getElementById('results-section').style.display = 'none';
             document.getElementById('submit-btn').disabled = true;
+            document.getElementById('reset-btn').disabled = true;
 
             try {
                 const response = await fetch('/query', {
@@ -116,7 +124,29 @@ Designed for research into AI bias detection.
             } finally {
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('submit-btn').disabled = false;
+                document.getElementById('reset-btn').disabled = false;
             }
+        });
+
+        // Reset button
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            // Clear the question input
+            document.getElementById('question-input').value = '';
+            
+            // Hide results section
+            document.getElementById('results-section').style.display = 'none';
+            
+            // Clear results container
+            document.getElementById('results-container').innerHTML = '';
+            
+            // Hide analysis section
+            document.getElementById('analysis-section').style.display = 'none';
+            
+            // Clear current results
+            currentResults = null;
+            
+            // Focus back on input
+            document.getElementById('question-input').focus();
         });
 
         // Display results
