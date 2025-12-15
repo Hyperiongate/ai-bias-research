@@ -8,6 +8,8 @@
 # December 14, 2024: Removed google-generativeai library - now using direct REST API calls
 #                    This bypasses the v1beta API issue completely
 # December 15, 2024: Verified all dependencies for production deployment
+# December 15, 2024: ADDED ai21 library for AI21 Jamba-1.5-Large integration
+#                    Replaces Qwen/Alibaba integration
 #
 # These are all the packages needed to run the application
 
@@ -16,5 +18,6 @@ openai==1.54.0
 httpx==0.27.2
 requests==2.31.0
 gunicorn==21.2.0
+ai21==2.11.0
 
 # I did no harm and this file is not truncated
