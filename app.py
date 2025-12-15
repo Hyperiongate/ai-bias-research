@@ -11,6 +11,8 @@ FIXES:
 - December 15, 2024: Added system prompts to force number-first responses with 3 decimal places
 - December 15, 2024: Changed rating storage from INTEGER to REAL for decimal precision
 - December 15, 2024: Simplified rating extraction (now just parses first number in response)
+- December 15, 2024: ADDED! Anthropic Claude 3.5 Sonnet as 4th AI system for broader comparison
+- December 15, 2024: ADDED! Reset button functionality in frontend
 
 This application queries multiple AI systems with the same question to detect bias patterns.
 Designed for research purposes to cross-validate AI responses.
@@ -34,6 +36,7 @@ app = Flask(__name__)
 # Configure API keys from environment variables
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
+ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
 
 # Initialize OpenAI client
 openai_client = None
@@ -281,6 +284,99 @@ def query_google_gemini(question):
             'model': 'Gemini-2.0-Flash'
         }
 
+def query_anthropic_claude(question):
+    """Query Anthropic Claude 3.5 Sonnet with system prompt for structured responses.
+    
+    Uses Claude 3.5 Sonnet via Anthropic's Messages API.
+    """
+    if not ANTHROPIC_API_KEY:
+        return {
+            'success': False,
+            'error': 'Anthropic API key not configured',
+            'system': 'Anthropic',
+            'model': 'Claude-3.5-Sonnet'
+        }
+    
+    try:
+        start_time = time.time()
+        
+        url = "https://api.anthropic.com/v1/messages"
+        
+        headers = {
+            'Content-Type': 'application/json',
+            'x-api-key': ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01'
+        }
+        
+        payload = {
+            'model': 'claude-3-5-sonnet-20241022',
+            'max_tokens': 500,
+            'temperature': 0.7,
+            'system': RATING_SYSTEM_PROMPT,
+            'messages': [{
+                'role': 'user',
+                'content': question
+            }]
+        }
+        
+        response = requests.post(
+            url,
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            response_time = time.time() - start_time
+            data = response.json()
+            
+            # Extract text from response
+            if 'content' in data and len(data['content']) > 0:
+                raw_response = data['content'][0].get('text', '')
+                
+                return {
+                    'success': True,
+                    'system': 'Anthropic',
+                    'model': 'Claude-3.5-Sonnet',
+                    'raw_response': raw_response,
+                    'response_time': response_time
+                }
+            
+            return {
+                'success': False,
+                'error': 'Unexpected response format',
+                'system': 'Anthropic',
+                'model': 'Claude-3.5-Sonnet'
+            }
+        else:
+            try:
+                error_data = response.json()
+                error_msg = error_data.get('error', {}).get('message', f"HTTP {response.status_code}")
+            except:
+                error_msg = f"HTTP {response.status_code}: {response.text[:200]}"
+            
+            return {
+                'success': False,
+                'error': error_msg,
+                'system': 'Anthropic',
+                'model': 'Claude-3.5-Sonnet'
+            }
+        
+    except requests.exceptions.Timeout:
+        return {
+            'success': False,
+            'error': 'Request timed out after 30 seconds',
+            'system': 'Anthropic',
+            'model': 'Claude-3.5-Sonnet'
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e),
+            'system': 'Anthropic',
+            'model': 'Claude-3.5-Sonnet'
+        }
+
 def extract_rating(text):
     """
     Extract numerical rating from the response.
@@ -385,6 +481,19 @@ def query_ais():
         gemini_result['extracted_rating'] = extracted_rating
     results.append(gemini_result)
     
+    # Anthropic Claude
+    claude_result = query_anthropic_claude(question)
+    if claude_result['success']:
+        extracted_rating = extract_rating(claude_result['raw_response'])
+        db.execute('''
+            INSERT INTO responses 
+            (query_id, ai_system, model, raw_response, extracted_rating, response_time)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (query_id, claude_result['system'], claude_result['model'], 
+              claude_result['raw_response'], extracted_rating, claude_result['response_time']))
+        claude_result['extracted_rating'] = extracted_rating
+    results.append(claude_result)
+    
     db.commit()
     db.close()
     
@@ -461,7 +570,8 @@ def health_check():
     return jsonify({
         'status': 'healthy',
         'openai_configured': OPENAI_API_KEY is not None,
-        'google_configured': GOOGLE_API_KEY is not None
+        'google_configured': GOOGLE_API_KEY is not None,
+        'anthropic_configured': ANTHROPIC_API_KEY is not None
     })
 
 @app.route('/debug/gemini-models')
