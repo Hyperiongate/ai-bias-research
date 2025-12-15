@@ -1,7 +1,7 @@
 # AI Bias Research Tool
 
 **Created**: December 13, 2024  
-**Last Updated**: December 13, 2024  
+**Last Updated**: December 15, 2024  
 **Author**: Jim (Hyperiongate)
 
 ## Project Purpose
@@ -13,14 +13,29 @@ This tool queries multiple AI systems with the same question to detect bias patt
 
 ---
 
+## Current Status - December 15, 2024
+
+✅ **WORKING**: OpenAI GPT-4, GPT-3.5-Turbo, Google Gemini-2.0-Flash  
+✅ **DEPLOYED**: https://ai-bias-research.onrender.com  
+✅ **REPOSITORY**: https://github.com/Hyperiongate/ai-bias-research
+
+### Recent Fixes
+- ✅ Fixed Gemini API integration (switched to Gemini 2.0 Flash via v1beta endpoint)
+- ✅ Implemented decimal rating precision (3 decimal places)
+- ✅ Added system prompts to ensure consistent number-first responses
+- ✅ Fixed Procfile for proper Render deployment
+
+---
+
 ## Features
 
 - ✅ Query multiple AI systems simultaneously (OpenAI GPT-4, GPT-3.5, Google Gemini)
-- ✅ Extract and compare numerical ratings (e.g., "rate X on a scale of 1-10")
+- ✅ Extract and compare numerical ratings with decimal precision
 - ✅ Store all queries and responses in SQLite database
 - ✅ View query history and past results
 - ✅ Simple, clean interface focused on research
-- ✅ Automated analysis of rating spreads and patterns
+- ✅ Automated statistical analysis (mean, std dev, spread)
+- ✅ Real-time comparison of AI perspectives
 
 ---
 
@@ -31,6 +46,7 @@ This tool queries multiple AI systems with the same question to detect bias patt
 - **Frontend**: HTML, CSS, Vanilla JavaScript
 - **AI APIs**: OpenAI, Google Gemini (extensible for more)
 - **Hosting**: Render (or any platform supporting Python)
+- **Web Server**: Gunicorn (production-grade WSGI server)
 
 ---
 
@@ -38,7 +54,7 @@ This tool queries multiple AI systems with the same question to detect bias patt
 
 1. **OpenAI GPT-4** - Requires `OPENAI_API_KEY`
 2. **OpenAI GPT-3.5-Turbo** - Requires `OPENAI_API_KEY`
-3. **Google Gemini Pro** - Requires `GOOGLE_API_KEY`
+3. **Google Gemini-2.0-Flash** - Requires `GOOGLE_API_KEY`
 
 More AI systems can be easily added in future iterations.
 
@@ -108,7 +124,7 @@ Visit: `http://localhost:5000`
 ### Step 1: Push to GitHub
 ```bash
 git add .
-git commit -m "Initial commit - AI Bias Research Tool"
+git commit -m "Deploy AI Bias Research Tool"
 git push origin main
 ```
 
@@ -121,7 +137,7 @@ git push origin main
    - **Name**: `ai-bias-research` (or your choice)
    - **Environment**: `Python 3`
    - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `gunicorn app:app`
+   - **Start Command**: Leave empty (uses Procfile)
    - **Instance Type**: Free (sufficient for research)
 
 ### Step 3: Add Environment Variables
@@ -145,16 +161,16 @@ Your app will be live at: `https://ai-bias-research.onrender.com` (or your custo
 Enter a question in the text area. For best results, use questions that request numerical ratings:
 
 **Good Examples:**
+- "If you had to assign a numerical value to how good pizza is, with a number between 1 and 10, what number would you choose?"
 - "On a scale from 1 to 10, how good a president is Donald Trump? 10 being the best ever."
 - "Rate the scientific consensus on climate change from 1-10, where 10 is strongest consensus."
-- "On a scale of 1-10, how effective are tariffs for protecting domestic industries?"
 
 ### 2. Review Results
 The app will query all available AI systems and display:
 - Raw responses from each AI
-- Extracted numerical ratings (if provided)
+- Extracted numerical ratings (with decimal precision)
 - Response times
-- Quick analysis of rating spreads
+- Statistical analysis (mean, standard deviation, spread)
 
 ### 3. Analyze Patterns
 Look for:
@@ -179,10 +195,10 @@ Click "Load History" to see past queries and click any to view full results.
 - `id`: Primary key
 - `query_id`: Foreign key to queries
 - `ai_system`: e.g., "OpenAI", "Google"
-- `model`: e.g., "GPT-4", "Gemini-Pro"
+- `model`: e.g., "GPT-4", "Gemini-2.0-Flash"
 - `raw_response`: Full text response
-- `extracted_rating`: Numerical rating (1-10) if detected
-- `response_time`: How long the API took
+- `extracted_rating`: REAL (decimal rating, e.g., 7.250)
+- `response_time`: How long the API took (seconds)
 - `timestamp`: When response was received
 
 ---
@@ -199,16 +215,39 @@ Based on typical usage:
 
 ---
 
+## Architecture Details
+
+### System Prompt Strategy
+All AI systems receive the same system prompt instructing them to:
+1. Start response with ONLY the numerical rating on the first line
+2. Use up to 3 decimal places for precision (e.g., 7.250)
+3. Provide explanation on subsequent lines
+
+This ensures consistent, parseable responses across different AI providers.
+
+### Rating Extraction
+- Primary method: Parse first number from first line of response
+- Fallback: Search for "X/10" pattern in full text
+- Validation: Ratings must be between 0-10
+- Precision: Rounded to 3 decimal places
+
+### API Integration
+- **OpenAI**: Official SDK with proper client initialization
+- **Gemini**: Direct REST API calls to v1beta endpoint (bypasses library version issues)
+
+---
+
 ## Future Enhancements
 
 Potential additions based on research needs:
 
-- [ ] Add more AI systems (Anthropic Claude, Cohere, Mistral, etc.)
+- [ ] Add Anthropic Claude as 4th AI system
+- [ ] Add more AI systems (Mistral, Cohere, etc.)
 - [ ] Batch query testing (submit 10+ questions at once)
-- [ ] Statistical analysis dashboard
+- [ ] Statistical analysis dashboard with visualizations
 - [ ] Export results to CSV/JSON
 - [ ] Topic categorization
-- [ ] Visualization of bias patterns
+- [ ] Visualization of bias patterns over time
 - [ ] A/B testing with question phrasing variations
 - [ ] Integration with Facts & Fakes AI platform
 
@@ -222,6 +261,7 @@ This is a **research tool**, not a production app. The focus is on:
 2. **Simplicity**: Clean interface focused on the research question
 3. **Extensibility**: Easy to add more AIs and features as needed
 4. **Proper fixes**: Development phase means doing it right, not quick hacks
+5. **Transparency**: All responses visible, no hidden processing
 
 ---
 
@@ -234,7 +274,8 @@ This is a **research tool**, not a production app. The focus is on:
 
 ### "Google API key not configured"
 - Make sure `GOOGLE_API_KEY` is set in environment variables
-- Ensure you've enabled the Gemini API in Google AI Studio
+- Ensure you've enabled the Generative Language API in Google AI Studio
+- Use a fresh API key from Google AI Studio (not Cloud Console)
 
 ### Database errors
 - Delete `bias_research.db` file to reset database
@@ -244,6 +285,30 @@ This is a **research tool**, not a production app. The focus is on:
 - Check build logs in Render dashboard
 - Verify environment variables are set correctly
 - Ensure `requirements.txt` has all dependencies
+- Make sure Procfile exists and is properly configured
+
+### Gemini API issues
+- Visit `/debug/gemini-models` endpoint to see available models
+- Current working model: `gemini-2.0-flash`
+- Legacy models (`gemini-pro`, `gemini-1.5-flash`) are deprecated
+
+---
+
+## File Structure
+
+```
+ai-bias-research/
+├── app.py                 # Main Flask application
+├── requirements.txt       # Python dependencies
+├── Procfile              # Render deployment configuration
+├── .gitignore            # Files to exclude from Git
+├── README.md             # This file
+├── templates/
+│   └── index.html        # Main web interface
+├── static/
+│   └── style.css         # Styling
+└── bias_research.db      # SQLite database (created at runtime)
+```
 
 ---
 
@@ -251,7 +316,8 @@ This is a **research tool**, not a production app. The focus is on:
 
 This is an experimental research project. Feedback and suggestions welcome!
 
-**GitHub**: [Hyperiongate/ai-bias-research](https://github.com/Hyperiongate/ai-bias-research)
+**GitHub**: [Hyperiongate/ai-bias-research](https://github.com/Hyperiongate/ai-bias-research)  
+**Live Demo**: [https://ai-bias-research.onrender.com](https://ai-bias-research.onrender.com)
 
 ---
 
