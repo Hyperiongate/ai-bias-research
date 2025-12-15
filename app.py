@@ -771,7 +771,7 @@ def query_ai21_jamba(question):
         ]
         
         response = ai21_client.chat.completions.create(
-            model="jamba-instruct",
+            model="jamba-mini",
             messages=messages,
             max_tokens=150,
             temperature=0.7
@@ -784,7 +784,7 @@ def query_ai21_jamba(question):
         return {
             'success': True,
             'system': 'AI21',
-            'model': 'Jamba-Instruct',
+            'model': 'Jamba-Mini',
             'raw_response': raw_response,
             'response_time': response_time
         }
@@ -800,7 +800,7 @@ def query_ai21_jamba(question):
             'success': False,
             'error': error_msg,
             'system': 'AI21',
-            'model': 'Jamba-Instruct'
+            'model': 'Jamba-Mini'
         }
 
 def query_xai_grok(question):
@@ -1360,7 +1360,7 @@ def debug_test_ai21():
         ]
         
         response = ai21_client.chat.completions.create(
-            model="jamba-instruct",
+            model="jamba-mini",
             messages=messages,
             max_tokens=50
         )
@@ -1371,7 +1371,7 @@ def debug_test_ai21():
             'status': 'success',
             'api_key_configured': True,
             'api_key_prefix': AI21_API_KEY[:15] + '...',
-            'model_tested': 'jamba-instruct',
+            'model_tested': 'jamba-mini',
             'response_time': round(response_time, 2),
             'response_preview': response.choices[0].message.content[:100]
         })
