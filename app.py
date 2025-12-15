@@ -7,8 +7,9 @@ FIXES:
 - December 14, 2024: Fixed OpenAI client initialization for v1.0+ API
 - December 14, 2024: Updated Gemini model naming attempts
 - December 14, 2024: Switched to direct REST API calls for Gemini
-- December 15, 2024: Added model discovery - lists available models first, then uses correct one
-- December 15, 2024: Added debug endpoint to check available Gemini models
+- December 15, 2024: Added model discovery - lists available models first
+- December 15, 2024: FIXED! Updated to use Gemini 2.0/2.5 models (1.5 models deprecated)
+                     Available models: gemini-2.5-flash, gemini-2.0-flash, etc.
 
 This application queries multiple AI systems with the same question to detect bias patterns.
 Designed for research purposes to cross-validate AI responses.
@@ -153,57 +154,11 @@ def query_openai_gpt35(question):
             'model': 'GPT-3.5-Turbo'
         }
 
-def get_available_gemini_models():
-    """Get list of available Gemini models that support generateContent."""
-    if not GOOGLE_API_KEY:
-        return []
-    
-    available_models = []
-    
-    # Try both API versions
-    for api_version in ['v1beta', 'v1']:
-        url = f"https://generativelanguage.googleapis.com/{api_version}/models"
-        
-        try:
-            response = requests.get(
-                url,
-                params={'key': GOOGLE_API_KEY},
-                timeout=10
-            )
-            
-            if response.status_code == 200:
-                data = response.json()
-                models = data.get('models', [])
-                
-                for model in models:
-                    model_name = model.get('name', '')
-                    supported_methods = model.get('supportedGenerationMethods', [])
-                    
-                    # Only include models that support generateContent
-                    if 'generateContent' in supported_methods:
-                        # Extract just the model ID (e.g., "gemini-pro" from "models/gemini-pro")
-                        model_id = model_name.replace('models/', '')
-                        available_models.append({
-                            'api_version': api_version,
-                            'model_id': model_id,
-                            'display_name': model.get('displayName', model_id),
-                            'full_name': model_name
-                        })
-                
-                # If we found models, no need to check other API version
-                if available_models:
-                    break
-                    
-        except Exception as e:
-            continue
-    
-    return available_models
-
 def query_google_gemini(question):
     """Query Google Gemini using direct REST API calls.
     
-    First discovers available models, then uses the best one.
-    Prefers gemini-1.5-flash or gemini-pro.
+    Uses Gemini 2.0 Flash (fast, capable model) via v1beta endpoint.
+    The older gemini-1.5 and gemini-pro models have been deprecated.
     """
     if not GOOGLE_API_KEY:
         return {
@@ -216,47 +171,13 @@ def query_google_gemini(question):
     try:
         start_time = time.time()
         
-        # Get available models
-        available_models = get_available_gemini_models()
+        # Use Gemini 2.0 Flash - fast and capable
+        # Models available: gemini-2.5-flash, gemini-2.0-flash, gemini-2.0-flash-lite
+        # Using v1beta endpoint as confirmed working from debug output
+        model_name = 'gemini-2.0-flash'
+        api_version = 'v1beta'
         
-        if not available_models:
-            return {
-                'success': False,
-                'error': 'No Gemini models available. Check API key permissions.',
-                'system': 'Google',
-                'model': 'Gemini'
-            }
-        
-        # Prefer these models in order
-        preferred_models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro', 'gemini-1.0-pro']
-        
-        # Find the best available model
-        selected_model = None
-        for preferred in preferred_models:
-            for model in available_models:
-                if preferred in model['model_id']:
-                    selected_model = model
-                    break
-            if selected_model:
-                break
-        
-        # If no preferred model found, use first available
-        if not selected_model and available_models:
-            selected_model = available_models[0]
-        
-        if not selected_model:
-            return {
-                'success': False,
-                'error': 'No suitable Gemini model found',
-                'system': 'Google',
-                'model': 'Gemini'
-            }
-        
-        # Make the API call
-        api_version = selected_model['api_version']
-        model_id = selected_model['model_id']
-        
-        url = f"https://generativelanguage.googleapis.com/{api_version}/models/{model_id}:generateContent"
+        url = f"https://generativelanguage.googleapis.com/{api_version}/models/{model_name}:generateContent"
         
         headers = {
             'Content-Type': 'application/json'
@@ -295,16 +216,16 @@ def query_google_gemini(question):
                     return {
                         'success': True,
                         'system': 'Google',
-                        'model': selected_model.get('display_name', model_id),
+                        'model': 'Gemini-2.0-Flash',
                         'raw_response': raw_response,
                         'response_time': response_time
                     }
             
             return {
                 'success': False,
-                'error': f"Unexpected response format from {model_id}",
+                'error': f"Unexpected response format",
                 'system': 'Google',
-                'model': model_id
+                'model': 'Gemini-2.0-Flash'
             }
         else:
             try:
@@ -315,9 +236,9 @@ def query_google_gemini(question):
             
             return {
                 'success': False,
-                'error': f"{model_id}: {error_msg}",
+                'error': error_msg,
                 'system': 'Google',
-                'model': model_id
+                'model': 'Gemini-2.0-Flash'
             }
         
     except requests.exceptions.Timeout:
@@ -325,14 +246,14 @@ def query_google_gemini(question):
             'success': False,
             'error': 'Request timed out after 30 seconds',
             'system': 'Google',
-            'model': 'Gemini'
+            'model': 'Gemini-2.0-Flash'
         }
     except Exception as e:
         return {
             'success': False,
             'error': str(e),
             'system': 'Google',
-            'model': 'Gemini'
+            'model': 'Gemini-2.0-Flash'
         }
 
 def extract_rating(text):
@@ -522,30 +443,40 @@ def debug_gemini_models():
             'available_models': []
         })
     
-    models = get_available_gemini_models()
+    available_models = []
     
-    # Also try to get raw response from list models endpoint
-    raw_responses = {}
-    for api_version in ['v1beta', 'v1']:
-        url = f"https://generativelanguage.googleapis.com/{api_version}/models"
-        try:
-            response = requests.get(
-                url,
-                params={'key': GOOGLE_API_KEY},
-                timeout=10
-            )
-            raw_responses[api_version] = {
-                'status_code': response.status_code,
-                'response': response.json() if response.status_code == 200 else response.text[:500]
-            }
-        except Exception as e:
-            raw_responses[api_version] = {'error': str(e)}
+    # Try v1beta endpoint
+    url = "https://generativelanguage.googleapis.com/v1beta/models"
+    try:
+        response = requests.get(
+            url,
+            params={'key': GOOGLE_API_KEY},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            models = data.get('models', [])
+            
+            for model in models:
+                model_name = model.get('name', '')
+                supported_methods = model.get('supportedGenerationMethods', [])
+                
+                # Only include models that support generateContent
+                if 'generateContent' in supported_methods:
+                    model_id = model_name.replace('models/', '')
+                    available_models.append({
+                        'model_id': model_id,
+                        'display_name': model.get('displayName', model_id)
+                    })
+                    
+    except Exception as e:
+        return jsonify({'error': str(e)})
     
     return jsonify({
         'google_api_key_configured': True,
-        'google_api_key_prefix': GOOGLE_API_KEY[:10] + '...' if GOOGLE_API_KEY else None,
-        'available_models_for_generateContent': models,
-        'raw_api_responses': raw_responses
+        'available_models': available_models,
+        'recommended_model': 'gemini-2.0-flash'
     })
 
 if __name__ == '__main__':
