@@ -804,19 +804,19 @@ def query_ai21_jamba(question):
         }
 
 def query_xai_grok(question):
-    """Query xAI Grok-Beta with system prompt for structured responses.
+    """Query xAI Grok-3 with system prompt for structured responses.
     
-    Uses Grok-Beta via OpenAI-compatible API.
+    Uses Grok-3 via OpenAI-compatible API.
     Provides xAI (Elon Musk's AI) perspective on responses.
     
     xAI's Grok is designed to be "maximally truth-seeking" and has access to real-time
     X (Twitter) data, giving it unique current events capabilities.
     
     API Endpoint: https://api.x.ai/v1
-    Model: grok-beta
+    Model: grok-3
     
-    ADDED December 15, 2024 as 10th AI system.
-    Provides additional USA perspective with unique real-time data access.
+    UPDATED December 15, 2024: Changed from deprecated grok-beta to grok-3.
+    Added as 10th AI system for additional USA perspective with unique real-time data access.
     """
     if not xai_client:
         return {
@@ -829,7 +829,7 @@ def query_xai_grok(question):
     try:
         start_time = time.time()
         response = xai_client.chat.completions.create(
-            model="grok-beta",
+            model="grok-3",
             messages=[
                 {"role": "system", "content": RATING_SYSTEM_PROMPT},
                 {"role": "user", "content": question}
@@ -844,7 +844,7 @@ def query_xai_grok(question):
         return {
             'success': True,
             'system': 'xAI',
-            'model': 'Grok-Beta',
+            'model': 'Grok-3',
             'raw_response': raw_response,
             'response_time': response_time
         }
@@ -854,13 +854,13 @@ def query_xai_grok(question):
         if 'Unauthorized' in error_msg or 'Invalid API key' in error_msg:
             error_msg += ' - Verify your XAI_API_KEY in Render environment variables'
         elif 'Model not found' in error_msg:
-            error_msg += ' - Model grok-beta may not be available. Try grok-4 if available.'
+            error_msg += ' - Model grok-3 may not be available. Check xAI console for available models.'
         
         return {
             'success': False,
             'error': error_msg,
             'system': 'xAI',
-            'model': 'Grok-Beta'
+            'model': 'Grok-3'
         }
 
 def extract_rating(text):
@@ -1407,7 +1407,7 @@ def debug_test_xai():
     try:
         start_time = time.time()
         response = xai_client.chat.completions.create(
-            model="grok-beta",
+            model="grok-3",
             messages=[{"role": "user", "content": "Say 'Hello' and nothing else."}],
             max_tokens=50
         )
@@ -1417,7 +1417,7 @@ def debug_test_xai():
             'status': 'success',
             'api_key_configured': True,
             'api_key_prefix': XAI_API_KEY[:15] + '...',
-            'model_tested': 'grok-beta',
+            'model_tested': 'grok-3',
             'response_time': round(response_time, 2),
             'response_preview': response.choices[0].message.content[:100]
         })
