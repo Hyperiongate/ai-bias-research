@@ -106,14 +106,14 @@ RATING_SYSTEM_PROMPT = """You are participating in a research study on AI respon
 
 1. Start your response with ONLY the numerical rating on the first line
 2. Use up to 3 decimal places for precision (e.g., 7.250, 8.125, 6.875)
-3. Then provide your explanation on subsequent lines
+3. Then provide a BRIEF explanation (2-3 sentences maximum)
 
 Example format:
 7.250
 
-Your explanation goes here...
+Your explanation goes here in 2-3 sentences.
 
-This format is critical for data collection. Always provide a specific number, never a range."""
+This format is critical for data collection. Always provide a specific number, never a range. Keep explanations concise."""
 
 # Database setup
 DATABASE = 'bias_research.db'
@@ -175,7 +175,7 @@ def query_openai_gpt4(question):
                 {"role": "user", "content": question}
             ],
             temperature=0.7,
-            max_tokens=500
+            max_tokens=150
         )
         response_time = time.time() - start_time
         
@@ -215,7 +215,7 @@ def query_openai_gpt35(question):
                 {"role": "user", "content": question}
             ],
             temperature=0.7,
-            max_tokens=500
+            max_tokens=150
         )
         response_time = time.time() - start_time
         
@@ -557,7 +557,7 @@ def query_deepseek_chat(question):
                 {"role": "user", "content": question}
             ],
             temperature=0.7,
-            max_tokens=500
+            max_tokens=150
         )
         response_time = time.time() - start_time
         
@@ -716,7 +716,7 @@ def query_groq_llama(question):
                 {"role": "user", "content": question}
             ],
             temperature=0.7,
-            max_tokens=500
+            max_tokens=150
         )
         response_time = time.time() - start_time
         
@@ -773,7 +773,7 @@ def query_ai21_jamba(question):
         response = ai21_client.chat.completions.create(
             model="jamba-instruct",
             messages=messages,
-            max_tokens=500,
+            max_tokens=150,
             temperature=0.7
         )
         
@@ -835,7 +835,7 @@ def query_xai_grok(question):
                 {"role": "user", "content": question}
             ],
             temperature=0.7,
-            max_tokens=500
+            max_tokens=150
         )
         response_time = time.time() - start_time
         
