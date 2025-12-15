@@ -15,9 +15,9 @@ FIXES:
                       to claude-sonnet-4-20250514 (Claude Sonnet 4) - old model was deprecated
                       and returning 404 not_found_error
 - December 15, 2024: ADDED DEEPSEEK! Integrated DeepSeek AI from China (deepseek-chat model)
-                      using OpenAI-compatible API format. Adds geographic diversity to research.
-- December 15, 2024: ADDED COHERE! Integrated Cohere Command R+ from Canada.
-                      Now have 7 AI systems: 4 US, 1 French, 1 Chinese, 1 Canadian
+- December 15, 2024: ADDED COHERE! Integrated Cohere Command R+ from Canada
+- December 15, 2024: ADDED LLAMA! Integrated Meta Llama 3.1 70B via Groq (open-source model)
+                      Now have 8 AI systems: 4 US, 1 French, 1 Chinese, 1 Canadian, 1 Open-Source
 
 This application queries multiple AI systems with the same question to detect bias patterns.
 Designed for research purposes to cross-validate AI responses.
@@ -25,14 +25,15 @@ Designed for research purposes to cross-validate AI responses.
 Author: Jim (Hyperiongate)
 Purpose: Discover if there's "any there there" in AI bias detection
 
-AI SYSTEMS INTEGRATED (7 total):
-- OpenAI GPT-4 (USA)
-- OpenAI GPT-3.5-Turbo (USA)
-- Google Gemini-2.0-Flash (USA)
-- Anthropic Claude-Sonnet-4 (USA)
-- Mistral Large-2 (France)
-- DeepSeek Chat (China)
-- Cohere Command R+ (Canada) - NEW!
+AI SYSTEMS INTEGRATED (8 total):
+- OpenAI GPT-4 (USA) - Proprietary
+- OpenAI GPT-3.5-Turbo (USA) - Proprietary
+- Google Gemini-2.0-Flash (USA) - Proprietary
+- Anthropic Claude-Sonnet-4 (USA) - Proprietary
+- Mistral Large-2 (France) - Proprietary
+- DeepSeek Chat (China) - Proprietary
+- Cohere Command R+ (Canada) - Proprietary
+- Meta Llama 3.1 70B via Groq (USA) - OPEN SOURCE - NEW!
 """
 
 from flask import Flask, render_template, request, jsonify
@@ -54,6 +55,7 @@ ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
 MISTRAL_API_KEY = os.environ.get('MISTRAL_API_KEY')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
 COHERE_API_KEY = os.environ.get('COHERE_API_KEY')
+GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 
 # Initialize OpenAI client
 openai_client = None
@@ -66,6 +68,14 @@ if DEEPSEEK_API_KEY:
     deepseek_client = OpenAI(
         api_key=DEEPSEEK_API_KEY,
         base_url="https://api.deepseek.com"
+    )
+
+# Initialize Groq client (uses OpenAI-compatible API)
+groq_client = None
+if GROQ_API_KEY:
+    groq_client = OpenAI(
+        api_key=GROQ_API_KEY,
+        base_url="https://api.groq.com/openai/v1"
     )
 
 # System prompt to ensure consistent, parseable responses
@@ -674,6 +684,58 @@ def query_cohere_command(question):
             'model': 'Command-R+'
         }
 
+def query_groq_llama(question):
+    """Query Meta Llama 3.1 70B via Groq with system prompt for structured responses.
+    
+    Uses Llama 3.1 70B via Groq's ultra-fast LPU inference.
+    This is an OPEN SOURCE model, unlike all other proprietary models in this tool.
+    
+    Groq provides the fastest inference for Llama models using their
+    custom LPU (Language Processing Unit) hardware.
+    
+    API Endpoint: https://api.groq.com/openai/v1 (OpenAI-compatible)
+    Model: llama-3.1-70b-versatile
+    
+    Added December 15, 2024 to include open-source model perspective.
+    """
+    if not groq_client:
+        return {
+            'success': False,
+            'error': 'Groq API key not configured',
+            'system': 'Meta',
+            'model': 'Llama-3.1-70B'
+        }
+    
+    try:
+        start_time = time.time()
+        response = groq_client.chat.completions.create(
+            model="llama-3.1-70b-versatile",
+            messages=[
+                {"role": "system", "content": RATING_SYSTEM_PROMPT},
+                {"role": "user", "content": question}
+            ],
+            temperature=0.7,
+            max_tokens=500
+        )
+        response_time = time.time() - start_time
+        
+        raw_response = response.choices[0].message.content
+        
+        return {
+            'success': True,
+            'system': 'Meta (via Groq)',
+            'model': 'Llama-3.1-70B',
+            'raw_response': raw_response,
+            'response_time': response_time
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e),
+            'system': 'Meta (via Groq)',
+            'model': 'Llama-3.1-70B'
+        }
+
 def extract_rating(text):
     """
     Extract numerical rating from the response.
@@ -830,6 +892,19 @@ def query_ais():
         cohere_result['extracted_rating'] = extracted_rating
     results.append(cohere_result)
     
+    # Meta Llama 3.1 70B via Groq (Open Source)
+    llama_result = query_groq_llama(question)
+    if llama_result['success']:
+        extracted_rating = extract_rating(llama_result['raw_response'])
+        db.execute('''
+            INSERT INTO responses 
+            (query_id, ai_system, model, raw_response, extracted_rating, response_time)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (query_id, llama_result['system'], llama_result['model'], 
+              llama_result['raw_response'], extracted_rating, llama_result['response_time']))
+        llama_result['extracted_rating'] = extracted_rating
+    results.append(llama_result)
+    
     db.commit()
     db.close()
     
@@ -927,7 +1002,8 @@ def health_check():
         'anthropic_configured': ANTHROPIC_API_KEY is not None,
         'mistral_configured': MISTRAL_API_KEY is not None,
         'deepseek_configured': DEEPSEEK_API_KEY is not None,
-        'cohere_configured': COHERE_API_KEY is not None
+        'cohere_configured': COHERE_API_KEY is not None,
+        'groq_configured': GROQ_API_KEY is not None
     })
 
 @app.route('/debug/gemini-models')
@@ -975,11 +1051,7 @@ def debug_gemini_models():
 
 @app.route('/debug/test-anthropic')
 def debug_test_anthropic():
-    """Debug endpoint to test Anthropic Claude API configuration.
-    
-    This helps diagnose issues with the Anthropic API integration.
-    Returns detailed error information including HTTP status codes.
-    """
+    """Debug endpoint to test Anthropic Claude API configuration."""
     if not ANTHROPIC_API_KEY:
         return jsonify({
             'status': 'error',
@@ -991,7 +1063,6 @@ def debug_test_anthropic():
             ]
         })
     
-    # Test the API with a simple request
     url = "https://api.anthropic.com/v1/messages"
     
     headers = {
@@ -1000,7 +1071,6 @@ def debug_test_anthropic():
         'anthropic-version': '2023-06-01'
     }
     
-    # Using the updated Claude Sonnet 4 model
     payload = {
         'model': 'claude-sonnet-4-20250514',
         'max_tokens': 50,
@@ -1013,12 +1083,7 @@ def debug_test_anthropic():
     }
     
     try:
-        response = requests.post(
-            url,
-            headers=headers,
-            json=payload,
-            timeout=15
-        )
+        response = requests.post(url, headers=headers, json=payload, timeout=15)
         
         if response.status_code == 200:
             data = response.json()
@@ -1039,66 +1104,24 @@ def debug_test_anthropic():
                 error_type = 'unknown'
                 error_msg = response.text[:200]
             
-            suggestions = []
-            if response.status_code == 401:
-                suggestions = [
-                    'Invalid API key',
-                    'Check that the key is correctly copied',
-                    'Regenerate key at: https://console.anthropic.com/settings/keys'
-                ]
-            elif response.status_code == 403:
-                suggestions = [
-                    'API key lacks permissions or billing issue',
-                    'Check billing at: https://console.anthropic.com/settings/billing',
-                    'Check limits at: https://console.anthropic.com/settings/limits'
-                ]
-            elif response.status_code == 404:
-                suggestions = [
-                    'Model name is incorrect',
-                    'Try: claude-sonnet-4-20250514',
-                    'Check available models at: https://docs.anthropic.com/en/docs/about-claude/models'
-                ]
-            elif response.status_code == 429:
-                suggestions = [
-                    'Rate limit exceeded',
-                    'Wait a few minutes and try again',
-                    'Check your usage limits'
-                ]
-            
             return jsonify({
                 'status': 'error',
                 'api_key_configured': True,
-                'api_key_prefix': ANTHROPIC_API_KEY[:20] + '...',
                 'http_status': response.status_code,
                 'error_type': error_type,
-                'error_message': error_msg,
-                'suggestions': suggestions
+                'error_message': error_msg
             })
             
-    except requests.exceptions.Timeout:
-        return jsonify({
-            'status': 'error',
-            'api_key_configured': True,
-            'error_type': 'timeout',
-            'error_message': 'Request timed out after 15 seconds',
-            'suggestions': ['Try again - API might be temporarily slow']
-        })
     except Exception as e:
         return jsonify({
             'status': 'error',
             'api_key_configured': True,
-            'error_type': 'exception',
-            'error_message': str(e),
-            'suggestions': ['Check network connectivity', 'Try again']
+            'error_message': str(e)
         })
 
 @app.route('/debug/test-deepseek')
 def debug_test_deepseek():
-    """Debug endpoint to test DeepSeek API configuration.
-    
-    This helps diagnose issues with the DeepSeek API integration.
-    Returns detailed error information.
-    """
+    """Debug endpoint to test DeepSeek API configuration."""
     if not DEEPSEEK_API_KEY:
         return jsonify({
             'status': 'error',
@@ -1114,17 +1137,14 @@ def debug_test_deepseek():
         return jsonify({
             'status': 'error',
             'api_key_configured': True,
-            'error_message': 'DeepSeek client failed to initialize',
-            'suggestions': ['Check API key format', 'Try regenerating the key']
+            'error_message': 'DeepSeek client failed to initialize'
         })
     
     try:
         start_time = time.time()
         response = deepseek_client.chat.completions.create(
             model="deepseek-chat",
-            messages=[
-                {"role": "user", "content": "Say 'Hello, this is a test' and nothing else."}
-            ],
+            messages=[{"role": "user", "content": "Say 'Hello' and nothing else."}],
             max_tokens=50
         )
         response_time = time.time() - start_time
@@ -1139,48 +1159,15 @@ def debug_test_deepseek():
         })
         
     except Exception as e:
-        error_str = str(e)
-        suggestions = []
-        
-        if 'authentication' in error_str.lower() or '401' in error_str:
-            suggestions = [
-                'Invalid API key',
-                'Check that the key is correctly copied',
-                'Regenerate key at: https://platform.deepseek.com/api_keys'
-            ]
-        elif 'insufficient' in error_str.lower() or 'balance' in error_str.lower():
-            suggestions = [
-                'Insufficient balance in DeepSeek account',
-                'Top up at: https://platform.deepseek.com',
-                'DeepSeek requires a small prepaid balance'
-            ]
-        elif 'rate' in error_str.lower() or '429' in error_str:
-            suggestions = [
-                'Rate limit exceeded',
-                'Wait a moment and try again'
-            ]
-        else:
-            suggestions = [
-                'Check API key is valid',
-                'Ensure account has balance',
-                'Try again in a moment'
-            ]
-        
         return jsonify({
             'status': 'error',
             'api_key_configured': True,
-            'api_key_prefix': DEEPSEEK_API_KEY[:15] + '...',
-            'error_message': error_str,
-            'suggestions': suggestions
+            'error_message': str(e)
         })
 
 @app.route('/debug/test-cohere')
 def debug_test_cohere():
-    """Debug endpoint to test Cohere API configuration.
-    
-    This helps diagnose issues with the Cohere API integration.
-    Returns detailed error information.
-    """
+    """Debug endpoint to test Cohere API configuration."""
     if not COHERE_API_KEY:
         return jsonify({
             'status': 'error',
@@ -1196,35 +1183,21 @@ def debug_test_cohere():
         start_time = time.time()
         
         url = "https://api.cohere.com/v2/chat"
-        
         headers = {
             'Content-Type': 'application/json',
             'Authorization': f'Bearer {COHERE_API_KEY}'
         }
-        
         payload = {
             'model': 'command-r-plus',
-            'messages': [
-                {
-                    'role': 'user',
-                    'content': "Say 'Hello, this is a test' and nothing else."
-                }
-            ],
+            'messages': [{'role': 'user', 'content': "Say 'Hello' and nothing else."}],
             'max_tokens': 50
         }
         
-        response = requests.post(
-            url,
-            headers=headers,
-            json=payload,
-            timeout=15
-        )
-        
+        response = requests.post(url, headers=headers, json=payload, timeout=15)
         response_time = time.time() - start_time
         
         if response.status_code == 200:
             data = response.json()
-            # Extract response text from Cohere v2 format
             response_text = ''
             if 'message' in data and 'content' in data['message']:
                 content = data['message']['content']
@@ -1240,55 +1213,64 @@ def debug_test_cohere():
                 'response_preview': response_text
             })
         else:
-            try:
-                error_data = response.json()
-                error_msg = error_data.get('message', f"HTTP {response.status_code}")
-            except:
-                error_msg = f"HTTP {response.status_code}: {response.text[:200]}"
-            
-            suggestions = []
-            if response.status_code == 401:
-                suggestions = [
-                    'Invalid API key',
-                    'Check that the key is correctly copied',
-                    'Regenerate key at: https://dashboard.cohere.com/api-keys'
-                ]
-            elif response.status_code == 429:
-                suggestions = [
-                    'Rate limit exceeded (free tier: 1000 calls/month)',
-                    'Wait and try again',
-                    'Consider upgrading your Cohere plan'
-                ]
-            else:
-                suggestions = [
-                    'Check API key is valid',
-                    'Visit https://dashboard.cohere.com for account status'
-                ]
-            
             return jsonify({
                 'status': 'error',
                 'api_key_configured': True,
-                'api_key_prefix': COHERE_API_KEY[:15] + '...',
                 'http_status': response.status_code,
-                'error_message': error_msg,
-                'suggestions': suggestions
+                'error_message': response.text[:200]
             })
         
-    except requests.exceptions.Timeout:
-        return jsonify({
-            'status': 'error',
-            'api_key_configured': True,
-            'error_type': 'timeout',
-            'error_message': 'Request timed out after 15 seconds',
-            'suggestions': ['Try again - API might be temporarily slow']
-        })
     except Exception as e:
         return jsonify({
             'status': 'error',
             'api_key_configured': True,
-            'error_type': 'exception',
-            'error_message': str(e),
-            'suggestions': ['Check network connectivity', 'Try again']
+            'error_message': str(e)
+        })
+
+@app.route('/debug/test-groq')
+def debug_test_groq():
+    """Debug endpoint to test Groq/Llama API configuration."""
+    if not GROQ_API_KEY:
+        return jsonify({
+            'status': 'error',
+            'api_key_configured': False,
+            'error_message': 'GROQ_API_KEY environment variable not set',
+            'suggestions': [
+                'Add GROQ_API_KEY to Render environment variables',
+                'Get your API key from: https://console.groq.com/keys'
+            ]
+        })
+    
+    if not groq_client:
+        return jsonify({
+            'status': 'error',
+            'api_key_configured': True,
+            'error_message': 'Groq client failed to initialize'
+        })
+    
+    try:
+        start_time = time.time()
+        response = groq_client.chat.completions.create(
+            model="llama-3.1-70b-versatile",
+            messages=[{"role": "user", "content": "Say 'Hello' and nothing else."}],
+            max_tokens=50
+        )
+        response_time = time.time() - start_time
+        
+        return jsonify({
+            'status': 'success',
+            'api_key_configured': True,
+            'api_key_prefix': GROQ_API_KEY[:15] + '...',
+            'model_tested': 'llama-3.1-70b-versatile',
+            'response_time': round(response_time, 2),
+            'response_preview': response.choices[0].message.content[:100]
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'api_key_configured': True,
+            'error_message': str(e)
         })
 
 if __name__ == '__main__':
