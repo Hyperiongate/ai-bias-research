@@ -2,7 +2,12 @@
 <!--
 AI Bias Research Tool - Main Interface
 Created: December 13, 2024
-Last Updated: December 13, 2024
+Last Updated: December 15, 2024
+
+UPDATES:
+- December 15, 2024: Updated to display decimal ratings (up to 3 decimal places)
+- December 15, 2024: Updated example question to encourage precise numerical responses
+- December 15, 2024: Improved analysis section for decimal comparisons
 
 Simple, clean interface for querying multiple AI systems and comparing responses.
 Designed for research into AI bias detection.
@@ -26,11 +31,11 @@ Designed for research into AI bias detection.
             <section class="query-section">
                 <h2>Ask Your Question</h2>
                 <p class="help-text">
-                    Example: "On a scale from 1 to 10, how good a president is Donald Trump? 10 being the best ever."
+                    Tip: Ask questions that require a numerical rating. Example: "If you had to assign a numerical value to how good pizza is, with a number between 1 and 10, what number would you choose?"
                 </p>
                 <textarea 
                     id="question-input" 
-                    placeholder="Enter your question here..."
+                    placeholder="Enter your question here. For best results, ask for a rating on a scale of 1-10..."
                     rows="4"
                 ></textarea>
                 <button id="submit-btn" class="primary-btn">
@@ -66,6 +71,16 @@ Designed for research into AI bias detection.
     <script>
         // Global variables
         let currentResults = null;
+
+        // Format rating for display (up to 3 decimal places, but trim trailing zeros)
+        function formatRating(rating) {
+            if (rating === null || rating === undefined) {
+                return null;
+            }
+            // Round to 3 decimal places and remove trailing zeros
+            const rounded = Math.round(rating * 1000) / 1000;
+            return parseFloat(rounded.toFixed(3));
+        }
 
         // Submit query
         document.getElementById('submit-btn').addEventListener('click', async () => {
@@ -122,15 +137,17 @@ Designed for research into AI bias detection.
                 resultCard.className = 'result-card';
                 
                 if (result.success) {
+                    const rating = formatRating(result.extracted_rating);
+                    const ratingDisplay = rating !== null 
+                        ? `<div class="rating-badge">Rating: ${rating}/10</div>`
+                        : '<div class="rating-badge no-rating">No numerical rating detected</div>';
+                    
                     resultCard.innerHTML = `
                         <div class="result-header">
                             <h3>${result.system} - ${result.model}</h3>
                             <span class="response-time">${result.response_time.toFixed(2)}s</span>
                         </div>
-                        ${result.extracted_rating !== null ? 
-                            `<div class="rating-badge">Rating: ${result.extracted_rating}/10</div>` : 
-                            '<div class="rating-badge no-rating">No numerical rating detected</div>'
-                        }
+                        ${ratingDisplay}
                         <div class="response-text">${result.raw_response}</div>
                     `;
                 } else {
@@ -166,11 +183,16 @@ Designed for research into AI bias detection.
                 return;
             }
 
-            const ratings = ratingsFound.map(r => r.extracted_rating);
-            const average = (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(2);
+            const ratings = ratingsFound.map(r => formatRating(r.extracted_rating));
+            const average = ratings.reduce((a, b) => a + b, 0) / ratings.length;
             const min = Math.min(...ratings);
             const max = Math.max(...ratings);
-            const range = max - min;
+            const spread = max - min;
+            
+            // Calculate standard deviation for more insight
+            const squaredDiffs = ratings.map(r => Math.pow(r - average, 2));
+            const avgSquaredDiff = squaredDiffs.reduce((a, b) => a + b, 0) / ratings.length;
+            const stdDev = Math.sqrt(avgSquaredDiff);
 
             let analysisHTML = `
                 <div class="analysis-stats">
@@ -180,30 +202,61 @@ Designed for research into AI bias detection.
                     </div>
                     <div class="stat">
                         <label>Average:</label>
-                        <value>${average}/10</value>
+                        <value>${average.toFixed(3)}/10</value>
                     </div>
                     <div class="stat">
                         <label>Range:</label>
-                        <value>${min} - ${max} (spread: ${range})</value>
+                        <value>${min.toFixed(3)} - ${max.toFixed(3)}</value>
+                    </div>
+                    <div class="stat">
+                        <label>Spread:</label>
+                        <value>${spread.toFixed(3)}</value>
+                    </div>
+                    <div class="stat">
+                        <label>Std Dev:</label>
+                        <value>${stdDev.toFixed(3)}</value>
                     </div>
                 </div>
             `;
 
-            if (range > 0) {
+            // Generate insight based on spread
+            if (spread === 0) {
                 analysisHTML += `
-                    <div class="insight">
-                        <strong>📊 Observation:</strong> There is a ${range}-point spread between the highest and lowest ratings. 
-                        This suggests different AI systems may have different perspectives on this question.
+                    <div class="insight consensus">
+                        <strong>📊 Perfect Consensus:</strong> All AI systems gave identical ratings (${min.toFixed(3)}/10). 
+                        This suggests strong agreement on this particular question.
+                    </div>
+                `;
+            } else if (spread < 0.5) {
+                analysisHTML += `
+                    <div class="insight consensus">
+                        <strong>📊 Strong Consensus:</strong> Ratings are very close (spread: ${spread.toFixed(3)}). 
+                        The AI systems largely agree on this topic.
+                    </div>
+                `;
+            } else if (spread < 1.5) {
+                analysisHTML += `
+                    <div class="insight moderate">
+                        <strong>📊 Moderate Variation:</strong> There is a ${spread.toFixed(3)}-point spread between ratings. 
+                        Some difference in AI perspectives detected.
                     </div>
                 `;
             } else {
                 analysisHTML += `
-                    <div class="insight">
-                        <strong>📊 Observation:</strong> All AI systems that provided ratings gave the same score (${min}/10). 
-                        This suggests consensus on this particular question.
+                    <div class="insight divergent">
+                        <strong>📊 Significant Divergence:</strong> There is a ${spread.toFixed(3)}-point spread between ratings. 
+                        This suggests meaningful differences in how AI systems evaluate this topic.
                     </div>
                 `;
             }
+
+            // Show individual ratings breakdown
+            analysisHTML += `<div class="ratings-breakdown"><strong>Individual Ratings:</strong> `;
+            ratingsFound.forEach((r, i) => {
+                analysisHTML += `${r.system} ${r.model}: ${formatRating(r.extracted_rating)}`;
+                if (i < ratingsFound.length - 1) analysisHTML += ' | ';
+            });
+            analysisHTML += `</div>`;
 
             analysisContent.innerHTML = analysisHTML;
             analysisSection.style.display = 'block';
