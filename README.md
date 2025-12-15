@@ -15,27 +15,30 @@ This tool queries multiple AI systems with the same question to detect bias patt
 
 ## Current Status - December 15, 2024
 
-✅ **WORKING**: OpenAI GPT-4, GPT-3.5-Turbo, Google Gemini-2.0-Flash  
+✅ **WORKING**: OpenAI GPT-4, GPT-3.5-Turbo, Google Gemini-2.0-Flash, Anthropic Claude 3.5 Sonnet  
 ✅ **DEPLOYED**: https://ai-bias-research.onrender.com  
 ✅ **REPOSITORY**: https://github.com/Hyperiongate/ai-bias-research
 
-### Recent Fixes
+### Recent Updates
 - ✅ Fixed Gemini API integration (switched to Gemini 2.0 Flash via v1beta endpoint)
 - ✅ Implemented decimal rating precision (3 decimal places)
 - ✅ Added system prompts to ensure consistent number-first responses
 - ✅ Fixed Procfile for proper Render deployment
+- ✅ **NEW!** Added Anthropic Claude 3.5 Sonnet as 4th AI system
+- ✅ **NEW!** Added Reset button for easy new queries
 
 ---
 
 ## Features
 
-- ✅ Query multiple AI systems simultaneously (OpenAI GPT-4, GPT-3.5, Google Gemini)
+- ✅ Query 4 AI systems simultaneously (OpenAI GPT-4, GPT-3.5, Google Gemini, Anthropic Claude)
 - ✅ Extract and compare numerical ratings with decimal precision
 - ✅ Store all queries and responses in SQLite database
 - ✅ View query history and past results
 - ✅ Simple, clean interface focused on research
 - ✅ Automated statistical analysis (mean, std dev, spread)
 - ✅ Real-time comparison of AI perspectives
+- ✅ Reset button to quickly start fresh queries
 
 ---
 
@@ -55,6 +58,7 @@ This tool queries multiple AI systems with the same question to detect bias patt
 1. **OpenAI GPT-4** - Requires `OPENAI_API_KEY`
 2. **OpenAI GPT-3.5-Turbo** - Requires `OPENAI_API_KEY`
 3. **Google Gemini-2.0-Flash** - Requires `GOOGLE_API_KEY`
+4. **Anthropic Claude 3.5 Sonnet** - Requires `ANTHROPIC_API_KEY`
 
 More AI systems can be easily added in future iterations.
 
@@ -96,6 +100,7 @@ Create a `.env` file in the project root (NEVER commit this file):
 ```
 OPENAI_API_KEY=your_openai_key_here
 GOOGLE_API_KEY=your_google_key_here
+ANTHROPIC_API_KEY=your_anthropic_key_here
 ```
 
 Or export them in your terminal:
@@ -104,10 +109,12 @@ Or export them in your terminal:
 # Mac/Linux
 export OPENAI_API_KEY="your_openai_key_here"
 export GOOGLE_API_KEY="your_google_key_here"
+export ANTHROPIC_API_KEY="your_anthropic_key_here"
 
 # Windows PowerShell
 $env:OPENAI_API_KEY="your_openai_key_here"
 $env:GOOGLE_API_KEY="your_google_key_here"
+$env:ANTHROPIC_API_KEY="your_anthropic_key_here"
 ```
 
 ### Step 5: Run the Application
@@ -146,6 +153,7 @@ In Render dashboard, go to "Environment" tab and add:
 
 - `OPENAI_API_KEY` = your OpenAI key
 - `GOOGLE_API_KEY` = your Google Gemini key
+- `ANTHROPIC_API_KEY` = your Anthropic key
 
 ### Step 4: Deploy
 
