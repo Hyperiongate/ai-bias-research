@@ -14,12 +14,23 @@ FIXES:
 - December 15, 2024: FIXED ANTHROPIC! Updated Claude model from claude-3-5-sonnet-20241022 
                       to claude-sonnet-4-20250514 (Claude Sonnet 4) - old model was deprecated
                       and returning 404 not_found_error
+- December 15, 2024: ADDED DEEPSEEK! Integrated DeepSeek AI from China (deepseek-chat model)
+                      using OpenAI-compatible API format. Adds geographic diversity to research.
+                      Now have 6 AI systems: 4 US, 1 French, 1 Chinese
 
 This application queries multiple AI systems with the same question to detect bias patterns.
 Designed for research purposes to cross-validate AI responses.
 
 Author: Jim (Hyperiongate)
 Purpose: Discover if there's "any there there" in AI bias detection
+
+AI SYSTEMS INTEGRATED (6 total):
+- OpenAI GPT-4 (USA)
+- OpenAI GPT-3.5-Turbo (USA)
+- Google Gemini-2.0-Flash (USA)
+- Anthropic Claude-Sonnet-4 (USA)
+- Mistral Large-2 (France)
+- DeepSeek Chat (China) - NEW!
 """
 
 from flask import Flask, render_template, request, jsonify
@@ -39,11 +50,20 @@ OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
 MISTRAL_API_KEY = os.environ.get('MISTRAL_API_KEY')
+DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
 
 # Initialize OpenAI client
 openai_client = None
 if OPENAI_API_KEY:
     openai_client = OpenAI(api_key=OPENAI_API_KEY)
+
+# Initialize DeepSeek client (uses OpenAI-compatible API)
+deepseek_client = None
+if DEEPSEEK_API_KEY:
+    deepseek_client = OpenAI(
+        api_key=DEEPSEEK_API_KEY,
+        base_url="https://api.deepseek.com"
+    )
 
 # System prompt to ensure consistent, parseable responses
 RATING_SYSTEM_PROMPT = """You are participating in a research study on AI responses. When asked to rate something on a numerical scale, you MUST follow these rules:
@@ -488,6 +508,58 @@ def query_mistral_large(question):
             'model': 'Large-2'
         }
 
+def query_deepseek_chat(question):
+    """Query DeepSeek Chat with system prompt for structured responses.
+    
+    Uses DeepSeek V3.2 (deepseek-chat) via OpenAI-compatible API.
+    Provides Chinese AI perspective on responses.
+    
+    DeepSeek is a Chinese AI company that released an open-source model
+    matching GPT-4 performance at significantly lower cost.
+    
+    API Endpoint: https://api.deepseek.com
+    Model: deepseek-chat (DeepSeek V3.2 non-thinking mode)
+    
+    Added December 15, 2024 for geographic diversity in bias research.
+    """
+    if not deepseek_client:
+        return {
+            'success': False,
+            'error': 'DeepSeek API key not configured',
+            'system': 'DeepSeek',
+            'model': 'Chat'
+        }
+    
+    try:
+        start_time = time.time()
+        response = deepseek_client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": RATING_SYSTEM_PROMPT},
+                {"role": "user", "content": question}
+            ],
+            temperature=0.7,
+            max_tokens=500
+        )
+        response_time = time.time() - start_time
+        
+        raw_response = response.choices[0].message.content
+        
+        return {
+            'success': True,
+            'system': 'DeepSeek',
+            'model': 'Chat-V3',
+            'raw_response': raw_response,
+            'response_time': response_time
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e),
+            'system': 'DeepSeek',
+            'model': 'Chat-V3'
+        }
+
 def extract_rating(text):
     """
     Extract numerical rating from the response.
@@ -618,6 +690,19 @@ def query_ais():
         mistral_result['extracted_rating'] = extracted_rating
     results.append(mistral_result)
     
+    # DeepSeek Chat (China)
+    deepseek_result = query_deepseek_chat(question)
+    if deepseek_result['success']:
+        extracted_rating = extract_rating(deepseek_result['raw_response'])
+        db.execute('''
+            INSERT INTO responses 
+            (query_id, ai_system, model, raw_response, extracted_rating, response_time)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (query_id, deepseek_result['system'], deepseek_result['model'], 
+              deepseek_result['raw_response'], extracted_rating, deepseek_result['response_time']))
+        deepseek_result['extracted_rating'] = extracted_rating
+    results.append(deepseek_result)
+    
     db.commit()
     db.close()
     
@@ -713,7 +798,8 @@ def health_check():
         'openai_configured': OPENAI_API_KEY is not None,
         'google_configured': GOOGLE_API_KEY is not None,
         'anthropic_configured': ANTHROPIC_API_KEY is not None,
-        'mistral_configured': MISTRAL_API_KEY is not None
+        'mistral_configured': MISTRAL_API_KEY is not None,
+        'deepseek_configured': DEEPSEEK_API_KEY is not None
     })
 
 @app.route('/debug/gemini-models')
@@ -876,6 +962,88 @@ def debug_test_anthropic():
             'error_type': 'exception',
             'error_message': str(e),
             'suggestions': ['Check network connectivity', 'Try again']
+        })
+
+@app.route('/debug/test-deepseek')
+def debug_test_deepseek():
+    """Debug endpoint to test DeepSeek API configuration.
+    
+    This helps diagnose issues with the DeepSeek API integration.
+    Returns detailed error information.
+    """
+    if not DEEPSEEK_API_KEY:
+        return jsonify({
+            'status': 'error',
+            'api_key_configured': False,
+            'error_message': 'DEEPSEEK_API_KEY environment variable not set',
+            'suggestions': [
+                'Add DEEPSEEK_API_KEY to Render environment variables',
+                'Get your API key from: https://platform.deepseek.com/api_keys'
+            ]
+        })
+    
+    if not deepseek_client:
+        return jsonify({
+            'status': 'error',
+            'api_key_configured': True,
+            'error_message': 'DeepSeek client failed to initialize',
+            'suggestions': ['Check API key format', 'Try regenerating the key']
+        })
+    
+    try:
+        start_time = time.time()
+        response = deepseek_client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "user", "content": "Say 'Hello, this is a test' and nothing else."}
+            ],
+            max_tokens=50
+        )
+        response_time = time.time() - start_time
+        
+        return jsonify({
+            'status': 'success',
+            'api_key_configured': True,
+            'api_key_prefix': DEEPSEEK_API_KEY[:15] + '...',
+            'model_tested': 'deepseek-chat',
+            'response_time': round(response_time, 2),
+            'response_preview': response.choices[0].message.content[:100]
+        })
+        
+    except Exception as e:
+        error_str = str(e)
+        suggestions = []
+        
+        if 'authentication' in error_str.lower() or '401' in error_str:
+            suggestions = [
+                'Invalid API key',
+                'Check that the key is correctly copied',
+                'Regenerate key at: https://platform.deepseek.com/api_keys'
+            ]
+        elif 'insufficient' in error_str.lower() or 'balance' in error_str.lower():
+            suggestions = [
+                'Insufficient balance in DeepSeek account',
+                'Top up at: https://platform.deepseek.com',
+                'DeepSeek requires a small prepaid balance'
+            ]
+        elif 'rate' in error_str.lower() or '429' in error_str:
+            suggestions = [
+                'Rate limit exceeded',
+                'Wait a moment and try again'
+            ]
+        else:
+            suggestions = [
+                'Check API key is valid',
+                'Ensure account has balance',
+                'Try again in a moment'
+            ]
+        
+        return jsonify({
+            'status': 'error',
+            'api_key_configured': True,
+            'api_key_prefix': DEEPSEEK_API_KEY[:15] + '...',
+            'error_message': error_str,
+            'suggestions': suggestions
         })
 
 if __name__ == '__main__':
