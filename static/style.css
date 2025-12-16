@@ -1,23 +1,7 @@
 /*
 AI Bias Research Tool - Comprehensive Stylesheet
 Created: December 13, 2024
-Last Updated: December 15, 2024 - MAJOR EXPANSION
-
-UPDATES:
-- December 15, 2024: COMPREHENSIVE REBUILD
-  * Added mode selection styles (single vs batch)
-  * Added batch testing UI styles
-  * Added progress bar and tracking styles
-  * Added profile card styles
-  * Added comparison matrix table styles
-  * Added metric display with color coding
-  * Enhanced responsive design for profiles
-  * Added view toggle buttons
-  * Improved visual hierarchy
-  * Better spacing and typography
-
-Professional, clean design for serious research interface.
-Focus on data readability and clear visualization.
+Last Updated: December 16, 2024 - ENHANCED WITH TEXT ANALYSIS STYLES
 */
 
 * {
@@ -408,6 +392,66 @@ header h1 {
     line-height: 1.6;
 }
 
+/* NEW: Analysis Toggle Styles */
+.analysis-toggle {
+    margin: 15px 0;
+}
+
+.analysis-toggle-btn {
+    background: #f8f9fa;
+    border: 2px solid #667eea;
+    color: #667eea;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.95em;
+    font-weight: 600;
+    transition: all 0.2s;
+    width: 100%;
+    text-align: left;
+}
+
+.analysis-toggle-btn:hover {
+    background: #667eea;
+    color: white;
+}
+
+.analysis-details {
+    margin-top: 15px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 3px solid #667eea;
+}
+
+.analysis-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.analysis-item {
+    background: white;
+    padding: 10px;
+    border-radius: 6px;
+}
+
+.analysis-item label {
+    display: block;
+    color: #666;
+    font-size: 0.85em;
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+.analysis-item value {
+    display: block;
+    color: #667eea;
+    font-size: 1.1em;
+    font-weight: 600;
+    font-family: 'Courier New', monospace;
+}
+
 /* Analysis Section */
 .analysis-section {
     background: #e6fffa;
@@ -748,6 +792,10 @@ header h1 {
     .comparison-table th,
     .comparison-table td {
         padding: 8px;
+    }
+    
+    .analysis-grid {
+        grid-template-columns: 1fr;
     }
 }
 
