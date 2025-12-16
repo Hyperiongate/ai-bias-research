@@ -2,9 +2,16 @@
 <!--
 AI Bias Research Tool - Comprehensive Research Interface
 Created: December 13, 2024
-Last Updated: December 15, 2024 - MAJOR EXPANSION
+Last Updated: December 16, 2024 - ENHANCED WITH TEXT ANALYSIS DISPLAY
 
 UPDATES:
+- December 16, 2024: ENHANCED DATA COLLECTION UI
+  * Added "Show Analysis Details" toggle button on each result card
+  * Displays word count, hedge frequency, sentiment, controversy words
+  * Optional expansion - doesn't clutter main view
+  * Metrics automatically calculated and displayed
+  * Professional data presentation for research
+  
 - December 15, 2024: COMPREHENSIVE REBUILD
   * Added "Run Full Research Battery" button (40 questions)
   * Implemented batch testing UI with progress tracking
@@ -12,14 +19,11 @@ UPDATES:
   * Added comparison matrix view
   * Enhanced category breakdown visualizations
   * Added CSV export for profiles
-  * Improved single-question testing (still available)
-  * Real-time progress updates during batch tests
-  * Profile summary cards for each AI
-  * Color-coded metric displays
 
 FEATURES:
 - Single question testing (original functionality)
 - Full 40-question batch testing (~25 minutes)
+- Enhanced result cards with optional analysis metrics
 - Progress tracking with visual indicators
 - AI profile cards with 8+ metrics
 - Comparison matrix (side-by-side AI comparison)
@@ -40,8 +44,8 @@ Clean, professional interface for serious AI bias research.
     <div class="container">
         <header>
             <h1>🔬 AI Bias Research Tool</h1>
-            <p class="subtitle">Comprehensive Multi-Dimensional AI Analysis Across 10 Systems</p>
-            <p class="subtitle-small">40 Questions | 8 Categories | 18 Metrics | Trend Tracking</p>
+            <p class="subtitle">Comprehensive Multi-Dimensional AI Analysis Across 9 Systems</p>
+            <p class="subtitle-small">40 Questions | 8 Categories | 18 Metrics | Trend Tracking | Enhanced Text Analysis</p>
         </header>
 
         <div class="main-content">
@@ -62,7 +66,7 @@ Clean, professional interface for serious AI bias research.
             <section id="single-mode" class="query-section">
                 <h2>Single Question Testing</h2>
                 <p class="help-text">
-                    Quick test: Ask one question to all 10 AI systems (~30 seconds)
+                    Quick test: Ask one question to all 9 AI systems (~5 seconds with parallel execution)
                 </p>
                 <textarea 
                     id="question-input" 
@@ -79,7 +83,7 @@ Clean, professional interface for serious AI bias research.
                 </div>
                 <div id="loading" class="loading" style="display: none;">
                     <div class="spinner"></div>
-                    <p>Querying 10 AI systems... (~30 seconds)</p>
+                    <p>Querying 9 AI systems in parallel... (~5 seconds)</p>
                 </div>
             </section>
 
@@ -125,7 +129,7 @@ Clean, professional interface for serious AI bias research.
                 <!-- Completion Notice -->
                 <div id="batch-complete" class="batch-complete" style="display: none;">
                     <h3>✅ Research Battery Complete!</h3>
-                    <p>All 40 questions have been processed across 10 AI systems.</p>
+                    <p>All 40 questions have been processed across 9 AI systems.</p>
                     <button id="view-profiles-btn" class="primary-btn">
                         View AI Profiles & Analysis
                     </button>
@@ -237,9 +241,21 @@ Clean, professional interface for serious AI bias research.
             return formatted + interpretation;
         }
 
+        // Toggle analysis details
+        function toggleAnalysis(button) {
+            const details = button.nextElementSibling;
+            if (details.style.display === 'none') {
+                details.style.display = 'block';
+                button.textContent = '📊 Hide Analysis Details';
+            } else {
+                details.style.display = 'none';
+                button.textContent = '📊 Show Analysis Details';
+            }
+        }
+
         // Start batch test
         document.getElementById('start-batch-btn').addEventListener('click', async () => {
-            if (!confirm('This will run 40 questions across 10 AI systems (~25 minutes). Continue?')) {
+            if (!confirm('This will run 40 questions across 9 AI systems (~25 minutes). Continue?')) {
                 return;
             }
 
@@ -436,7 +452,7 @@ Clean, professional interface for serious AI bias research.
             document.getElementById('individual-profiles').style.display = 'block';
         });
 
-        // SINGLE QUESTION MODE (Original functionality)
+        // SINGLE QUESTION MODE (Original functionality with ENHANCED ANALYSIS DISPLAY)
         document.getElementById('submit-btn').addEventListener('click', async () => {
             const question = document.getElementById('question-input').value.trim();
             
@@ -479,7 +495,7 @@ Clean, professional interface for serious AI bias research.
             document.getElementById('question-input').focus();
         });
 
-        // Display single question results
+        // Display single question results WITH ENHANCED ANALYSIS
         function displayResults(data) {
             const container = document.getElementById('results-container');
             const resultsSection = document.getElementById('results-section');
@@ -501,12 +517,46 @@ Clean, professional interface for serious AI bias research.
                         ? `<div class="rating-badge">Rating: ${rating}/10</div>`
                         : '<div class="rating-badge no-rating">No numerical rating detected</div>';
                     
+                    // NEW: Build analysis details if available
+                    let analysisHTML = '';
+                    if (result.analysis) {
+                        const a = result.analysis;
+                        analysisHTML = `
+                            <div class="analysis-toggle">
+                                <button class="analysis-toggle-btn" onclick="toggleAnalysis(this)">
+                                    📊 Show Analysis Details
+                                </button>
+                                <div class="analysis-details" style="display: none;">
+                                    <div class="analysis-grid">
+                                        <div class="analysis-item">
+                                            <label>Word Count:</label>
+                                            <value>${a.word_count}</value>
+                                        </div>
+                                        <div class="analysis-item">
+                                            <label>Hedge Frequency:</label>
+                                            <value>${a.hedge_frequency}%</value>
+                                        </div>
+                                        <div class="analysis-item">
+                                            <label>Sentiment:</label>
+                                            <value>${a.sentiment_score > 0 ? '+' : ''}${a.sentiment_score}</value>
+                                        </div>
+                                        <div class="analysis-item">
+                                            <label>Controversy Words:</label>
+                                            <value>${a.controversy_word_count}</value>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
                     resultCard.innerHTML = `
                         <div class="result-header">
                             <h3>${result.system} - ${result.model}</h3>
                             <span class="response-time">${result.response_time.toFixed(2)}s</span>
                         </div>
                         ${ratingDisplay}
+                        ${analysisHTML}
                         <div class="response-text">${result.raw_response}</div>
                     `;
                 } else {
@@ -674,7 +724,13 @@ Clean, professional interface for serious AI bias research.
                         model: r.model,
                         raw_response: r.raw_response,
                         extracted_rating: r.extracted_rating,
-                        response_time: r.response_time
+                        response_time: r.response_time,
+                        analysis: {
+                            word_count: r.word_count,
+                            hedge_frequency: r.hedge_frequency,
+                            sentiment_score: r.sentiment_score,
+                            controversy_word_count: r.controversy_word_count
+                        }
                     }))
                 };
                 
