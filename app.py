@@ -55,6 +55,7 @@ import io
 import csv
 from collections import defaultdict
 import statistics
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 app = Flask(__name__)
 
@@ -1211,7 +1212,7 @@ def export_profiles_csv(batch_id):
 
 @app.route('/query', methods=['POST'])
 def query_ais():
-    """Single question query (original functionality)"""
+    """Single question query with parallel execution (original functionality)"""
     data = request.json
     question = data.get('question', '').strip()
     
@@ -1223,7 +1224,6 @@ def query_ais():
     query_id = cursor.lastrowid
     db.commit()
     
-    results = []
     ai_functions = [
         query_openai_gpt4, query_openai_gpt35, query_google_gemini,
         query_anthropic_claude, query_mistral_large, query_deepseek_chat,
@@ -1231,18 +1231,23 @@ def query_ais():
         query_xai_grok
     ]
     
-    for ai_func in ai_functions:
-        result = ai_func(question)
-        if result['success']:
-            extracted_rating = extract_rating(result['raw_response'])
-            db.execute('''
-                INSERT INTO responses 
-                (query_id, ai_system, model, raw_response, extracted_rating, response_time)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (query_id, result['system'], result['model'], 
-                  result['raw_response'], extracted_rating, result['response_time']))
-            result['extracted_rating'] = extracted_rating
-        results.append(result)
+    # Execute all AI queries in parallel
+    results = []
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        future_to_func = {executor.submit(func, question): func for func in ai_functions}
+        
+        for future in as_completed(future_to_func):
+            result = future.result()
+            if result['success']:
+                extracted_rating = extract_rating(result['raw_response'])
+                db.execute('''
+                    INSERT INTO responses 
+                    (query_id, ai_system, model, raw_response, extracted_rating, response_time)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (query_id, result['system'], result['model'], 
+                      result['raw_response'], extracted_rating, result['response_time']))
+                result['extracted_rating'] = extracted_rating
+            results.append(result)
     
     db.commit()
     db.close()
