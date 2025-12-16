@@ -1,12 +1,24 @@
 """
 AI Bias Research Tool - Production Version
 Created: December 13, 2024
-Last Updated: December 16, 2024 - LATE EVENING UPDATE
+Last Updated: December 17, 2024 - MORNING FIX FOR DATABASE LOCKING
 
 CHANGE LOG:
+- December 17, 2024 (Morning): CRITICAL FIX - Database locking issue in batch submission
+  * Fixed SQLite database locking when submitting multiple batches
+  * Each question now uses separate database connection
+  * Prevents "Unexpected token" error on second batch submission
+  * Added proper try/finally blocks for connection cleanup
+  * Now safe to submit multiple batches back-to-back
+  
+- December 17, 2024 (Earlier): Verified database migration working
+  * Database migration for category column confirmed working
+  * All 9 AI systems verified against AI_MODEL_REFERENCE.md
+  * Batch submission endpoint operational
+  
 - December 16, 2024 (Late Evening): Fixed database migration issue
   * Added automatic migration for `category` column
-  * Fixes "Unexpected token" error in batch submission
+  * Fixes initial "Unexpected token" error in batch submission
   * Handles existing databases without category column
   * No data loss - migration is safe
 
@@ -39,6 +51,7 @@ WORKING FEATURES:
 - Debug endpoints for testing individual AIs
 - Database reset capability
 - Statistics tracking
+- Category organization
 
 AI SYSTEMS (9 total):
 1. OpenAI GPT-4 (USA)
@@ -121,7 +134,7 @@ def get_db():
     return db
 
 def init_db():
-    """Initialize database with production schema"""
+    """Initialize database with production schema including migration for category column"""
     db = get_db()
     
     # Queries table - stores each question asked
@@ -129,19 +142,22 @@ def init_db():
         CREATE TABLE IF NOT EXISTS queries (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             question TEXT NOT NULL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            category TEXT
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     
-    # Migration: Add category column if it doesn't exist (for existing databases)
+    # CRITICAL MIGRATION: Add category column if it doesn't exist
+    # This fixes the "Unexpected token" error in batch submission
     try:
+        # Try to select from category column
         db.execute('SELECT category FROM queries LIMIT 1')
+        print("✅ Category column exists in queries table")
     except sqlite3.OperationalError:
         # Column doesn't exist, add it
-        print("MIGRATION: Adding category column to queries table")
+        print("⚠️  MIGRATION: Adding category column to queries table")
         db.execute('ALTER TABLE queries ADD COLUMN category TEXT')
         db.commit()
+        print("✅ MIGRATION COMPLETE: Category column added successfully")
     
     # Responses table - stores AI responses with analysis metrics
     db.execute('''
@@ -166,6 +182,7 @@ def init_db():
     
     db.commit()
     db.close()
+    print("✅ Database initialization complete")
 
 # Initialize database on startup
 init_db()
@@ -932,7 +949,10 @@ def test_all():
 
 @app.route('/batch/submit', methods=['POST'])
 def batch_submit():
-    """Submit multiple questions at once for processing"""
+    """Submit multiple questions at once for processing
+    
+    FIXED: Uses separate database connection per question to avoid SQLite locking
+    """
     data = request.json
     questions = data.get('questions', [])
     category = data.get('category', 'Uncategorized')
@@ -940,7 +960,6 @@ def batch_submit():
     if not questions or not isinstance(questions, list):
         return jsonify({'error': 'Questions array is required'}), 400
     
-    db = get_db()
     results = []
     
     for idx, question in enumerate(questions):
@@ -951,88 +970,104 @@ def batch_submit():
         if not question_text:
             continue
         
-        # Create query record with category
-        cursor = db.execute(
-            'INSERT INTO queries (question, category) VALUES (?, ?)',
-            (question_text, category)
-        )
-        query_id = cursor.lastrowid
-        db.commit()
+        # CRITICAL FIX: Open new database connection for each question
+        # This prevents SQLite locking issues when processing multiple batches
+        db = get_db()
         
-        # Query all AIs
-        ai_functions = [
-            query_openai_gpt4,
-            query_openai_gpt35,
-            query_google_gemini,
-            query_anthropic_claude,
-            query_mistral_large,
-            query_deepseek_chat,
-            query_cohere_command,
-            query_groq_llama,
-            query_xai_grok
-        ]
-        
-        question_results = []
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            future_to_func = {executor.submit(func, question_text): func for func in ai_functions}
+        try:
+            # Create query record with category
+            cursor = db.execute(
+                'INSERT INTO queries (question, category) VALUES (?, ?)',
+                (question_text, category)
+            )
+            query_id = cursor.lastrowid
+            db.commit()
             
-            for future in as_completed(future_to_func):
-                try:
-                    result = future.result()
-                    
-                    if result['success']:
-                        raw_response = result['raw_response']
-                        extracted_rating = extract_rating(raw_response)
-                        word_count = len(raw_response.split())
-                        hedge_count = count_hedge_words(raw_response)
-                        sentiment = calculate_sentiment(raw_response)
-                        controversy_count = count_controversy_words(raw_response)
-                        hedge_freq = calculate_hedge_frequency(hedge_count, word_count)
-                        provided_rating = extracted_rating is not None
+            # Query all AIs
+            ai_functions = [
+                query_openai_gpt4,
+                query_openai_gpt35,
+                query_google_gemini,
+                query_anthropic_claude,
+                query_mistral_large,
+                query_deepseek_chat,
+                query_cohere_command,
+                query_groq_llama,
+                query_xai_grok
+            ]
+            
+            question_results = []
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                future_to_func = {executor.submit(func, question_text): func for func in ai_functions}
+                
+                for future in as_completed(future_to_func):
+                    try:
+                        result = future.result()
                         
-                        db.execute('''
-                            INSERT INTO responses 
-                            (query_id, ai_system, model, raw_response, extracted_rating, response_time,
-                             word_count, hedge_count, sentiment_score, controversy_word_count, 
-                             hedge_frequency, provided_rating)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        ''', (query_id, result['system'], result['model'], raw_response, extracted_rating,
-                              result['response_time'], word_count, hedge_count, sentiment, 
-                              controversy_count, hedge_freq, provided_rating))
-                        db.commit()
-                        
-                        question_results.append({
-                            'ai_system': result['system'],
-                            'model': result['model'],
-                            'success': True,
-                            'rating': extracted_rating
-                        })
-                    else:
-                        db.execute('''
-                            INSERT INTO responses 
-                            (query_id, ai_system, model, raw_response, response_time, provided_rating)
-                            VALUES (?, ?, ?, ?, 0, 0)
-                        ''', (query_id, result['system'], result['model'], result.get('error', 'Unknown error')))
-                        db.commit()
-                        
-                        question_results.append({
-                            'ai_system': result['system'],
-                            'model': result['model'],
-                            'success': False,
-                            'error': result.get('error')
-                        })
-                        
-                except Exception as e:
-                    print(f"Error processing result: {str(e)}")
-        
-        results.append({
-            'query_id': query_id,
-            'question': question_text,
-            'responses': len(question_results),
-            'successful': len([r for r in question_results if r.get('success')])
-        })
-    
-    db.close()
+                        if result['success']:
+                            raw_response = result['raw_response']
+                            extracted_rating = extract_rating(raw_response)
+                            word_count = len(raw_response.split())
+                            hedge_count = count_hedge_words(raw_response)
+                            sentiment = calculate_sentiment(raw_response)
+                            controversy_count = count_controversy_words(raw_response)
+                            hedge_freq = calculate_hedge_frequency(hedge_count, word_count)
+                            provided_rating = extracted_rating is not None
+                            
+                            db.execute('''
+                                INSERT INTO responses 
+                                (query_id, ai_system, model, raw_response, extracted_rating, response_time,
+                                 word_count, hedge_count, sentiment_score, controversy_word_count, 
+                                 hedge_frequency, provided_rating)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            ''', (query_id, result['system'], result['model'], raw_response, extracted_rating,
+                                  result['response_time'], word_count, hedge_count, sentiment, 
+                                  controversy_count, hedge_freq, provided_rating))
+                            db.commit()
+                            
+                            question_results.append({
+                                'ai_system': result['system'],
+                                'model': result['model'],
+                                'success': True,
+                                'rating': extracted_rating
+                            })
+                        else:
+                            db.execute('''
+                                INSERT INTO responses 
+                                (query_id, ai_system, model, raw_response, response_time, provided_rating)
+                                VALUES (?, ?, ?, ?, 0, 0)
+                            ''', (query_id, result['system'], result['model'], result.get('error', 'Unknown error')))
+                            db.commit()
+                            
+                            question_results.append({
+                                'ai_system': result['system'],
+                                'model': result['model'],
+                                'success': False,
+                                'error': result.get('error')
+                            })
+                            
+                    except Exception as e:
+                        print(f"Error processing AI result: {str(e)}")
+            
+            results.append({
+                'query_id': query_id,
+                'question': question_text,
+                'responses': len(question_results),
+                'successful': len([r for r in question_results if r.get('success')])
+            })
+            
+        except Exception as e:
+            print(f"Error processing question: {str(e)}")
+            results.append({
+                'query_id': None,
+                'question': question_text,
+                'responses': 0,
+                'successful': 0,
+                'error': str(e)
+            })
+        finally:
+            # CRITICAL: Always close database connection for this question
+            db.close()
     
     return jsonify({
         'success': True,
