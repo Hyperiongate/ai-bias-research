@@ -2,22 +2,31 @@
 <!--
 AI Bias Research Tool - Frontend Interface
 Created: December 13, 2024
-Last Updated: December 16, 2024
+Last Updated: December 16, 2024 - EVENING UPDATE
 
 CHANGE LOG:
-- December 16, 2024: Added CSV Export button to history section
-  * Export button appears in Test History section
+- December 16, 2024 (Evening): Added simple batch submission UI
+  * New "Submit Multiple Questions at Once" section
+  * Category dropdown for organizing research
+  * Real-time question counter with time estimate
+  * Simple, clean design - no tabs, no complexity
+  * Works with new /batch/submit endpoint
+  * All features on one page - easy to use
+
+- December 16, 2024 (Afternoon): Added CSV Export button
+  * Export button in Test History section
   * Downloads all test data with analysis metrics
   * Filename includes timestamp
-  * Working with production app.py
 
 FEATURES:
 - Single question testing across 9 AI systems
+- Batch submission (multiple questions at once)
 - Real-time results display with analysis metrics
 - Rating extraction and display
 - Text analysis details (toggle per response)
 - Test history with clickable items
 - CSV export of all data
+- Category organization for research
 - Responsive design
 
 Author: Jim (Hyperiongate)
@@ -60,6 +69,62 @@ Author: Jim (Hyperiongate)
                 <div id="loading" class="loading" style="display: none;">
                     <div class="spinner"></div>
                     <p>Querying 9 AI systems in parallel... (~5-10 seconds)</p>
+                </div>
+            </section>
+
+            <!-- Batch Submission Section -->
+            <section class="query-section" style="border-top: 2px solid #e0e0e0; padding-top: 30px; margin-top: 30px;">
+                <h2>📚 Submit Multiple Questions at Once</h2>
+                <p class="help-text">
+                    Enter multiple questions (one per line) to submit them all at once. Great for running 10, 50, or even 1000 questions.
+                </p>
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px;">Category (optional):</label>
+                    <select id="batch-category" style="width: 100%; padding: 10px; font-size: 1em; border: 2px solid #ddd; border-radius: 8px;">
+                        <option value="Political">Political</option>
+                        <option value="Environmental">Environmental</option>
+                        <option value="Constitutional">Constitutional</option>
+                        <option value="Global">Global</option>
+                        <option value="Economic">Economic</option>
+                        <option value="Social">Social</option>
+                        <option value="Scientific">Scientific</option>
+                        <option value="Baseline">Baseline (Control)</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                
+                <textarea 
+                    id="batch-questions-input" 
+                    placeholder="Enter questions (one per line):
+
+Rate Donald Trump's performance as president on a scale of 1-10.
+Rate Joe Biden's performance as president on a scale of 1-10.
+Rate how good pizza is on a scale of 1-10.
+
+(Add as many questions as you want)"
+                    rows="10"
+                ></textarea>
+                
+                <div style="background: #f8f9fa; padding: 10px 15px; border-radius: 6px; margin: 10px 0; font-size: 0.9em;" id="batch-question-count">
+                    Questions: 0 | Est. time: 0 seconds
+                </div>
+                
+                <div class="button-group">
+                    <button id="submit-batch-btn" class="primary-btn">
+                        🚀 Submit Batch
+                    </button>
+                    <button id="clear-batch-btn" class="reset-btn">
+                        Clear
+                    </button>
+                </div>
+                <div id="batch-loading" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p id="batch-status">Processing batch...</p>
+                </div>
+                <div id="batch-results" style="display: none; margin-top: 15px; padding: 15px; background: #f0fff4; border-radius: 8px; border-left: 4px solid #48bb78;">
+                    <strong style="color: #2f855a;">✅ Batch Complete!</strong>
+                    <div id="batch-results-text"></div>
                 </div>
             </section>
 
@@ -400,6 +465,100 @@ Author: Jim (Hyperiongate)
                 alert('Error loading query details');
             }
         }
+
+        // ========================================================================
+        // BATCH SUBMISSION FUNCTIONALITY
+        // ========================================================================
+
+        // Update question count as user types
+        document.getElementById('batch-questions-input').addEventListener('input', function() {
+            const text = this.value.trim();
+            const lines = text.split('\n').filter(line => line.trim().length > 0);
+            const count = lines.length;
+            const seconds = count * 10;
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            
+            let timeStr = '';
+            if (minutes > 0) {
+                timeStr = `${minutes}m ${remainingSeconds}s`;
+            } else {
+                timeStr = `${seconds}s`;
+            }
+            
+            document.getElementById('batch-question-count').textContent = 
+                `Questions: ${count} | Est. time: ${timeStr}`;
+        });
+
+        // Clear batch button
+        document.getElementById('clear-batch-btn').addEventListener('click', () => {
+            document.getElementById('batch-questions-input').value = '';
+            document.getElementById('batch-question-count').textContent = 'Questions: 0 | Est. time: 0 seconds';
+            document.getElementById('batch-results').style.display = 'none';
+        });
+
+        // Submit batch button
+        document.getElementById('submit-batch-btn').addEventListener('click', async () => {
+            const textarea = document.getElementById('batch-questions-input');
+            const category = document.getElementById('batch-category').value;
+            const text = textarea.value.trim();
+            
+            if (!text) {
+                alert('Please enter at least one question');
+                return;
+            }
+            
+            const questions = text.split('\n')
+                .map(q => q.trim())
+                .filter(q => q.length > 0);
+            
+            if (questions.length === 0) {
+                alert('No valid questions found');
+                return;
+            }
+            
+            const minutes = Math.floor(questions.length * 10 / 60);
+            if (!confirm(`Submit ${questions.length} questions in category "${category}"?\n\nThis will take approximately ${minutes} minutes.`)) {
+                return;
+            }
+            
+            document.getElementById('submit-batch-btn').disabled = true;
+            document.getElementById('batch-loading').style.display = 'block';
+            document.getElementById('batch-status').textContent = `Processing ${questions.length} questions... Please wait.`;
+            document.getElementById('batch-results').style.display = 'none';
+            
+            try {
+                const response = await fetch('/batch/submit', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ questions, category })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('batch-results').style.display = 'block';
+                    document.getElementById('batch-results-text').innerHTML = `
+                        <p style="margin: 5px 0;">Submitted: ${data.total_questions} questions</p>
+                        <p style="margin: 5px 0;">Processed: ${data.processed} questions</p>
+                        <p style="margin: 5px 0;">Category: ${data.category}</p>
+                        <p style="margin: 10px 0 0 0;">✅ All questions have been submitted! Scroll down to "Test History" to see them.</p>
+                    `;
+                    
+                    // Clear textarea
+                    textarea.value = '';
+                    document.getElementById('batch-question-count').textContent = 'Questions: 0 | Est. time: 0 seconds';
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error submitting batch: ' + error.message);
+            } finally {
+                document.getElementById('batch-loading').style.display = 'none';
+                document.getElementById('submit-batch-btn').disabled = false;
+            }
+        });
     </script>
 </body>
 </html>
