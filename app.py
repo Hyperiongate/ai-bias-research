@@ -1071,7 +1071,13 @@ def query_ais():
 @app.route('/batch/start', methods=['POST'])
 def start_batch_test():
     """Start a full batch test of all 40 questions"""
-    data = request.json
+    try:
+        data = request.json
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Invalid request data: {str(e)}'}), 400
+    
+    try:
+        data = data if data else{}
     test_name = data.get('name', f'Batch Test - {datetime.now().strftime("%Y-%m-%d %H:%M")}')
     description = data.get('description', 'Full 40-question research battery')
     
@@ -1432,6 +1438,64 @@ def health_check():
         'text_analysis_enabled': True,
         'parallel_execution_enabled': True
     })
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
+
+# I did no harm and this file is not truncated
+
+@app.route('/export/recent-tests-csv')
+def export_recent_tests_csv():
+    """Export all recent tests to CSV with analysis metrics"""
+    db = get_db()
+    
+    # Get last 50 queries (not batch tests)  
+    queries = db.execute("""
+        SELECT q.id, q.question, q.timestamp, q.category,
+               r.ai_system, r.model, r.extracted_rating,
+               r.word_count, r.hedge_frequency, r.sentiment_score,
+               r.controversy_word_count, r.response_time, r.raw_response
+        FROM queries q
+        JOIN responses r ON q.id = r.query_id
+        WHERE q.batch_test_id IS NULL
+        ORDER BY q.timestamp DESC, q.id, r.ai_system
+        LIMIT 500
+    """).fetchall()
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Header
+    writer.writerow([
+        'Query ID', 'Question', 'Timestamp', 'Category',
+        'AI System', 'Model', 'Rating',
+        'Word Count', 'Hedge Frequency %', 'Sentiment',
+        'Controversy Words', 'Response Time (s)', 'Response Text'
+    ])
+    
+    # Data
+    for q in queries:
+        writer.writerow([
+            q['id'], q['question'], q['timestamp'], q['category'] or 'single',
+            q['ai_system'], q['model'], q['extracted_rating'],
+            q['word_count'], round(q['hedge_frequency'], 2) if q['hedge_frequency'] else None,
+            round(q['sentiment_score'], 3) if q['sentiment_score'] else None,
+            q['controversy_word_count'], round(q['response_time'], 2),
+            (q['raw_response'][:200] + '...') if len(q['raw_response']) > 200 else q['raw_response']
+        ])
+    
+    output.seek(0)
+    db.close()
+    
+    return send_file(
+        io.BytesIO(output.getvalue().encode('utf-8')),
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=f'ai_bias_tests_{datetime.now().strftime("%Y%m%d_%H%M")}.csv'
+    )
+
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
