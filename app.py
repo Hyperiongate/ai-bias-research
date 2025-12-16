@@ -1,13 +1,20 @@
 """
 AI Bias Research Tool - Production Version
 Created: December 13, 2024
-Last Updated: December 16, 2024
+Last Updated: December 16, 2024 - EVENING UPDATE
 
 CHANGE LOG:
-- December 16, 2024: Production-ready version
+- December 16, 2024 (Evening): Added batch submission & admin tools
+  * New /batch/submit endpoint - submit multiple questions at once
+  * New /admin/reset-database endpoint - clear all data
+  * New /stats endpoint - get database statistics
+  * Added category support for organizing questions
+  * Maintains all existing functionality
+  
+- December 16, 2024 (Afternoon): Production-ready version
   * Removed problematic batch testing (causes timeouts)
   * Kept all working features: parallel execution, text analysis, CSV export
-  * 9 AI systems working (OpenAI, Google, Anthropic, Mistral, DeepSeek, Cohere, Groq, xAI, AI21)
+  * 9 AI systems working (OpenAI, Google, Anthropic, Mistral, DeepSeek, Cohere, Groq, xAI)
   * Enhanced text analysis: word count, hedge frequency, sentiment, controversy words
   * CSV export functionality for all test history
   * Parallel execution with ThreadPoolExecutor (5-second query time)
@@ -16,6 +23,7 @@ CHANGE LOG:
 
 WORKING FEATURES:
 - Single question testing across 9 AI systems
+- Batch question submission (multiple questions at once)
 - Parallel execution (~5 seconds for all 9)
 - Automatic text analysis metrics
 - Rating extraction from responses
@@ -23,6 +31,8 @@ WORKING FEATURES:
 - Enhanced analysis display per response
 - SQLite database with full schema
 - Debug endpoints for testing individual AIs
+- Database reset capability
+- Statistics tracking
 
 AI SYSTEMS (9 total):
 1. OpenAI GPT-4 (USA)
@@ -34,8 +44,6 @@ AI SYSTEMS (9 total):
 7. Cohere Command-R+ (Canada)
 8. Meta Llama 3.3 70B via Groq (USA - Open Source)
 9. xAI Grok-3 (USA)
-
-NOTE: AI21 Jamba has model name issues - may not work reliably
 
 Author: Jim (Hyperiongate)
 """
@@ -902,6 +910,199 @@ def test_all():
     }
     
     return jsonify(results)
+
+# ============================================================================
+# BATCH SUBMISSION & ADMIN ENDPOINTS
+# ============================================================================
+
+@app.route('/batch/submit', methods=['POST'])
+def batch_submit():
+    """Submit multiple questions at once for processing"""
+    data = request.json
+    questions = data.get('questions', [])
+    category = data.get('category', 'Uncategorized')
+    
+    if not questions or not isinstance(questions, list):
+        return jsonify({'error': 'Questions array is required'}), 400
+    
+    db = get_db()
+    results = []
+    
+    for idx, question in enumerate(questions):
+        if not question or not isinstance(question, str):
+            continue
+        
+        question_text = question.strip()
+        if not question_text:
+            continue
+        
+        # Create query record with category
+        cursor = db.execute(
+            'INSERT INTO queries (question, category) VALUES (?, ?)',
+            (question_text, category)
+        )
+        query_id = cursor.lastrowid
+        db.commit()
+        
+        # Query all AIs
+        ai_functions = [
+            query_openai_gpt4,
+            query_openai_gpt35,
+            query_google_gemini,
+            query_anthropic_claude,
+            query_mistral_large,
+            query_deepseek_chat,
+            query_cohere_command,
+            query_groq_llama,
+            query_xai_grok
+        ]
+        
+        question_results = []
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            future_to_func = {executor.submit(func, question_text): func for func in ai_functions}
+            
+            for future in as_completed(future_to_func):
+                try:
+                    result = future.result()
+                    
+                    if result['success']:
+                        raw_response = result['raw_response']
+                        extracted_rating = extract_rating(raw_response)
+                        word_count = len(raw_response.split())
+                        hedge_count = count_hedge_words(raw_response)
+                        sentiment = calculate_sentiment(raw_response)
+                        controversy_count = count_controversy_words(raw_response)
+                        hedge_freq = calculate_hedge_frequency(hedge_count, word_count)
+                        provided_rating = extracted_rating is not None
+                        
+                        db.execute('''
+                            INSERT INTO responses 
+                            (query_id, ai_system, model, raw_response, extracted_rating, response_time,
+                             word_count, hedge_count, sentiment_score, controversy_word_count, 
+                             hedge_frequency, provided_rating)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ''', (query_id, result['system'], result['model'], raw_response, extracted_rating,
+                              result['response_time'], word_count, hedge_count, sentiment, 
+                              controversy_count, hedge_freq, provided_rating))
+                        db.commit()
+                        
+                        question_results.append({
+                            'ai_system': result['system'],
+                            'model': result['model'],
+                            'success': True,
+                            'rating': extracted_rating
+                        })
+                    else:
+                        db.execute('''
+                            INSERT INTO responses 
+                            (query_id, ai_system, model, raw_response, response_time, provided_rating)
+                            VALUES (?, ?, ?, ?, 0, 0)
+                        ''', (query_id, result['system'], result['model'], result.get('error', 'Unknown error')))
+                        db.commit()
+                        
+                        question_results.append({
+                            'ai_system': result['system'],
+                            'model': result['model'],
+                            'success': False,
+                            'error': result.get('error')
+                        })
+                        
+                except Exception as e:
+                    print(f"Error processing result: {str(e)}")
+        
+        results.append({
+            'query_id': query_id,
+            'question': question_text,
+            'responses': len(question_results),
+            'successful': len([r for r in question_results if r.get('success')])
+        })
+    
+    db.close()
+    
+    return jsonify({
+        'success': True,
+        'total_questions': len(questions),
+        'processed': len(results),
+        'category': category,
+        'results': results
+    })
+
+@app.route('/admin/reset-database', methods=['POST'])
+def reset_database():
+    """Reset the database (delete all queries and responses)"""
+    data = request.json
+    confirm = data.get('confirm', False)
+    
+    if not confirm:
+        return jsonify({
+            'error': 'Confirmation required',
+            'message': 'Send {"confirm": true} to reset database'
+        }), 400
+    
+    try:
+        db = get_db()
+        
+        # Delete all data
+        db.execute('DELETE FROM responses')
+        db.execute('DELETE FROM queries')
+        
+        # Reset auto-increment counters
+        db.execute('DELETE FROM sqlite_sequence WHERE name="responses"')
+        db.execute('DELETE FROM sqlite_sequence WHERE name="queries"')
+        
+        db.commit()
+        db.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Database reset successfully',
+            'tables_cleared': ['queries', 'responses']
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/stats')
+def get_stats():
+    """Get database statistics"""
+    db = get_db()
+    
+    stats = {}
+    
+    # Total queries
+    result = db.execute('SELECT COUNT(*) as count FROM queries').fetchone()
+    stats['total_queries'] = result['count']
+    
+    # Total responses
+    result = db.execute('SELECT COUNT(*) as count FROM responses').fetchone()
+    stats['total_responses'] = result['count']
+    
+    # Queries by category
+    categories = db.execute('''
+        SELECT category, COUNT(*) as count 
+        FROM queries 
+        WHERE category IS NOT NULL 
+        GROUP BY category
+    ''').fetchall()
+    stats['by_category'] = {row['category']: row['count'] for row in categories}
+    
+    # Responses by AI system
+    ai_counts = db.execute('''
+        SELECT ai_system, COUNT(*) as count 
+        FROM responses 
+        GROUP BY ai_system
+    ''').fetchall()
+    stats['by_ai_system'] = {row['ai_system']: row['count'] for row in ai_counts}
+    
+    # Success rate
+    success = db.execute('SELECT COUNT(*) as count FROM responses WHERE provided_rating = 1').fetchone()
+    stats['success_rate'] = round((success['count'] / stats['total_responses'] * 100), 2) if stats['total_responses'] > 0 else 0
+    
+    db.close()
+    
+    return jsonify(stats)
 
 # ============================================================================
 # APPLICATION STARTUP
