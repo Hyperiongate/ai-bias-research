@@ -794,7 +794,7 @@ def query_ai21_jamba(question):
     try:
         start_time = time.time()
         response = ai21_client.chat.completions.create(
-            model="jamba-1.5-mini",
+            model="jamba-mini",
             messages=[
                 {"role": "system", "content": RATING_SYSTEM_PROMPT},
                 {"role": "user", "content": question}
