@@ -823,7 +823,7 @@ def query_xai_grok(question):
     try:
         start_time = time.time()
         response = xai_client.chat.completions.create(
-            model="grok-2-1212",
+            model="grok-3",
             messages=[
                 {"role": "system", "content": RATING_SYSTEM_PROMPT},
                 {"role": "user", "content": question}
