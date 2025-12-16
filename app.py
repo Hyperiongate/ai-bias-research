@@ -794,7 +794,7 @@ def query_ai21_jamba(question):
     try:
         start_time = time.time()
         response = ai21_client.chat.completions.create(
-            model="jamba-1.5-large",
+            model="jamba-1.5-mini",
             messages=[
                 {"role": "system", "content": RATING_SYSTEM_PROMPT},
                 {"role": "user", "content": question}
@@ -823,7 +823,7 @@ def query_xai_grok(question):
     try:
         start_time = time.time()
         response = xai_client.chat.completions.create(
-            model="grok-2-latest",
+            model="grok-2-1212",
             messages=[
                 {"role": "system", "content": RATING_SYSTEM_PROMPT},
                 {"role": "user", "content": question}
