@@ -28,7 +28,7 @@ RESEARCH FRAMEWORK:
 
 Total: 40 questions, ~25 minute runtime per full test
 
-AI SYSTEMS: 10 total
+AI SYSTEMS: 9 total
 - OpenAI GPT-4, GPT-3.5-Turbo (USA)
 - Google Gemini-2.0-Flash (USA)
 - Anthropic Claude-Sonnet-4 (USA)
@@ -36,9 +36,8 @@ AI SYSTEMS: 10 total
 - DeepSeek Chat (China)
 - Cohere Command-R+ (Canada)
 - Meta Llama 3.3 70B via Groq (Open Source)
-- AI21 Jamba-Mini (Israel)
-- xAI Grok-3 (USA)
-- Alibaba Qwen Plus (China)
+- AI21 Jamba-Large (Israel)
+- xAI Grok-2 (USA)
 
 Author: Jim (Hyperiongate)
 """
@@ -69,7 +68,6 @@ COHERE_API_KEY = os.environ.get('COHERE_API_KEY')
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 AI21_API_KEY = os.environ.get('AI21_API_KEY')
 XAI_API_KEY = os.environ.get('XAI_API_KEY')
-QWEN_API_KEY = os.environ.get('QWEN_API_KEY')
 
 # Initialize API clients
 openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
@@ -77,7 +75,6 @@ deepseek_client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepsee
 groq_client = OpenAI(api_key=GROQ_API_KEY, base_url="https://api.groq.com/openai/v1") if GROQ_API_KEY else None
 ai21_client = OpenAI(api_key=AI21_API_KEY, base_url="https://api.ai21.com/studio/v1") if AI21_API_KEY else None
 xai_client = OpenAI(api_key=XAI_API_KEY, base_url="https://api.x.ai/v1") if XAI_API_KEY else None
-qwen_client = OpenAI(api_key=QWEN_API_KEY, base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1") if QWEN_API_KEY else None
 
 # System prompt for consistent responses
 RATING_SYSTEM_PROMPT = """You are participating in a research study on AI responses. When asked to rate something on a numerical scale, you MUST follow these rules:
@@ -714,7 +711,7 @@ def query_cohere_command(question):
         }
         
         payload = {
-            'model': 'command-r-plus',
+            'model': 'command-r-plus-08-2024',
             'messages': [
                 {'role': 'system', 'content': RATING_SYSTEM_PROMPT},
                 {'role': 'user', 'content': question}
@@ -796,7 +793,7 @@ def query_ai21_jamba(question):
     try:
         start_time = time.time()
         response = ai21_client.chat.completions.create(
-            model="jamba-1.5-mini",
+            model="jamba-1.5-large",
             messages=[
                 {"role": "system", "content": RATING_SYSTEM_PROMPT},
                 {"role": "user", "content": question}
@@ -825,7 +822,7 @@ def query_xai_grok(question):
     try:
         start_time = time.time()
         response = xai_client.chat.completions.create(
-            model="grok-beta",
+            model="grok-2-latest",
             messages=[
                 {"role": "system", "content": RATING_SYSTEM_PROMPT},
                 {"role": "user", "content": question}
@@ -845,35 +842,6 @@ def query_xai_grok(question):
         }
     except Exception as e:
         return {'success': False, 'error': str(e), 'system': 'xAI', 'model': 'Grok-3'}
-
-def query_qwen_plus(question):
-    """Query Alibaba Qwen Plus"""
-    if not qwen_client:
-        return {'success': False, 'error': 'Qwen API key not configured', 'system': 'Alibaba', 'model': 'Qwen-Plus'}
-    
-    try:
-        start_time = time.time()
-        response = qwen_client.chat.completions.create(
-            model="qwen-plus",
-            messages=[
-                {"role": "system", "content": RATING_SYSTEM_PROMPT},
-                {"role": "user", "content": question}
-            ],
-            temperature=0.7,
-            max_tokens=500
-        )
-        response_time = time.time() - start_time
-        raw_response = response.choices[0].message.content
-        
-        return {
-            'success': True,
-            'system': 'Alibaba',
-            'model': 'Qwen-Plus',
-            'raw_response': raw_response,
-            'response_time': response_time
-        }
-    except Exception as e:
-        return {'success': False, 'error': str(e), 'system': 'Alibaba', 'model': 'Qwen-Plus'}
 
 def extract_rating(text):
     """Extract numerical rating from response"""
@@ -987,8 +955,7 @@ def start_batch_test():
             query_cohere_command,
             query_groq_llama,
             query_ai21_jamba,
-            query_xai_grok,
-            query_qwen_plus
+            query_xai_grok
         ]
         
         for ai_func in ai_functions:
@@ -1040,8 +1007,8 @@ def start_batch_test():
     return jsonify({
         'success': True,
         'batch_id': batch_id,
-        'message': f'Completed 40 questions across 10 AI systems',
-        'total_responses': completed * 10
+        'message': f'Completed 40 questions across 9 AI systems',
+        'total_responses': completed * 9
     })
 
 def calculate_ai_profiles(batch_id):
@@ -1261,7 +1228,7 @@ def query_ais():
         query_openai_gpt4, query_openai_gpt35, query_google_gemini,
         query_anthropic_claude, query_mistral_large, query_deepseek_chat,
         query_cohere_command, query_groq_llama, query_ai21_jamba,
-        query_xai_grok, query_qwen_plus
+        query_xai_grok
     ]
     
     for ai_func in ai_functions:
@@ -1301,10 +1268,9 @@ def health_check():
             COHERE_API_KEY is not None,
             GROQ_API_KEY is not None,
             AI21_API_KEY is not None,
-            XAI_API_KEY is not None,
-            QWEN_API_KEY is not None
+            XAI_API_KEY is not None
         ]),
-        'total_ai_systems': 10
+        'total_ai_systems': 9
     })
 
 if __name__ == '__main__':
