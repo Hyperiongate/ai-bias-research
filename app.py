@@ -1,9 +1,15 @@
 """
 AI Bias Research Tool - Production Version
 Created: December 13, 2024
-Last Updated: December 16, 2024 - EVENING UPDATE
+Last Updated: December 16, 2024 - LATE EVENING UPDATE
 
 CHANGE LOG:
+- December 16, 2024 (Late Evening): Fixed database migration issue
+  * Added automatic migration for `category` column
+  * Fixes "Unexpected token" error in batch submission
+  * Handles existing databases without category column
+  * No data loss - migration is safe
+
 - December 16, 2024 (Evening): Added batch submission & admin tools
   * New /batch/submit endpoint - submit multiple questions at once
   * New /admin/reset-database endpoint - clear all data
@@ -127,6 +133,15 @@ def init_db():
             category TEXT
         )
     ''')
+    
+    # Migration: Add category column if it doesn't exist (for existing databases)
+    try:
+        db.execute('SELECT category FROM queries LIMIT 1')
+    except sqlite3.OperationalError:
+        # Column doesn't exist, add it
+        print("MIGRATION: Adding category column to queries table")
+        db.execute('ALTER TABLE queries ADD COLUMN category TEXT')
+        db.commit()
     
     # Responses table - stores AI responses with analysis metrics
     db.execute('''
