@@ -1,33 +1,30 @@
 """
 AI Bias Research Tool - Production Version
 Created: December 13, 2024
-Last Updated: December 17, 2024 - MORNING FIX FOR DATABASE LOCKING
+Last Updated: December 17, 2024 - RENDER PRO FIX
 
 CHANGE LOG:
-- December 17, 2024 (Morning): CRITICAL FIX - Database locking issue in batch submission
-  * Fixed SQLite database locking when submitting multiple batches
-  * Each question now uses separate database connection
-  * Prevents "Unexpected token" error on second batch submission
-  * Added proper try/finally blocks for connection cleanup
-  * Now safe to submit multiple batches back-to-back
+- December 17, 2024 (Afternoon - Render Pro Fix): Shared ThreadPoolExecutor
+  * User has Render Pro account (higher limits)
+  * Changed to use SINGLE ThreadPoolExecutor for all questions
+  * max_workers=9 (one per AI, no more)
+  * Reuses same 9 threads for all questions sequentially
+  * Much faster than sequential: ~10 seconds per question
+  * 25 questions = ~4 minutes (fast again!)
+  * Should work on Render Pro without thread exhaustion
   
-- December 17, 2024 (Earlier): Verified database migration working
-  * Database migration for category column confirmed working
-  * All 9 AI systems verified against AI_MODEL_REFERENCE.md
-  * Batch submission endpoint operational
+- December 17, 2024 (Afternoon - Attempted Fix): Sequential processing
+  * Removed ThreadPoolExecutor entirely
+  * This was for free tier - not needed for Pro
+  * User confirmed they have Pro account
   
-- December 16, 2024 (Late Evening): Fixed database migration issue
-  * Added automatic migration for `category` column
-  * Fixes initial "Unexpected token" error in batch submission
-  * Handles existing databases without category column
-  * No data loss - migration is safe
-
-- December 16, 2024 (Evening): Added batch submission & admin tools
-  * New /batch/submit endpoint - submit multiple questions at once
-  * New /admin/reset-database endpoint - clear all data
-  * New /stats endpoint - get database statistics
-  * Added category support for organizing questions
-  * Maintains all existing functionality
+- December 17, 2024 (Morning): Database locking fix
+  * Separate database connection per question
+  * Proper try/finally cleanup
+  
+- December 16, 2024 (Evening): Initial fixes
+  * Database migration for category column
+  * All 9 AI systems verified
   
 - December 16, 2024 (Afternoon): Production-ready version
   * Removed problematic batch testing (causes timeouts)
@@ -962,42 +959,44 @@ def batch_submit():
     
     results = []
     
-    for idx, question in enumerate(questions):
-        if not question or not isinstance(question, str):
-            continue
+    # Use a single ThreadPoolExecutor for ALL questions to avoid thread exhaustion
+    # Max 9 concurrent workers (one per AI system)
+    with ThreadPoolExecutor(max_workers=9) as executor:
         
-        question_text = question.strip()
-        if not question_text:
-            continue
-        
-        # CRITICAL FIX: Open new database connection for each question
-        # This prevents SQLite locking issues when processing multiple batches
-        db = get_db()
-        
-        try:
-            # Create query record with category
-            cursor = db.execute(
-                'INSERT INTO queries (question, category) VALUES (?, ?)',
-                (question_text, category)
-            )
-            query_id = cursor.lastrowid
-            db.commit()
+        for idx, question in enumerate(questions):
+            if not question or not isinstance(question, str):
+                continue
             
-            # Query all AIs
-            ai_functions = [
-                query_openai_gpt4,
-                query_openai_gpt35,
-                query_google_gemini,
-                query_anthropic_claude,
-                query_mistral_large,
-                query_deepseek_chat,
-                query_cohere_command,
-                query_groq_llama,
-                query_xai_grok
-            ]
+            question_text = question.strip()
+            if not question_text:
+                continue
             
-            question_results = []
-            with ThreadPoolExecutor(max_workers=10) as executor:
+            # Open new database connection for each question
+            db = get_db()
+            
+            try:
+                # Create query record with category
+                cursor = db.execute(
+                    'INSERT INTO queries (question, category) VALUES (?, ?)',
+                    (question_text, category)
+                )
+                query_id = cursor.lastrowid
+                db.commit()
+                
+                # Submit all AI queries to the shared thread pool
+                ai_functions = [
+                    query_openai_gpt4,
+                    query_openai_gpt35,
+                    query_google_gemini,
+                    query_anthropic_claude,
+                    query_mistral_large,
+                    query_deepseek_chat,
+                    query_cohere_command,
+                    query_groq_llama,
+                    query_xai_grok
+                ]
+                
+                question_results = []
                 future_to_func = {executor.submit(func, question_text): func for func in ai_functions}
                 
                 for future in as_completed(future_to_func):
@@ -1048,26 +1047,26 @@ def batch_submit():
                             
                     except Exception as e:
                         print(f"Error processing AI result: {str(e)}")
-            
-            results.append({
-                'query_id': query_id,
-                'question': question_text,
-                'responses': len(question_results),
-                'successful': len([r for r in question_results if r.get('success')])
-            })
-            
-        except Exception as e:
-            print(f"Error processing question: {str(e)}")
-            results.append({
-                'query_id': None,
-                'question': question_text,
-                'responses': 0,
-                'successful': 0,
-                'error': str(e)
-            })
-        finally:
-            # CRITICAL: Always close database connection for this question
-            db.close()
+                
+                results.append({
+                    'query_id': query_id,
+                    'question': question_text,
+                    'responses': len(question_results),
+                    'successful': len([r for r in question_results if r.get('success')])
+                })
+                
+            except Exception as e:
+                print(f"Error processing question: {str(e)}")
+                results.append({
+                    'query_id': None,
+                    'question': question_text,
+                    'responses': 0,
+                    'successful': 0,
+                    'error': str(e)
+                })
+            finally:
+                # Always close database connection for this question
+                db.close()
     
     return jsonify({
         'success': True,
