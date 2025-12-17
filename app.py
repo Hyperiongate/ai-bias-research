@@ -142,13 +142,17 @@ def init_db():
     ''')
     
     # Migration: Add category column if it doesn't exist (for existing databases)
-    try:
-        db.execute('SELECT category FROM queries LIMIT 1')
-    except sqlite3.OperationalError:
-        # Column doesn't exist, add it
+    # Use PRAGMA to check actual schema instead of SELECT
+    cursor = db.execute("PRAGMA table_info(queries)")
+    columns = [row[1] for row in cursor.fetchall()]  # row[1] is column name
+    
+    if 'category' not in columns:
         print("MIGRATION: Adding category column to queries table")
         db.execute('ALTER TABLE queries ADD COLUMN category TEXT')
         db.commit()
+        print("MIGRATION: Category column added successfully")
+    else:
+        print("MIGRATION: Category column already exists")
     
     # Responses table - stores AI responses with analysis metrics
     db.execute('''
@@ -660,13 +664,14 @@ def query_ais():
     """Single question query with parallel execution"""
     data = request.json
     question = data.get('question', '').strip()
+    category = data.get('category', 'Uncategorized')  # NEW: Accept category
     
     if not question:
         return jsonify({'error': 'Question is required'}), 400
     
-    # Create query record
+    # Create query record WITH CATEGORY
     db = get_db()
-    cursor = db.execute('INSERT INTO queries (question) VALUES (?)', (question,))
+    cursor = db.execute('INSERT INTO queries (question, category) VALUES (?, ?)', (question, category))
     query_id = cursor.lastrowid
     db.commit()
     
@@ -1127,6 +1132,37 @@ def get_stats():
     db.close()
     
     return jsonify(stats)
+
+@app.route('/debug/check-categories')
+def debug_categories():
+    """DEBUG: Check what categories are actually in the database"""
+    db = get_db()
+    
+    # Get all queries with their categories
+    queries = db.execute('''
+        SELECT id, question, category, 
+               LENGTH(category) as cat_length
+        FROM queries 
+        ORDER BY id DESC 
+        LIMIT 20
+    ''').fetchall()
+    
+    result = []
+    for q in queries:
+        cat_value = q['category']
+        result.append({
+            'id': q['id'],
+            'question': q['question'][:80] + '...' if len(q['question']) > 80 else q['question'],
+            'category': cat_value,
+            'category_repr': repr(cat_value),
+            'category_length': q['cat_length'],
+            'is_null': cat_value is None,
+            'is_empty_string': cat_value == '',
+            'equals_political_usa': cat_value == 'Political-USA'
+        })
+    
+    db.close()
+    return jsonify(result)
 
 # ============================================================================
 # APPLICATION STARTUP
