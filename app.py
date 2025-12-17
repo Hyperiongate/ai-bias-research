@@ -30,6 +30,7 @@ WORKING FEATURES:
 - Rating extraction and display
 - CSV export of all test history
 - Database with full schema
+- Admin panel with database reset
 
 AI SYSTEMS (9 total):
 1. OpenAI GPT-4 (USA)
@@ -640,10 +641,10 @@ def index():
 
 @app.route('/query', methods=['POST'])
 def query_ais():
-    """Single question query with parallel execution - THIS IS THE ONLY ENDPOINT FOR QUERIES NOW"""
+    """Single question query with parallel execution"""
     data = request.json
     question = data.get('question', '').strip()
-    category = data.get('category', None)  # Optional category from frontend
+    category = data.get('category', None)
     
     if not question:
         return jsonify({'error': 'Question is required'}), 400
@@ -667,7 +668,7 @@ def query_ais():
         query_xai_grok
     ]
     
-    # Execute all AI queries in parallel (THIS WORKS GREAT FOR SINGLE QUESTIONS)
+    # Execute all AI queries in parallel
     results = []
     with ThreadPoolExecutor(max_workers=10) as executor:
         future_to_func = {executor.submit(func, question): func for func in ai_functions}
@@ -717,7 +718,6 @@ def query_ais():
                 results.append(result)
                 
             except Exception as e:
-                # Handle any unexpected errors
                 print(f"Error processing result: {str(e)}")
     
     db.close()
@@ -863,8 +863,7 @@ def health_check():
         'ai_systems_configured': configured_systems,
         'total_ai_systems': 9,
         'database': 'connected',
-        'parallel_execution': 'enabled',
-        'batch_mode': 'frontend-managed'
+        'parallel_execution': 'enabled'
     })
 
 @app.route('/stats')
@@ -908,7 +907,7 @@ def get_stats():
     return jsonify(stats)
 
 # ============================================================================
-# DEBUG ENDPOINTS (for testing individual AI systems)
+# DEBUG ENDPOINTS
 # ============================================================================
 
 @app.route('/debug/test-anthropic')
@@ -943,7 +942,7 @@ def test_xai():
 
 @app.route('/debug/test-all')
 def test_all():
-    """Test all AI systems with a simple question"""
+    """Test all AI systems"""
     question = "Rate how good pizza is on a scale of 1-10."
     
     results = {
@@ -966,7 +965,7 @@ def test_all():
 
 @app.route('/admin/reset-database', methods=['POST'])
 def reset_database():
-    """Reset the entire database - DANGEROUS! Deletes all queries and responses"""
+    """Reset the entire database"""
     data = request.json
     confirm = data.get('confirm', False)
     
