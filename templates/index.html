@@ -2,40 +2,13 @@
 <!--
 AI Bias Research Tool - Frontend Interface
 Created: December 13, 2024
-Last Updated: December 17, 2025 - EXPANSION UPDATE
+Last Updated: December 17, 2025 - Added 4 new categories
 
 CHANGE LOG:
-- December 17, 2025: Added 4 new categories to dropdown
-  * Philosophy (50 questions)
-  * Religion (50 questions)
-  * Ethics (50 questions)
-  * Governance-Principles (50 questions)
-  * Updated category count from 12 to 16
-  * Total expansion: 600 → 850 questions
-
-- December 16, 2024 (Evening): Added simple batch submission UI
-  * New "Submit Multiple Questions at Once" section
-  * Category dropdown for organizing research
-  * Real-time question counter with time estimate
-  * Simple, clean design - no tabs, no complexity
-  * Works with new /batch/submit endpoint
-  * All features on one page - easy to use
-
-- December 16, 2024 (Afternoon): Added CSV Export button
-  * Export button in Test History section
-  * Downloads all test data with analysis metrics
-  * Filename includes timestamp
-
-FEATURES:
-- Single question testing across 9 AI systems
-- Batch submission (multiple questions at once)
-- Real-time results display with analysis metrics
-- Rating extraction and display
-- Text analysis details (toggle per response)
-- Test history with clickable items
-- CSV export of all data
-- Category organization for research (16 categories)
-- Responsive design
+- December 17, 2025: Added 4 new categories (Philosophy, Religion, Ethics, Governance-Principles)
+  * Kept all existing 12 categories
+  * Total now 16 categories
+  * No other changes to functionality
 
 Author: Jim (Hyperiongate)
 -->
@@ -51,7 +24,7 @@ Author: Jim (Hyperiongate)
         <header>
             <h1>🔬 AI Bias Research Tool</h1>
             <p class="subtitle">Comprehensive AI Analysis Across 9 Systems</p>
-            <p class="subtitle-small">Parallel Execution | Text Analysis | CSV Export | 16 Research Categories</p>
+            <p class="subtitle-small">Parallel Execution | Text Analysis | CSV Export</p>
         </header>
 
         <div class="main-content">
@@ -101,7 +74,7 @@ Author: Jim (Hyperiongate)
                         <option value="Futurism">Futurism</option>
                         <option value="Hypothetical">Hypothetical</option>
                         <option value="Cultural">Cultural</option>
-                        <option value="Baseline">Baseline (Control)</option>
+                        <option value="Baseline">Baseline</option>
                         <option value="Philosophy">Philosophy ⭐ NEW</option>
                         <option value="Religion">Religion ⭐ NEW</option>
                         <option value="Ethics">Ethics ⭐ NEW</option>
