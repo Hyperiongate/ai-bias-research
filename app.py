@@ -1,16 +1,9 @@
 """
 AI Bias Research Tool - Production Version
 Created: December 13, 2024
-Last Updated: December 17, 2025 - CRITICAL FIX
+Last Updated: December 16, 2024 - LATE EVENING UPDATE
 
 CHANGE LOG:
-- December 17, 2025: FIXED batch submission JSON error
-  * Issue: Database migration was causing immediate error on batch submit
-  * Root cause: Migration code had syntax issue with category column check
-  * Fix: Simplified migration logic with better error handling
-  * Now properly handles existing databases without category column
-  * Batch submission now works correctly
-
 - December 16, 2024 (Late Evening): Fixed database migration issue
   * Added automatic migration for `category` column
   * Fixes "Unexpected token" error in batch submission
@@ -128,7 +121,7 @@ def get_db():
     return db
 
 def init_db():
-    """Initialize database with production schema and handle migrations"""
+    """Initialize database with production schema"""
     db = get_db()
     
     # Queries table - stores each question asked
@@ -136,22 +129,19 @@ def init_db():
         CREATE TABLE IF NOT EXISTS queries (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             question TEXT NOT NULL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            category TEXT
         )
     ''')
     
-    # Check if category column exists, if not add it
-    cursor = db.execute("PRAGMA table_info(queries)")
-    columns = [row[1] for row in cursor.fetchall()]
-    
-    if 'category' not in columns:
+    # Migration: Add category column if it doesn't exist (for existing databases)
+    try:
+        db.execute('SELECT category FROM queries LIMIT 1')
+    except sqlite3.OperationalError:
+        # Column doesn't exist, add it
         print("MIGRATION: Adding category column to queries table")
-        try:
-            db.execute('ALTER TABLE queries ADD COLUMN category TEXT')
-            db.commit()
-            print("MIGRATION: Successfully added category column")
-        except sqlite3.OperationalError as e:
-            print(f"MIGRATION: Category column may already exist or other error: {e}")
+        db.execute('ALTER TABLE queries ADD COLUMN category TEXT')
+        db.commit()
     
     # Responses table - stores AI responses with analysis metrics
     db.execute('''
@@ -176,7 +166,6 @@ def init_db():
     
     db.commit()
     db.close()
-    print("Database initialized successfully")
 
 # Initialize database on startup
 init_db()
@@ -944,122 +933,114 @@ def test_all():
 @app.route('/batch/submit', methods=['POST'])
 def batch_submit():
     """Submit multiple questions at once for processing"""
-    try:
-        data = request.json
-        questions = data.get('questions', [])
-        category = data.get('category', 'Uncategorized')
+    data = request.json
+    questions = data.get('questions', [])
+    category = data.get('category', 'Uncategorized')
+    
+    if not questions or not isinstance(questions, list):
+        return jsonify({'error': 'Questions array is required'}), 400
+    
+    db = get_db()
+    results = []
+    
+    for idx, question in enumerate(questions):
+        if not question or not isinstance(question, str):
+            continue
         
-        if not questions or not isinstance(questions, list):
-            return jsonify({'error': 'Questions array is required'}), 400
+        question_text = question.strip()
+        if not question_text:
+            continue
         
-        db = get_db()
-        results = []
+        # Create query record with category
+        cursor = db.execute(
+            'INSERT INTO queries (question, category) VALUES (?, ?)',
+            (question_text, category)
+        )
+        query_id = cursor.lastrowid
+        db.commit()
         
-        for idx, question in enumerate(questions):
-            if not question or not isinstance(question, str):
-                continue
+        # Query all AIs
+        ai_functions = [
+            query_openai_gpt4,
+            query_openai_gpt35,
+            query_google_gemini,
+            query_anthropic_claude,
+            query_mistral_large,
+            query_deepseek_chat,
+            query_cohere_command,
+            query_groq_llama,
+            query_xai_grok
+        ]
+        
+        question_results = []
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            future_to_func = {executor.submit(func, question_text): func for func in ai_functions}
             
-            question_text = question.strip()
-            if not question_text:
-                continue
-            
-            # Create query record with category
-            cursor = db.execute(
-                'INSERT INTO queries (question, category) VALUES (?, ?)',
-                (question_text, category)
-            )
-            query_id = cursor.lastrowid
-            db.commit()
-            
-            # Query all AIs
-            ai_functions = [
-                query_openai_gpt4,
-                query_openai_gpt35,
-                query_google_gemini,
-                query_anthropic_claude,
-                query_mistral_large,
-                query_deepseek_chat,
-                query_cohere_command,
-                query_groq_llama,
-                query_xai_grok
-            ]
-            
-            question_results = []
-            with ThreadPoolExecutor(max_workers=10) as executor:
-                future_to_func = {executor.submit(func, question_text): func for func in ai_functions}
-                
-                for future in as_completed(future_to_func):
-                    try:
-                        result = future.result()
+            for future in as_completed(future_to_func):
+                try:
+                    result = future.result()
+                    
+                    if result['success']:
+                        raw_response = result['raw_response']
+                        extracted_rating = extract_rating(raw_response)
+                        word_count = len(raw_response.split())
+                        hedge_count = count_hedge_words(raw_response)
+                        sentiment = calculate_sentiment(raw_response)
+                        controversy_count = count_controversy_words(raw_response)
+                        hedge_freq = calculate_hedge_frequency(hedge_count, word_count)
+                        provided_rating = extracted_rating is not None
                         
-                        if result['success']:
-                            raw_response = result['raw_response']
-                            extracted_rating = extract_rating(raw_response)
-                            word_count = len(raw_response.split())
-                            hedge_count = count_hedge_words(raw_response)
-                            sentiment = calculate_sentiment(raw_response)
-                            controversy_count = count_controversy_words(raw_response)
-                            hedge_freq = calculate_hedge_frequency(hedge_count, word_count)
-                            provided_rating = extracted_rating is not None
-                            
-                            db.execute('''
-                                INSERT INTO responses 
-                                (query_id, ai_system, model, raw_response, extracted_rating, response_time,
-                                 word_count, hedge_count, sentiment_score, controversy_word_count, 
-                                 hedge_frequency, provided_rating)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            ''', (query_id, result['system'], result['model'], raw_response, extracted_rating,
-                                  result['response_time'], word_count, hedge_count, sentiment, 
-                                  controversy_count, hedge_freq, provided_rating))
-                            db.commit()
-                            
-                            question_results.append({
-                                'ai_system': result['system'],
-                                'model': result['model'],
-                                'success': True,
-                                'rating': extracted_rating
-                            })
-                        else:
-                            db.execute('''
-                                INSERT INTO responses 
-                                (query_id, ai_system, model, raw_response, response_time, provided_rating)
-                                VALUES (?, ?, ?, ?, 0, 0)
-                            ''', (query_id, result['system'], result['model'], result.get('error', 'Unknown error')))
-                            db.commit()
-                            
-                            question_results.append({
-                                'ai_system': result['system'],
-                                'model': result['model'],
-                                'success': False,
-                                'error': result.get('error')
-                            })
-                            
-                    except Exception as e:
-                        print(f"Error processing result: {str(e)}")
-            
-            results.append({
-                'query_id': query_id,
-                'question': question_text,
-                'responses': len(question_results),
-                'successful': len([r for r in question_results if r.get('success')])
-            })
+                        db.execute('''
+                            INSERT INTO responses 
+                            (query_id, ai_system, model, raw_response, extracted_rating, response_time,
+                             word_count, hedge_count, sentiment_score, controversy_word_count, 
+                             hedge_frequency, provided_rating)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ''', (query_id, result['system'], result['model'], raw_response, extracted_rating,
+                              result['response_time'], word_count, hedge_count, sentiment, 
+                              controversy_count, hedge_freq, provided_rating))
+                        db.commit()
+                        
+                        question_results.append({
+                            'ai_system': result['system'],
+                            'model': result['model'],
+                            'success': True,
+                            'rating': extracted_rating
+                        })
+                    else:
+                        db.execute('''
+                            INSERT INTO responses 
+                            (query_id, ai_system, model, raw_response, response_time, provided_rating)
+                            VALUES (?, ?, ?, ?, 0, 0)
+                        ''', (query_id, result['system'], result['model'], result.get('error', 'Unknown error')))
+                        db.commit()
+                        
+                        question_results.append({
+                            'ai_system': result['system'],
+                            'model': result['model'],
+                            'success': False,
+                            'error': result.get('error')
+                        })
+                        
+                except Exception as e:
+                    print(f"Error processing result: {str(e)}")
         
-        db.close()
-        
-        return jsonify({
-            'success': True,
-            'total_questions': len(questions),
-            'processed': len(results),
-            'category': category,
-            'results': results
+        results.append({
+            'query_id': query_id,
+            'question': question_text,
+            'responses': len(question_results),
+            'successful': len([r for r in question_results if r.get('success')])
         })
-        
-    except Exception as e:
-        print(f"Batch submit error: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+    
+    db.close()
+    
+    return jsonify({
+        'success': True,
+        'total_questions': len(questions),
+        'processed': len(results),
+        'category': category,
+        'results': results
+    })
 
 @app.route('/admin/reset-database', methods=['POST'])
 def reset_database():
