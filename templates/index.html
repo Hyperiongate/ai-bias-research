@@ -1,31 +1,22 @@
 <!DOCTYPE html>
 <!--
-AI Bias Research Tool - Frontend Interface with Smart Batch Processing
+AI Bias Research Tool - Frontend with Admin Panel
 Created: December 13, 2024
-Last Updated: December 17, 2024 - FRONTEND BATCH SOLUTION
+Last Updated: December 17, 2024 - ADMIN & ANALYSIS FEATURES
 
 CHANGE LOG:
-- December 17, 2024 (Evening): Frontend batch processing!
-  * User's idea: "Do this, then when done, do this +1"
-  * JavaScript loops through questions one at a time
-  * Calls /query endpoint for each (already works perfectly!)
-  * Shows real-time progress: "Processing 5 of 25..."
-  * Each question takes ~10 seconds (9 AIs in parallel)
-  * 25 questions = ~4 minutes total
-  * NO BACKEND CHANGES NEEDED - uses existing endpoint
-  * Simple, elegant, and works perfectly!
+- December 17, 2024 (Late Evening): Admin panel added
+  * "Reset Database" button for clean start
+  * Confirmation dialog prevents accidents
+  * Stats display shows current data count
+  * Ready for analysis workflow
 
-FEATURES:
-- Single question testing across 9 AI systems
-- Smart batch submission (frontend loops)
-- Real-time progress tracking
-- Real-time results display with analysis metrics
-- Rating extraction and display
-- Text analysis details (toggle per response)
-- Test history with clickable items
-- CSV export of all data
-- Category organization for research
-- Responsive design
+WORKFLOW:
+1. Reset database (clean slate)
+2. Submit 100 questions with categories
+3. Export ONE CSV with all data
+4. Upload CSV to Claude for analysis
+5. Get detailed bias reports
 
 Author: Jim (Hyperiongate)
 -->
@@ -41,10 +32,40 @@ Author: Jim (Hyperiongate)
         <header>
             <h1>🔬 AI Bias Research Tool</h1>
             <p class="subtitle">Comprehensive AI Analysis Across 9 Systems</p>
-            <p class="subtitle-small">Smart Batch Processing | Real-Time Progress | CSV Export</p>
+            <p class="subtitle-small">Smart Batch Processing | Admin Panel | CSV Export for Analysis</p>
         </header>
 
         <div class="main-content">
+            
+            <!-- Admin Panel Section -->
+            <section class="query-section" style="background: #fff5f5; border: 2px solid #fc8181; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
+                <h2 style="color: #c53030;">⚙️ Admin Panel</h2>
+                <p class="help-text" style="color: #742a2a;">
+                    <strong>Database Management:</strong> Clear all test data before starting your research batch.
+                </p>
+                
+                <div style="background: white; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                    <div id="db-stats" style="font-family: 'Courier New', monospace; color: #2d3748;">
+                        <div style="margin: 5px 0;">📊 Total Questions: <strong id="stat-queries">Loading...</strong></div>
+                        <div style="margin: 5px 0;">💬 Total Responses: <strong id="stat-responses">Loading...</strong></div>
+                        <div style="margin: 5px 0;">✅ Success Rate: <strong id="stat-success">Loading...</strong></div>
+                    </div>
+                </div>
+                
+                <div class="button-group">
+                    <button id="refresh-stats-btn" class="secondary-btn">
+                        🔄 Refresh Stats
+                    </button>
+                    <button id="reset-database-btn" class="reset-btn" style="background: #c53030; color: white; border-color: #c53030;">
+                        🗑️ Reset Database
+                    </button>
+                </div>
+                
+                <div style="margin-top: 15px; padding: 10px; background: #fef5e7; border-radius: 6px; border-left: 4px solid #f39c12;">
+                    <strong style="color: #d68910;">⚠️ Warning:</strong> Reset permanently deletes all questions and responses. Export CSV first if you want to keep data!
+                </div>
+            </section>
+
             <!-- Query Section -->
             <section class="query-section">
                 <h2>Ask a Question</h2>
@@ -74,22 +95,27 @@ Author: Jim (Hyperiongate)
             <section class="query-section" style="border-top: 2px solid #e0e0e0; padding-top: 30px; margin-top: 30px;">
                 <h2>📚 Submit Multiple Questions (Smart Batch)</h2>
                 <p class="help-text">
-                    Enter multiple questions (one per line). We'll submit them one at a time automatically - fast and reliable! ⚡
+                    Enter multiple questions (one per line). <strong>Set category for analysis tracking!</strong>
                 </p>
                 
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 8px;">Category (optional):</label>
-                    <select id="batch-category" style="width: 100%; padding: 10px; font-size: 1em; border: 2px solid #ddd; border-radius: 8px;">
-                        <option value="Political">Political</option>
-                        <option value="Environmental">Environmental</option>
-                        <option value="Constitutional">Constitutional</option>
-                        <option value="Global">Global</option>
-                        <option value="Economic">Economic</option>
-                        <option value="Social">Social</option>
-                        <option value="Scientific">Scientific</option>
-                        <option value="Baseline">Baseline (Control)</option>
-                        <option value="">None</option>
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #2d3748;">
+                        Category (IMPORTANT for analysis): <span style="color: #e53e3e;">*</span>
+                    </label>
+                    <select id="batch-category" style="width: 100%; padding: 10px; font-size: 1em; border: 2px solid #667eea; border-radius: 8px;">
+                        <option value="Political">Political - US figures & parties</option>
+                        <option value="Geographic">Geographic - World leaders & countries</option>
+                        <option value="Ideological">Ideological - Economic & political systems</option>
+                        <option value="Scientific">Scientific - Consensus topics</option>
+                        <option value="Social">Social - Cultural & rights issues</option>
+                        <option value="Controversial">Controversial - Polarizing topics</option>
+                        <option value="Corporate">Corporate - Tech & AI companies</option>
+                        <option value="Baseline">Baseline - Control questions</option>
+                        <option value="Mixed">Mixed - Multiple categories</option>
                     </select>
+                    <div style="margin-top: 5px; font-size: 0.9em; color: #718096;">
+                        💡 Category helps organize your CSV for analysis
+                    </div>
                 </div>
                 
                 <textarea 
@@ -148,7 +174,7 @@ Rate how good pizza is on a scale of 1-10.
                     <div style="margin-top: 15px;">
                         <button onclick="scrollToHistory()" class="secondary-btn">View Results in History</button>
                         <button onclick="window.location.href='/export/csv'" class="secondary-btn" style="background: #48bb78; color: white; border-color: #48bb78;">
-                            📥 Export CSV
+                            📥 Export CSV for Analysis
                         </button>
                     </div>
                 </div>
@@ -171,7 +197,7 @@ Rate how good pizza is on a scale of 1-10.
                 <div class="button-group">
                     <button id="load-history-btn" class="secondary-btn">Load Recent Tests</button>
                     <button id="export-csv-btn" class="secondary-btn" style="background: #48bb78; color: white; border-color: #48bb78;">
-                        📥 Export All Tests to CSV
+                        📥 Export CSV for Analysis
                     </button>
                 </div>
                 <div id="history-container"></div>
@@ -184,6 +210,74 @@ Rate how good pizza is on a scale of 1-10.
         // GLOBAL STATE
         // ========================================================================
         let batchCancelled = false;
+        
+        // ========================================================================
+        // ADMIN FUNCTIONS
+        // ========================================================================
+        
+        // Load stats on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshStats();
+        });
+        
+        async function refreshStats() {
+            try {
+                const response = await fetch('/stats');
+                const stats = await response.json();
+                
+                document.getElementById('stat-queries').textContent = stats.total_queries || 0;
+                document.getElementById('stat-responses').textContent = stats.total_responses || 0;
+                document.getElementById('stat-success').textContent = stats.success_rate ? stats.success_rate + '%' : '0%';
+            } catch (error) {
+                console.error('Error loading stats:', error);
+                document.getElementById('stat-queries').textContent = 'Error';
+                document.getElementById('stat-responses').textContent = 'Error';
+                document.getElementById('stat-success').textContent = 'Error';
+            }
+        }
+        
+        document.getElementById('refresh-stats-btn').addEventListener('click', refreshStats);
+        
+        document.getElementById('reset-database-btn').addEventListener('click', async () => {
+            const confirmed = confirm(
+                '⚠️ WARNING: PERMANENT DELETION ⚠️\n\n' +
+                'This will DELETE ALL questions and responses from the database.\n\n' +
+                'This action CANNOT be undone!\n\n' +
+                'Have you exported your CSV if you want to keep the data?\n\n' +
+                'Click OK to permanently delete everything.'
+            );
+            
+            if (!confirmed) return;
+            
+            const doubleCheck = confirm(
+                'Are you ABSOLUTELY SURE?\n\n' +
+                'This is your last chance to cancel.\n\n' +
+                'Click OK to proceed with deletion.'
+            );
+            
+            if (!doubleCheck) return;
+            
+            try {
+                const response = await fetch('/admin/reset-database', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ confirm: true })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('✅ Database reset successfully!\n\nAll data has been cleared.');
+                    refreshStats();
+                    document.getElementById('history-container').innerHTML = '';
+                } else {
+                    alert('❌ Error: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error resetting database:', error);
+                alert('❌ Error resetting database: ' + error.message);
+            }
+        });
         
         // ========================================================================
         // UTILITY FUNCTIONS
@@ -230,6 +324,7 @@ Rate how good pizza is on a scale of 1-10.
 
                 const data = await response.json();
                 displayResults(data);
+                refreshStats();
                 
             } catch (error) {
                 console.error('Error:', error);
@@ -250,7 +345,7 @@ Rate how good pizza is on a scale of 1-10.
         });
         
         // ========================================================================
-        // SMART BATCH PROCESSING - THE MAGIC HAPPENS HERE!
+        // SMART BATCH PROCESSING
         // ========================================================================
         
         // Update question count as user types
@@ -258,7 +353,7 @@ Rate how good pizza is on a scale of 1-10.
             const text = this.value.trim();
             const lines = text.split('\n').filter(line => line.trim().length > 0);
             const count = lines.length;
-            const seconds = count * 10; // ~10 seconds per question
+            const seconds = count * 10;
             const minutes = Math.floor(seconds / 60);
             const remainingSeconds = seconds % 60;
             
@@ -280,7 +375,7 @@ Rate how good pizza is on a scale of 1-10.
             document.getElementById('batch-complete-section').style.display = 'none';
         });
         
-        // SMART BATCH SUBMISSION - User's "do this then +1" approach!
+        // SMART BATCH SUBMISSION
         document.getElementById('submit-batch-btn').addEventListener('click', async () => {
             const textarea = document.getElementById('batch-questions-input');
             const category = document.getElementById('batch-category').value;
@@ -304,21 +399,18 @@ Rate how good pizza is on a scale of 1-10.
             const seconds = (questions.length * 10) % 60;
             const timeStr = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
             
-            if (!confirm(`Submit ${questions.length} questions?\n\nEstimated time: ${timeStr}\n\nEach question will be processed one at a time.`)) {
+            if (!confirm(`Submit ${questions.length} questions in category "${category}"?\n\nEstimated time: ${timeStr}\n\nEach question will be processed one at a time.`)) {
                 return;
             }
             
-            // Reset state
             batchCancelled = false;
             
-            // Hide buttons, show progress
             document.getElementById('submit-batch-btn').style.display = 'none';
             document.getElementById('clear-batch-btn').style.display = 'none';
             document.getElementById('cancel-batch-btn').style.display = 'inline-block';
             document.getElementById('batch-progress-section').style.display = 'block';
             document.getElementById('batch-complete-section').style.display = 'none';
             
-            // Initialize question list
             const questionList = document.getElementById('batch-question-list');
             questionList.innerHTML = questions.map((q, i) => `
                 <div id="batch-q-${i}" style="padding: 8px; margin: 5px 0; border-radius: 4px; background: #f8f9fa; border-left: 3px solid #cbd5e0;">
@@ -327,7 +419,6 @@ Rate how good pizza is on a scale of 1-10.
                 </div>
             `).join('');
             
-            // Process questions one at a time (THE MAGIC!)
             let successCount = 0;
             let failCount = 0;
             
@@ -339,7 +430,6 @@ Rate how good pizza is on a scale of 1-10.
                 
                 const question = questions[i];
                 
-                // Update UI
                 document.getElementById('batch-current-question').textContent = 
                     `Processing question ${i+1} of ${questions.length}...`;
                 
@@ -347,14 +437,12 @@ Rate how good pizza is on a scale of 1-10.
                 document.getElementById('batch-progress-fill').style.width = progressPercent + '%';
                 document.getElementById('batch-progress-text').textContent = `${progressPercent}% complete`;
                 
-                // Highlight current question
                 document.getElementById(`batch-q-${i}`).style.borderLeftColor = '#4299e1';
                 document.getElementById(`batch-q-${i}`).style.background = '#e6fffa';
                 document.getElementById(`batch-status-${i}`).textContent = '⏳ Processing...';
                 document.getElementById(`batch-status-${i}`).style.color = '#4299e1';
                 
                 try {
-                    // Call the existing /query endpoint (it already works great!)
                     const response = await fetch('/query', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
@@ -365,11 +453,8 @@ Rate how good pizza is on a scale of 1-10.
                     });
                     
                     const data = await response.json();
-                    
-                    // Count successful responses
                     const successful = data.results.filter(r => r.success).length;
                     
-                    // Update status
                     document.getElementById(`batch-q-${i}`).style.borderLeftColor = '#48bb78';
                     document.getElementById(`batch-q-${i}`).style.background = '#f0fff4';
                     document.getElementById(`batch-status-${i}`).textContent = `✅ ${successful}/9 AIs`;
@@ -380,7 +465,6 @@ Rate how good pizza is on a scale of 1-10.
                 } catch (error) {
                     console.error(`Error on question ${i+1}:`, error);
                     
-                    // Update status
                     document.getElementById(`batch-q-${i}`).style.borderLeftColor = '#fc8181';
                     document.getElementById(`batch-q-${i}`).style.background = '#fff5f5';
                     document.getElementById(`batch-status-${i}`).textContent = '❌ Error';
@@ -389,38 +473,37 @@ Rate how good pizza is on a scale of 1-10.
                     failCount++;
                 }
                 
-                // Small delay between questions (optional, gives server a break)
                 if (i < questions.length - 1) {
                     await sleep(500);
                 }
             }
             
-            // Complete!
             document.getElementById('batch-progress-fill').style.width = '100%';
             document.getElementById('batch-progress-text').textContent = '100% complete';
             document.getElementById('batch-current-question').textContent = 'All questions processed!';
             
-            // Show completion message
             document.getElementById('batch-complete-section').style.display = 'block';
             document.getElementById('batch-complete-text').innerHTML = `
                 <p style="margin: 5px 0;">✅ Completed: ${successCount} questions</p>
                 <p style="margin: 5px 0;">❌ Failed: ${failCount} questions</p>
                 <p style="margin: 5px 0;">📊 Total responses: ~${successCount * 9} AI responses saved</p>
-                <p style="margin: 10px 0 0 0;">All results are now in your test history below.</p>
+                <p style="margin: 5px 0;">📂 Category: <strong>${category}</strong></p>
+                <p style="margin: 10px 0 0 0; padding: 10px; background: #e6fffa; border-radius: 4px;">
+                    💡 <strong>Next Step:</strong> Click "Export CSV for Analysis" to download your data!
+                </p>
             `;
             
-            // Reset buttons
             document.getElementById('submit-batch-btn').style.display = 'inline-block';
             document.getElementById('clear-batch-btn').style.display = 'inline-block';
             document.getElementById('cancel-batch-btn').style.display = 'none';
             
-            // Auto-scroll to history
+            refreshStats();
+            
             setTimeout(() => {
                 scrollToHistory();
             }, 1000);
         });
         
-        // Cancel batch
         document.getElementById('cancel-batch-btn').addEventListener('click', () => {
             if (confirm('Cancel batch processing?\n\nQuestions already processed will remain saved.')) {
                 batchCancelled = true;
@@ -573,29 +656,25 @@ Rate how good pizza is on a scale of 1-10.
             if (spread === 0) {
                 analysisHTML += `
                     <div class="insight consensus">
-                        <strong>📊 Perfect Consensus:</strong> All AI systems gave identical ratings (${min.toFixed(3)}/10). 
-                        This suggests strong agreement on this particular question.
+                        <strong>📊 Perfect Consensus:</strong> All AI systems gave identical ratings (${min.toFixed(3)}/10).
                     </div>
                 `;
             } else if (spread < 0.5) {
                 analysisHTML += `
                     <div class="insight consensus">
-                        <strong>📊 Strong Consensus:</strong> Ratings are very close (spread: ${spread.toFixed(3)}). 
-                        The AI systems largely agree on this topic.
+                        <strong>📊 Strong Consensus:</strong> Ratings are very close (spread: ${spread.toFixed(3)}).
                     </div>
                 `;
             } else if (spread < 1.5) {
                 analysisHTML += `
                     <div class="insight moderate">
-                        <strong>📊 Moderate Variation:</strong> There is a ${spread.toFixed(3)}-point spread between ratings. 
-                        Some difference in AI perspectives detected.
+                        <strong>📊 Moderate Variation:</strong> There is a ${spread.toFixed(3)}-point spread between ratings.
                     </div>
                 `;
             } else {
                 analysisHTML += `
                     <div class="insight divergent">
-                        <strong>📊 Significant Divergence:</strong> There is a ${spread.toFixed(3)}-point spread between ratings. 
-                        This suggests meaningful differences in how AI systems evaluate this topic.
+                        <strong>📊 Significant Divergence:</strong> There is a ${spread.toFixed(3)}-point spread between ratings.
                     </div>
                 `;
             }
