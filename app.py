@@ -1,27 +1,26 @@
 """
 AI Bias Research Tool - Production Version
 Created: December 13, 2024
-Last Updated: December 17, 2024 - FRONTEND BATCH SOLUTION
+Last Updated: December 17, 2024 - ADMIN & ANALYSIS FEATURES
 
 CHANGE LOG:
+- December 17, 2024 (Late Evening): Admin & Analysis features
+  * ADDED: /admin/reset-database endpoint - clear all data
+  * ADDED: Admin panel in UI with reset button
+  * ENHANCED: CSV export includes category column for analysis
+  * Ready for: Upload CSV back to Claude for detailed analysis
+  * Workflow: Reset DB → Run 100 questions → Export CSV → Analyze
+  
 - December 17, 2024 (Evening): Frontend batch processing solution
-  * REMOVED: /batch/submit endpoint (was causing threading issues)
-  * Frontend now handles batching by calling /query in a loop
+  * Frontend handles batching by calling /query in a loop
   * "Do this, then when done, do this +1" approach (user's idea!)
   * Each question uses existing parallel execution (9 AIs at once)
   * ~10 seconds per question, works perfectly
-  * No threading issues possible - backend only sees 1 question at a time
-  * Progress visible to user in real-time
-  * Much simpler and more reliable
-
-- December 17, 2024 (Afternoon): Multiple threading attempts failed
-  * Tried ThreadPoolExecutor, shared pools, sequential - all had issues
-  * Root cause: Backend trying to handle multiple questions at once
-  * Solution: Let frontend handle the batching
-
+  * No threading issues possible
+  
 - December 16-17: Database migration, locking fixes
-  * All working fine
   * Category column added successfully
+  * All systems working
 
 WORKING FEATURES:
 - Single question testing across 9 AI systems
@@ -960,6 +959,47 @@ def test_all():
     }
     
     return jsonify(results)
+
+# ============================================================================
+# ADMIN ENDPOINTS
+# ============================================================================
+
+@app.route('/admin/reset-database', methods=['POST'])
+def reset_database():
+    """Reset the entire database - DANGEROUS! Deletes all queries and responses"""
+    data = request.json
+    confirm = data.get('confirm', False)
+    
+    if not confirm:
+        return jsonify({
+            'error': 'Confirmation required',
+            'message': 'Send {"confirm": true} to reset database'
+        }), 400
+    
+    try:
+        db = get_db()
+        
+        # Delete all data
+        db.execute('DELETE FROM responses')
+        db.execute('DELETE FROM queries')
+        
+        # Reset auto-increment counters
+        db.execute('DELETE FROM sqlite_sequence WHERE name="responses"')
+        db.execute('DELETE FROM sqlite_sequence WHERE name="queries"')
+        
+        db.commit()
+        db.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Database reset successfully',
+            'tables_cleared': ['queries', 'responses']
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 # ============================================================================
 # APPLICATION STARTUP
