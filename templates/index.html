@@ -1,26 +1,24 @@
 <!DOCTYPE html>
 <!--
-AI Bias Research Tool - Frontend Interface
+AI Bias Research Tool - Frontend Interface with Smart Batch Processing
 Created: December 13, 2024
-Last Updated: December 16, 2024 - EVENING UPDATE
+Last Updated: December 17, 2024 - FRONTEND BATCH SOLUTION
 
 CHANGE LOG:
-- December 16, 2024 (Evening): Added simple batch submission UI
-  * New "Submit Multiple Questions at Once" section
-  * Category dropdown for organizing research
-  * Real-time question counter with time estimate
-  * Simple, clean design - no tabs, no complexity
-  * Works with new /batch/submit endpoint
-  * All features on one page - easy to use
-
-- December 16, 2024 (Afternoon): Added CSV Export button
-  * Export button in Test History section
-  * Downloads all test data with analysis metrics
-  * Filename includes timestamp
+- December 17, 2024 (Evening): Frontend batch processing!
+  * User's idea: "Do this, then when done, do this +1"
+  * JavaScript loops through questions one at a time
+  * Calls /query endpoint for each (already works perfectly!)
+  * Shows real-time progress: "Processing 5 of 25..."
+  * Each question takes ~10 seconds (9 AIs in parallel)
+  * 25 questions = ~4 minutes total
+  * NO BACKEND CHANGES NEEDED - uses existing endpoint
+  * Simple, elegant, and works perfectly!
 
 FEATURES:
 - Single question testing across 9 AI systems
-- Batch submission (multiple questions at once)
+- Smart batch submission (frontend loops)
+- Real-time progress tracking
 - Real-time results display with analysis metrics
 - Rating extraction and display
 - Text analysis details (toggle per response)
@@ -43,7 +41,7 @@ Author: Jim (Hyperiongate)
         <header>
             <h1>🔬 AI Bias Research Tool</h1>
             <p class="subtitle">Comprehensive AI Analysis Across 9 Systems</p>
-            <p class="subtitle-small">Parallel Execution | Text Analysis | CSV Export</p>
+            <p class="subtitle-small">Smart Batch Processing | Real-Time Progress | CSV Export</p>
         </header>
 
         <div class="main-content">
@@ -68,15 +66,15 @@ Author: Jim (Hyperiongate)
                 </div>
                 <div id="loading" class="loading" style="display: none;">
                     <div class="spinner"></div>
-                    <p>Querying 9 AI systems in parallel... (~5-10 seconds)</p>
+                    <p>Querying 9 AI systems in parallel... (~10 seconds)</p>
                 </div>
             </section>
 
-            <!-- Batch Submission Section -->
+            <!-- Smart Batch Submission Section -->
             <section class="query-section" style="border-top: 2px solid #e0e0e0; padding-top: 30px; margin-top: 30px;">
-                <h2>📚 Submit Multiple Questions at Once</h2>
+                <h2>📚 Submit Multiple Questions (Smart Batch)</h2>
                 <p class="help-text">
-                    Enter multiple questions (one per line) to submit them all at once. Great for running 10, 50, or even 1000 questions.
+                    Enter multiple questions (one per line). We'll submit them one at a time automatically - fast and reliable! ⚡
                 </p>
                 
                 <div style="margin-bottom: 15px;">
@@ -90,7 +88,7 @@ Author: Jim (Hyperiongate)
                         <option value="Social">Social</option>
                         <option value="Scientific">Scientific</option>
                         <option value="Baseline">Baseline (Control)</option>
-                        <option value="Other">Other</option>
+                        <option value="">None</option>
                     </select>
                 </div>
                 
@@ -112,19 +110,47 @@ Rate how good pizza is on a scale of 1-10.
                 
                 <div class="button-group">
                     <button id="submit-batch-btn" class="primary-btn">
-                        🚀 Submit Batch
+                        🚀 Start Smart Batch
                     </button>
                     <button id="clear-batch-btn" class="reset-btn">
                         Clear
                     </button>
+                    <button id="cancel-batch-btn" class="reset-btn" style="display: none;">
+                        ❌ Cancel
+                    </button>
                 </div>
-                <div id="batch-loading" class="loading" style="display: none;">
-                    <div class="spinner"></div>
-                    <p id="batch-status">Processing batch...</p>
+                
+                <!-- Batch Progress Section -->
+                <div id="batch-progress-section" style="display: none; margin-top: 20px; padding: 20px; background: #e6fffa; border-radius: 8px; border-left: 4px solid #38b2ac;">
+                    <h3 style="color: #234e52; margin-bottom: 15px;">⏳ Processing Batch</h3>
+                    
+                    <div id="batch-current-question" style="margin-bottom: 15px; font-weight: 600; color: #234e52;">
+                        Processing question 1 of 10...
+                    </div>
+                    
+                    <div class="progress-bar" style="width: 100%; height: 30px; background: #cbd5e0; border-radius: 15px; overflow: hidden; margin-bottom: 15px;">
+                        <div id="batch-progress-fill" style="height: 100%; background: linear-gradient(90deg, #38b2ac 0%, #4299e1 100%); width: 0%; transition: width 0.3s ease;"></div>
+                    </div>
+                    
+                    <div id="batch-progress-text" style="font-size: 1em; color: #2c7a7b; margin-bottom: 10px;">
+                        0% complete
+                    </div>
+                    
+                    <div id="batch-question-list" style="max-height: 300px; overflow-y: auto; margin-top: 15px; padding: 10px; background: white; border-radius: 6px;">
+                        <!-- Question status list will appear here -->
+                    </div>
                 </div>
-                <div id="batch-results" style="display: none; margin-top: 15px; padding: 15px; background: #f0fff4; border-radius: 8px; border-left: 4px solid #48bb78;">
-                    <strong style="color: #2f855a;">✅ Batch Complete!</strong>
-                    <div id="batch-results-text"></div>
+                
+                <!-- Batch Complete Section -->
+                <div id="batch-complete-section" style="display: none; margin-top: 20px; padding: 20px; background: #f0fff4; border-radius: 8px; border-left: 4px solid #48bb78;">
+                    <h3 style="color: #2f855a; margin-bottom: 15px;">✅ Batch Complete!</h3>
+                    <div id="batch-complete-text"></div>
+                    <div style="margin-top: 15px;">
+                        <button onclick="scrollToHistory()" class="secondary-btn">View Results in History</button>
+                        <button onclick="window.location.href='/export/csv'" class="secondary-btn" style="background: #48bb78; color: white; border-color: #48bb78;">
+                            📥 Export CSV
+                        </button>
+                    </div>
                 </div>
             </section>
 
@@ -140,7 +166,7 @@ Rate how good pizza is on a scale of 1-10.
             </section>
 
             <!-- History Section -->
-            <section class="history-section">
+            <section class="history-section" id="history-section">
                 <h2>Test History</h2>
                 <div class="button-group">
                     <button id="load-history-btn" class="secondary-btn">Load Recent Tests</button>
@@ -154,14 +180,34 @@ Rate how good pizza is on a scale of 1-10.
     </div>
 
     <script>
-        // Format rating for display
+        // ========================================================================
+        // GLOBAL STATE
+        // ========================================================================
+        let batchCancelled = false;
+        
+        // ========================================================================
+        // UTILITY FUNCTIONS
+        // ========================================================================
+        
         function formatRating(rating) {
             if (rating === null || rating === undefined) return null;
             const rounded = Math.round(rating * 1000) / 1000;
             return parseFloat(rounded.toFixed(3));
         }
-
-        // Submit button handler
+        
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+        
+        function scrollToHistory() {
+            document.getElementById('history-section').scrollIntoView({ behavior: 'smooth' });
+            loadHistory();
+        }
+        
+        // ========================================================================
+        // SINGLE QUESTION SUBMISSION
+        // ========================================================================
+        
         document.getElementById('submit-btn').addEventListener('click', async () => {
             const question = document.getElementById('question-input').value.trim();
             
@@ -195,7 +241,6 @@ Rate how good pizza is on a scale of 1-10.
             }
         });
 
-        // Reset button
         document.getElementById('reset-btn').addEventListener('click', () => {
             document.getElementById('question-input').value = '';
             document.getElementById('results-section').style.display = 'none';
@@ -203,8 +248,192 @@ Rate how good pizza is on a scale of 1-10.
             document.getElementById('analysis-section').style.display = 'none';
             document.getElementById('question-input').focus();
         });
-
-        // Display results
+        
+        // ========================================================================
+        // SMART BATCH PROCESSING - THE MAGIC HAPPENS HERE!
+        // ========================================================================
+        
+        // Update question count as user types
+        document.getElementById('batch-questions-input').addEventListener('input', function() {
+            const text = this.value.trim();
+            const lines = text.split('\n').filter(line => line.trim().length > 0);
+            const count = lines.length;
+            const seconds = count * 10; // ~10 seconds per question
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            
+            let timeStr = '';
+            if (minutes > 0) {
+                timeStr = `${minutes}m ${remainingSeconds}s`;
+            } else {
+                timeStr = `${seconds}s`;
+            }
+            
+            document.getElementById('batch-question-count').textContent = 
+                `Questions: ${count} | Est. time: ${timeStr}`;
+        });
+        
+        document.getElementById('clear-batch-btn').addEventListener('click', () => {
+            document.getElementById('batch-questions-input').value = '';
+            document.getElementById('batch-question-count').textContent = 'Questions: 0 | Est. time: 0 seconds';
+            document.getElementById('batch-progress-section').style.display = 'none';
+            document.getElementById('batch-complete-section').style.display = 'none';
+        });
+        
+        // SMART BATCH SUBMISSION - User's "do this then +1" approach!
+        document.getElementById('submit-batch-btn').addEventListener('click', async () => {
+            const textarea = document.getElementById('batch-questions-input');
+            const category = document.getElementById('batch-category').value;
+            const text = textarea.value.trim();
+            
+            if (!text) {
+                alert('Please enter at least one question');
+                return;
+            }
+            
+            const questions = text.split('\n')
+                .map(q => q.trim())
+                .filter(q => q.length > 0);
+            
+            if (questions.length === 0) {
+                alert('No valid questions found');
+                return;
+            }
+            
+            const minutes = Math.floor(questions.length * 10 / 60);
+            const seconds = (questions.length * 10) % 60;
+            const timeStr = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+            
+            if (!confirm(`Submit ${questions.length} questions?\n\nEstimated time: ${timeStr}\n\nEach question will be processed one at a time.`)) {
+                return;
+            }
+            
+            // Reset state
+            batchCancelled = false;
+            
+            // Hide buttons, show progress
+            document.getElementById('submit-batch-btn').style.display = 'none';
+            document.getElementById('clear-batch-btn').style.display = 'none';
+            document.getElementById('cancel-batch-btn').style.display = 'inline-block';
+            document.getElementById('batch-progress-section').style.display = 'block';
+            document.getElementById('batch-complete-section').style.display = 'none';
+            
+            // Initialize question list
+            const questionList = document.getElementById('batch-question-list');
+            questionList.innerHTML = questions.map((q, i) => `
+                <div id="batch-q-${i}" style="padding: 8px; margin: 5px 0; border-radius: 4px; background: #f8f9fa; border-left: 3px solid #cbd5e0;">
+                    <span style="font-weight: 600;">#${i+1}</span>: ${q.substring(0, 60)}${q.length > 60 ? '...' : ''}
+                    <span id="batch-status-${i}" style="float: right; color: #718096;">⏳ Waiting...</span>
+                </div>
+            `).join('');
+            
+            // Process questions one at a time (THE MAGIC!)
+            let successCount = 0;
+            let failCount = 0;
+            
+            for (let i = 0; i < questions.length; i++) {
+                if (batchCancelled) {
+                    alert(`Batch cancelled after ${i} questions`);
+                    break;
+                }
+                
+                const question = questions[i];
+                
+                // Update UI
+                document.getElementById('batch-current-question').textContent = 
+                    `Processing question ${i+1} of ${questions.length}...`;
+                
+                const progressPercent = Math.round((i / questions.length) * 100);
+                document.getElementById('batch-progress-fill').style.width = progressPercent + '%';
+                document.getElementById('batch-progress-text').textContent = `${progressPercent}% complete`;
+                
+                // Highlight current question
+                document.getElementById(`batch-q-${i}`).style.borderLeftColor = '#4299e1';
+                document.getElementById(`batch-q-${i}`).style.background = '#e6fffa';
+                document.getElementById(`batch-status-${i}`).textContent = '⏳ Processing...';
+                document.getElementById(`batch-status-${i}`).style.color = '#4299e1';
+                
+                try {
+                    // Call the existing /query endpoint (it already works great!)
+                    const response = await fetch('/query', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ 
+                            question: question,
+                            category: category 
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    // Count successful responses
+                    const successful = data.results.filter(r => r.success).length;
+                    
+                    // Update status
+                    document.getElementById(`batch-q-${i}`).style.borderLeftColor = '#48bb78';
+                    document.getElementById(`batch-q-${i}`).style.background = '#f0fff4';
+                    document.getElementById(`batch-status-${i}`).textContent = `✅ ${successful}/9 AIs`;
+                    document.getElementById(`batch-status-${i}`).style.color = '#48bb78';
+                    
+                    successCount++;
+                    
+                } catch (error) {
+                    console.error(`Error on question ${i+1}:`, error);
+                    
+                    // Update status
+                    document.getElementById(`batch-q-${i}`).style.borderLeftColor = '#fc8181';
+                    document.getElementById(`batch-q-${i}`).style.background = '#fff5f5';
+                    document.getElementById(`batch-status-${i}`).textContent = '❌ Error';
+                    document.getElementById(`batch-status-${i}`).style.color = '#fc8181';
+                    
+                    failCount++;
+                }
+                
+                // Small delay between questions (optional, gives server a break)
+                if (i < questions.length - 1) {
+                    await sleep(500);
+                }
+            }
+            
+            // Complete!
+            document.getElementById('batch-progress-fill').style.width = '100%';
+            document.getElementById('batch-progress-text').textContent = '100% complete';
+            document.getElementById('batch-current-question').textContent = 'All questions processed!';
+            
+            // Show completion message
+            document.getElementById('batch-complete-section').style.display = 'block';
+            document.getElementById('batch-complete-text').innerHTML = `
+                <p style="margin: 5px 0;">✅ Completed: ${successCount} questions</p>
+                <p style="margin: 5px 0;">❌ Failed: ${failCount} questions</p>
+                <p style="margin: 5px 0;">📊 Total responses: ~${successCount * 9} AI responses saved</p>
+                <p style="margin: 10px 0 0 0;">All results are now in your test history below.</p>
+            `;
+            
+            // Reset buttons
+            document.getElementById('submit-batch-btn').style.display = 'inline-block';
+            document.getElementById('clear-batch-btn').style.display = 'inline-block';
+            document.getElementById('cancel-batch-btn').style.display = 'none';
+            
+            // Auto-scroll to history
+            setTimeout(() => {
+                scrollToHistory();
+            }, 1000);
+        });
+        
+        // Cancel batch
+        document.getElementById('cancel-batch-btn').addEventListener('click', () => {
+            if (confirm('Cancel batch processing?\n\nQuestions already processed will remain saved.')) {
+                batchCancelled = true;
+                document.getElementById('submit-batch-btn').style.display = 'inline-block';
+                document.getElementById('clear-batch-btn').style.display = 'inline-block';
+                document.getElementById('cancel-batch-btn').style.display = 'none';
+            }
+        });
+        
+        // ========================================================================
+        // RESULTS DISPLAY
+        // ========================================================================
+        
         function displayResults(data) {
             const container = document.getElementById('results-container');
             const resultsSection = document.getElementById('results-section');
@@ -226,7 +455,6 @@ Rate how good pizza is on a scale of 1-10.
                         ? `<div class="rating-badge">Rating: ${rating}/10</div>`
                         : '<div class="rating-badge no-rating">No numerical rating detected</div>';
                     
-                    // Create analysis details (hidden by default)
                     const analysisDetails = `
                         <div class="analysis-details" style="display: none;">
                             <div class="analysis-grid">
@@ -261,7 +489,7 @@ Rate how good pizza is on a scale of 1-10.
                         </div>
                         ${ratingDisplay}
                         <div class="response-text">${result.raw_response}</div>
-                        <button class="toggle-analysis-btn" onclick="toggleAnalysis(this)">
+                        <button class="toggle-analysis-btn" onclick="toggleAnalysis(this)" style="margin-top: 10px; padding: 8px 16px; background: #f8f9fa; border: 2px solid #667eea; color: #667eea; border-radius: 6px; cursor: pointer; font-size: 0.95em; font-weight: 600;">
                             Show Analysis Details ▼
                         </button>
                         ${analysisDetails}
@@ -283,8 +511,7 @@ Rate how good pizza is on a scale of 1-10.
             showAnalysis(data.results);
             resultsSection.style.display = 'block';
         }
-
-        // Toggle analysis details
+        
         function toggleAnalysis(button) {
             const details = button.nextElementSibling;
             if (details.style.display === 'none') {
@@ -295,8 +522,7 @@ Rate how good pizza is on a scale of 1-10.
                 button.textContent = 'Show Analysis Details ▼';
             }
         }
-
-        // Show analysis
+        
         function showAnalysis(results) {
             const analysisSection = document.getElementById('analysis-section');
             const analysisContent = document.getElementById('analysis-content');
@@ -384,9 +610,17 @@ Rate how good pizza is on a scale of 1-10.
             analysisContent.innerHTML = analysisHTML;
             analysisSection.style.display = 'block';
         }
-
-        // Load history
-        document.getElementById('load-history-btn').addEventListener('click', async () => {
+        
+        // ========================================================================
+        // HISTORY
+        // ========================================================================
+        
+        document.getElementById('load-history-btn').addEventListener('click', loadHistory);
+        document.getElementById('export-csv-btn').addEventListener('click', () => {
+            window.location.href = '/export/csv';
+        });
+        
+        async function loadHistory() {
             try {
                 const response = await fetch('/history');
                 const history = await response.json();
@@ -395,12 +629,7 @@ Rate how good pizza is on a scale of 1-10.
                 console.error('Error loading history:', error);
                 alert('Error loading history');
             }
-        });
-
-        // Export CSV button
-        document.getElementById('export-csv-btn').addEventListener('click', () => {
-            window.location.href = '/export/csv';
-        });
+        }
 
         function displayHistory(history) {
             const container = document.getElementById('history-container');
@@ -420,8 +649,12 @@ Rate how good pizza is on a scale of 1-10.
                 const date = new Date(item.timestamp);
                 const dateStr = date.toLocaleString();
                 
+                const categoryBadge = item.category 
+                    ? `<span style="background: #667eea; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em; margin-left: 10px;">${item.category}</span>`
+                    : '';
+                
                 historyItem.innerHTML = `
-                    <div class="history-question">${item.question}</div>
+                    <div class="history-question">${item.question}${categoryBadge}</div>
                     <div class="history-meta">
                         <span>${dateStr}</span>
                         <span>${item.response_count} responses</span>
@@ -465,100 +698,6 @@ Rate how good pizza is on a scale of 1-10.
                 alert('Error loading query details');
             }
         }
-
-        // ========================================================================
-        // BATCH SUBMISSION FUNCTIONALITY
-        // ========================================================================
-
-        // Update question count as user types
-        document.getElementById('batch-questions-input').addEventListener('input', function() {
-            const text = this.value.trim();
-            const lines = text.split('\n').filter(line => line.trim().length > 0);
-            const count = lines.length;
-            const seconds = count * 10;
-            const minutes = Math.floor(seconds / 60);
-            const remainingSeconds = seconds % 60;
-            
-            let timeStr = '';
-            if (minutes > 0) {
-                timeStr = `${minutes}m ${remainingSeconds}s`;
-            } else {
-                timeStr = `${seconds}s`;
-            }
-            
-            document.getElementById('batch-question-count').textContent = 
-                `Questions: ${count} | Est. time: ${timeStr}`;
-        });
-
-        // Clear batch button
-        document.getElementById('clear-batch-btn').addEventListener('click', () => {
-            document.getElementById('batch-questions-input').value = '';
-            document.getElementById('batch-question-count').textContent = 'Questions: 0 | Est. time: 0 seconds';
-            document.getElementById('batch-results').style.display = 'none';
-        });
-
-        // Submit batch button
-        document.getElementById('submit-batch-btn').addEventListener('click', async () => {
-            const textarea = document.getElementById('batch-questions-input');
-            const category = document.getElementById('batch-category').value;
-            const text = textarea.value.trim();
-            
-            if (!text) {
-                alert('Please enter at least one question');
-                return;
-            }
-            
-            const questions = text.split('\n')
-                .map(q => q.trim())
-                .filter(q => q.length > 0);
-            
-            if (questions.length === 0) {
-                alert('No valid questions found');
-                return;
-            }
-            
-            const minutes = Math.floor(questions.length * 10 / 60);
-            if (!confirm(`Submit ${questions.length} questions in category "${category}"?\n\nThis will take approximately ${minutes} minutes.`)) {
-                return;
-            }
-            
-            document.getElementById('submit-batch-btn').disabled = true;
-            document.getElementById('batch-loading').style.display = 'block';
-            document.getElementById('batch-status').textContent = `Processing ${questions.length} questions... Please wait.`;
-            document.getElementById('batch-results').style.display = 'none';
-            
-            try {
-                const response = await fetch('/batch/submit', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ questions, category })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    document.getElementById('batch-results').style.display = 'block';
-                    document.getElementById('batch-results-text').innerHTML = `
-                        <p style="margin: 5px 0;">Submitted: ${data.total_questions} questions</p>
-                        <p style="margin: 5px 0;">Processed: ${data.processed} questions</p>
-                        <p style="margin: 5px 0;">Category: ${data.category}</p>
-                        <p style="margin: 10px 0 0 0;">✅ All questions have been submitted! Scroll down to "Test History" to see them.</p>
-                    `;
-                    
-                    // Clear textarea
-                    textarea.value = '';
-                    document.getElementById('batch-question-count').textContent = 'Questions: 0 | Est. time: 0 seconds';
-                } else {
-                    alert('Error: ' + (data.error || 'Unknown error'));
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Error submitting batch: ' + error.message);
-            } finally {
-                document.getElementById('batch-loading').style.display = 'none';
-                document.getElementById('submit-batch-btn').disabled = false;
-            }
-        });
     </script>
 </body>
 </html>
