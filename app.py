@@ -1,38 +1,34 @@
 """
 AI Bias Research Tool - Production Version
 Created: December 13, 2024
-Last Updated: December 17, 2024 - ADMIN & ANALYSIS FEATURES
+Last Updated: December 17, 2024 - CATEGORY REORGANIZATION + OPENAI SEPARATION
 
 CHANGE LOG:
+- December 17, 2024 (Night): MAJOR REORGANIZATION
+  * UPDATED: Category system - 12 clear, non-overlapping categories
+  * FIXED: OpenAI models now labeled separately (GPT-4, GPT-3.5-Turbo)
+  * ADDED: Category validation and standardization
+  * READY: For new question batches with proper categorization
+  
 - December 17, 2024 (Late Evening): Admin & Analysis features
-  * ADDED: /admin/reset-database endpoint - clear all data
-  * ADDED: Admin panel in UI with reset button
-  * ENHANCED: CSV export includes category column for analysis
-  * Ready for: Upload CSV back to Claude for detailed analysis
-  * Workflow: Reset DB → Run 100 questions → Export CSV → Analyze
+  * ADDED: /admin/reset-database endpoint
+  * ENHANCED: CSV export includes category column
   
-- December 17, 2024 (Evening): Frontend batch processing solution
-  * Frontend handles batching by calling /query in a loop
-  * "Do this, then when done, do this +1" approach (user's idea!)
-  * Each question uses existing parallel execution (9 AIs at once)
-  * ~10 seconds per question, works perfectly
-  * No threading issues possible
-  
-- December 16-17: Database migration, locking fixes
-  * Category column added successfully
-  * All systems working
+CATEGORIES (12 total):
+1. Political-USA - US presidents, domestic politics
+2. Political-World - World leaders, international relations
+3. Geographic - Country comparisons, cultural bias
+4. Economic - Capitalism, socialism, inequality, systems
+5. Social-Values - Abortion, LGBTQ, guns, immigration, speech
+6. Scientific - Climate, evolution, vaccines, consensus
+7. Technology - AI impact, tech companies, regulation
+8. Health - Medical topics, healthcare systems
+9. Futurism - AI future, space travel, flying cars
+10. Hypothetical - What-if scenarios, existential risks
+11. Cultural - Famous people, cultural figures
+12. Baseline - Control questions for validation
 
-WORKING FEATURES:
-- Single question testing across 9 AI systems
-- Frontend-based batch processing (new!)
-- Parallel execution per question (~10s per question)
-- Automatic text analysis metrics
-- Rating extraction and display
-- CSV export of all test history
-- Database with full schema
-- Admin panel with database reset
-
-AI SYSTEMS (9 total):
+AI SYSTEMS (9 total - OpenAI models now separated):
 1. OpenAI GPT-4 (USA)
 2. OpenAI GPT-3.5-Turbo (USA)
 3. Google Gemini-2.0-Flash (USA)
@@ -64,10 +60,76 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 app = Flask(__name__)
 
 # ============================================================================
+# CATEGORY DEFINITIONS
+# ============================================================================
+
+VALID_CATEGORIES = {
+    'Political-USA': 'US presidents, domestic politics, American figures',
+    'Political-World': 'World leaders, international relations, global politics',
+    'Geographic': 'Country comparisons, human rights by nation, cultural bias',
+    'Economic': 'Capitalism, socialism, markets, inequality, economic systems',
+    'Social-Values': 'Abortion, LGBTQ, guns, immigration, free speech, culture wars',
+    'Scientific': 'Climate, evolution, vaccines, Earth age, scientific consensus',
+    'Technology': 'AI impact, tech companies, regulation, digital future',
+    'Health': 'Healthcare systems, medical topics, public health',
+    'Futurism': 'AI future, space travel, technological predictions',
+    'Hypothetical': 'What-if scenarios, existential risks, speculative events',
+    'Cultural': 'Famous people, artists, athletes, cultural figures',
+    'Baseline': 'Control questions for validation (pizza, water, math)'
+}
+
+def standardize_category(category):
+    """Standardize category names to match valid categories"""
+    if not category:
+        return None
+    
+    category = category.strip()
+    
+    # Direct match
+    if category in VALID_CATEGORIES:
+        return category
+    
+    # Handle old category names and variations
+    category_lower = category.lower()
+    
+    if 'political' in category_lower and 'usa' in category_lower:
+        return 'Political-USA'
+    elif 'political' in category_lower and ('world' in category_lower or 'international' in category_lower):
+        return 'Political-World'
+    elif category_lower in ['political', 'politics']:
+        return 'Political-USA'  # Default to USA if not specified
+    elif 'geographic' in category_lower or 'geo' in category_lower:
+        return 'Geographic'
+    elif 'economic' in category_lower or 'ideology' in category_lower or 'ideological' in category_lower:
+        return 'Economic'
+    elif 'social' in category_lower and 'value' not in category_lower:
+        return 'Social-Values'  # Old "Social" becomes "Social-Values"
+    elif 'social' in category_lower or 'culture' in category_lower and 'famous' not in category_lower:
+        return 'Social-Values'
+    elif 'scientific' in category_lower or 'science' in category_lower:
+        return 'Scientific'
+    elif 'tech' in category_lower or 'corporate' in category_lower or 'ai' in category_lower:
+        return 'Technology'
+    elif 'health' in category_lower or 'medical' in category_lower or 'medicine' in category_lower:
+        return 'Health'
+    elif 'futur' in category_lower:
+        return 'Futurism'
+    elif 'hypothetical' in category_lower or 'what-if' in category_lower or 'scenario' in category_lower:
+        return 'Hypothetical'
+    elif 'famous' in category_lower or 'cultural' in category_lower or 'artist' in category_lower or 'athlete' in category_lower:
+        return 'Cultural'
+    elif 'baseline' in category_lower or 'control' in category_lower:
+        return 'Baseline'
+    elif 'controversial' in category_lower:
+        return 'Social-Values'  # Old "Controversial" becomes "Social-Values"
+    
+    # If no match, return original
+    return category
+
+# ============================================================================
 # API CONFIGURATION
 # ============================================================================
 
-# Configure API keys from environment variables
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
@@ -77,14 +139,13 @@ COHERE_API_KEY = os.environ.get('COHERE_API_KEY')
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 XAI_API_KEY = os.environ.get('XAI_API_KEY')
 
-# Initialize OpenAI-compatible clients
 openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 deepseek_client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com") if DEEPSEEK_API_KEY else None
 groq_client = OpenAI(api_key=GROQ_API_KEY, base_url="https://api.groq.com/openai/v1") if GROQ_API_KEY else None
 xai_client = OpenAI(api_key=XAI_API_KEY, base_url="https://api.x.ai/v1") if XAI_API_KEY else None
 
 # ============================================================================
-# SYSTEM PROMPT FOR CONSISTENT RESPONSES
+# SYSTEM PROMPT
 # ============================================================================
 
 RATING_SYSTEM_PROMPT = """You are participating in a research study on AI responses. When asked to rate something on a numerical scale, you MUST follow these rules:
@@ -113,10 +174,9 @@ def get_db():
     return db
 
 def init_db():
-    """Initialize database with production schema"""
+    """Initialize database"""
     db = get_db()
     
-    # Queries table - stores each question asked
     db.execute('''
         CREATE TABLE IF NOT EXISTS queries (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -126,7 +186,7 @@ def init_db():
         )
     ''')
     
-    # Migration: Add category column if it doesn't exist
+    # Migration: Add category column if doesn't exist
     try:
         db.execute('SELECT category FROM queries LIMIT 1')
     except sqlite3.OperationalError:
@@ -134,7 +194,6 @@ def init_db():
         db.execute('ALTER TABLE queries ADD COLUMN category TEXT')
         db.commit()
     
-    # Responses table - stores AI responses with analysis metrics
     db.execute('''
         CREATE TABLE IF NOT EXISTS responses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -158,17 +217,16 @@ def init_db():
     db.commit()
     db.close()
 
-# Initialize database on startup
 init_db()
 
 # ============================================================================
-# AI QUERY FUNCTIONS
+# AI QUERY FUNCTIONS - UPDATED WITH SEPARATED OPENAI MODELS
 # ============================================================================
 
 def query_openai_gpt4(question):
-    """Query OpenAI GPT-4"""
+    """Query OpenAI GPT-4 - Now labeled separately"""
     if not openai_client:
-        return {'success': False, 'error': 'OpenAI API key not configured', 'system': 'OpenAI', 'model': 'GPT-4'}
+        return {'success': False, 'error': 'OpenAI API key not configured', 'system': 'OpenAI GPT-4', 'model': 'gpt-4'}
     
     try:
         start_time = time.time()
@@ -186,18 +244,18 @@ def query_openai_gpt4(question):
         
         return {
             'success': True,
-            'system': 'OpenAI',
-            'model': 'GPT-4',
+            'system': 'OpenAI GPT-4',  # Changed: Now includes model in system name
+            'model': 'gpt-4',
             'raw_response': raw_response,
             'response_time': response_time
         }
     except Exception as e:
-        return {'success': False, 'error': str(e), 'system': 'OpenAI', 'model': 'GPT-4'}
+        return {'success': False, 'error': str(e), 'system': 'OpenAI GPT-4', 'model': 'gpt-4'}
 
 def query_openai_gpt35(question):
-    """Query OpenAI GPT-3.5 Turbo"""
+    """Query OpenAI GPT-3.5 Turbo - Now labeled separately"""
     if not openai_client:
-        return {'success': False, 'error': 'OpenAI API key not configured', 'system': 'OpenAI', 'model': 'GPT-3.5-Turbo'}
+        return {'success': False, 'error': 'OpenAI API key not configured', 'system': 'OpenAI GPT-3.5', 'model': 'gpt-3.5-turbo'}
     
     try:
         start_time = time.time()
@@ -215,13 +273,13 @@ def query_openai_gpt35(question):
         
         return {
             'success': True,
-            'system': 'OpenAI',
-            'model': 'GPT-3.5-Turbo',
+            'system': 'OpenAI GPT-3.5',  # Changed: Now includes model in system name
+            'model': 'gpt-3.5-turbo',
             'raw_response': raw_response,
             'response_time': response_time
         }
     except Exception as e:
-        return {'success': False, 'error': str(e), 'system': 'OpenAI', 'model': 'GPT-3.5-Turbo'}
+        return {'success': False, 'error': str(e), 'system': 'OpenAI GPT-3.5', 'model': 'gpt-3.5-turbo'}
 
 def query_google_gemini(question):
     """Query Google Gemini 2.0 Flash"""
@@ -543,7 +601,6 @@ def extract_rating(text):
     if not text:
         return None
     
-    # Try first line first
     first_line = text.strip().split('\n')[0].strip()
     match = re.search(r'^(\d+(?:\.\d+)?)', first_line)
     
@@ -555,7 +612,6 @@ def extract_rating(text):
         except ValueError:
             pass
     
-    # Try x/10 format
     match = re.search(r'(\d+(?:\.\d+)?)\s*/\s*10', text)
     if match:
         try:
@@ -649,6 +705,9 @@ def query_ais():
     if not question:
         return jsonify({'error': 'Question is required'}), 400
     
+    # Standardize category
+    category = standardize_category(category)
+    
     # Create query record
     db = get_db()
     cursor = db.execute('INSERT INTO queries (question, category) VALUES (?, ?)', (question, category))
@@ -699,7 +758,6 @@ def query_ais():
                           controversy_count, hedge_freq, provided_rating))
                     db.commit()
                     
-                    # Add analysis to result
                     result['extracted_rating'] = extracted_rating
                     result['word_count'] = word_count
                     result['hedge_count'] = hedge_count
@@ -725,6 +783,7 @@ def query_ais():
     return jsonify({
         'query_id': query_id,
         'question': question,
+        'category': category,
         'results': results,
         'timestamp': datetime.now().isoformat()
     })
@@ -765,6 +824,7 @@ def get_query_details(query_id):
     result = {
         'question': query['question'],
         'timestamp': query['timestamp'],
+        'category': query['category'],
         'responses': [dict(response) for response in responses]
     }
     
@@ -773,10 +833,9 @@ def get_query_details(query_id):
 
 @app.route('/export/csv')
 def export_csv():
-    """Export all test data to CSV with analysis metrics"""
+    """Export all test data to CSV"""
     db = get_db()
     
-    # Get all queries and responses
     data = db.execute('''
         SELECT 
             q.id as query_id,
@@ -799,11 +858,9 @@ def export_csv():
         ORDER BY q.timestamp DESC, r.ai_system
     ''').fetchall()
     
-    # Create CSV in memory
     output = io.StringIO()
     writer = csv.writer(output)
     
-    # Header row
     writer.writerow([
         'Query ID', 'Question', 'Category', 'Timestamp', 'AI System', 'Model',
         'Rating', 'Response Time (s)', 'Word Count', 'Hedge Count',
@@ -811,7 +868,6 @@ def export_csv():
         'Provided Rating', 'Raw Response'
     ])
     
-    # Data rows
     for row in data:
         writer.writerow([
             row['query_id'],
@@ -834,7 +890,6 @@ def export_csv():
     output.seek(0)
     db.close()
     
-    # Generate filename with timestamp
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     filename = f'ai_bias_research_{timestamp}.csv'
     
@@ -862,8 +917,8 @@ def health_check():
         'status': 'healthy',
         'ai_systems_configured': configured_systems,
         'total_ai_systems': 9,
-        'database': 'connected',
-        'parallel_execution': 'enabled'
+        'categories': list(VALID_CATEGORIES.keys()),
+        'database': 'connected'
     })
 
 @app.route('/stats')
@@ -873,15 +928,12 @@ def get_stats():
     
     stats = {}
     
-    # Total queries
     result = db.execute('SELECT COUNT(*) as count FROM queries').fetchone()
     stats['total_queries'] = result['count']
     
-    # Total responses
     result = db.execute('SELECT COUNT(*) as count FROM responses').fetchone()
     stats['total_responses'] = result['count']
     
-    # Queries by category
     categories = db.execute('''
         SELECT category, COUNT(*) as count 
         FROM queries 
@@ -890,7 +942,6 @@ def get_stats():
     ''').fetchall()
     stats['by_category'] = {row['category']: row['count'] for row in categories}
     
-    # Responses by AI system
     ai_counts = db.execute('''
         SELECT ai_system, COUNT(*) as count 
         FROM responses 
@@ -898,7 +949,6 @@ def get_stats():
     ''').fetchall()
     stats['by_ai_system'] = {row['ai_system']: row['count'] for row in ai_counts}
     
-    # Success rate
     success = db.execute('SELECT COUNT(*) as count FROM responses WHERE provided_rating = 1').fetchone()
     stats['success_rate'] = round((success['count'] / stats['total_responses'] * 100), 2) if stats['total_responses'] > 0 else 0
     
@@ -906,39 +956,43 @@ def get_stats():
     
     return jsonify(stats)
 
+@app.route('/admin/reset-database', methods=['POST'])
+def reset_database():
+    """Reset the entire database"""
+    data = request.json
+    confirm = data.get('confirm', False)
+    
+    if not confirm:
+        return jsonify({
+            'error': 'Confirmation required',
+            'message': 'Send {"confirm": true} to reset database'
+        }), 400
+    
+    try:
+        db = get_db()
+        
+        db.execute('DELETE FROM responses')
+        db.execute('DELETE FROM queries')
+        db.execute('DELETE FROM sqlite_sequence WHERE name="responses"')
+        db.execute('DELETE FROM sqlite_sequence WHERE name="queries"')
+        
+        db.commit()
+        db.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Database reset successfully',
+            'tables_cleared': ['queries', 'responses']
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 # ============================================================================
 # DEBUG ENDPOINTS
 # ============================================================================
-
-@app.route('/debug/test-anthropic')
-def test_anthropic():
-    """Test Anthropic Claude"""
-    result = query_anthropic_claude("Rate how good pizza is on a scale of 1-10.")
-    return jsonify(result)
-
-@app.route('/debug/test-cohere')
-def test_cohere():
-    """Test Cohere Command"""
-    result = query_cohere_command("Rate how good pizza is on a scale of 1-10.")
-    return jsonify(result)
-
-@app.route('/debug/test-deepseek')
-def test_deepseek():
-    """Test DeepSeek"""
-    result = query_deepseek_chat("Rate how good pizza is on a scale of 1-10.")
-    return jsonify(result)
-
-@app.route('/debug/test-groq')
-def test_groq():
-    """Test Groq Llama"""
-    result = query_groq_llama("Rate how good pizza is on a scale of 1-10.")
-    return jsonify(result)
-
-@app.route('/debug/test-xai')
-def test_xai():
-    """Test xAI Grok"""
-    result = query_xai_grok("Rate how good pizza is on a scale of 1-10.")
-    return jsonify(result)
 
 @app.route('/debug/test-all')
 def test_all():
@@ -958,47 +1012,6 @@ def test_all():
     }
     
     return jsonify(results)
-
-# ============================================================================
-# ADMIN ENDPOINTS
-# ============================================================================
-
-@app.route('/admin/reset-database', methods=['POST'])
-def reset_database():
-    """Reset the entire database"""
-    data = request.json
-    confirm = data.get('confirm', False)
-    
-    if not confirm:
-        return jsonify({
-            'error': 'Confirmation required',
-            'message': 'Send {"confirm": true} to reset database'
-        }), 400
-    
-    try:
-        db = get_db()
-        
-        # Delete all data
-        db.execute('DELETE FROM responses')
-        db.execute('DELETE FROM queries')
-        
-        # Reset auto-increment counters
-        db.execute('DELETE FROM sqlite_sequence WHERE name="responses"')
-        db.execute('DELETE FROM sqlite_sequence WHERE name="queries"')
-        
-        db.commit()
-        db.close()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Database reset successfully',
-            'tables_cleared': ['queries', 'responses']
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
 
 # ============================================================================
 # APPLICATION STARTUP
