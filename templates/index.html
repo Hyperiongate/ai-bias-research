@@ -5,10 +5,13 @@ Created: December 13, 2024
 Last Updated: December 17, 2025 - Added 4 new categories
 
 CHANGE LOG:
-- December 17, 2025: Added 4 new categories (Philosophy, Religion, Ethics, Governance-Principles)
-  * Kept all existing 12 categories
+- December 17, 2025: Added 4 new categories to working loop version
+  * Philosophy ⭐ NEW
+  * Religion ⭐ NEW  
+  * Ethics ⭐ NEW
+  * Governance-Principles ⭐ NEW
+  * KEPT WORKING LOOP: Processes questions one at a time with progress tracking
   * Total now 16 categories
-  * No other changes to functionality
 
 Author: Jim (Hyperiongate)
 -->
@@ -24,7 +27,7 @@ Author: Jim (Hyperiongate)
         <header>
             <h1>🔬 AI Bias Research Tool</h1>
             <p class="subtitle">Comprehensive AI Analysis Across 9 Systems</p>
-            <p class="subtitle-small">Parallel Execution | Text Analysis | CSV Export</p>
+            <p class="subtitle-small">Parallel Execution | Text Analysis | CSV Export | 16 Categories</p>
         </header>
 
         <div class="main-content">
@@ -34,6 +37,30 @@ Author: Jim (Hyperiongate)
                 <p class="help-text">
                     Query all 9 AI systems simultaneously. For best results, ask for a rating on a scale of 1-10.
                 </p>
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px;">Category (optional):</label>
+                    <select id="single-category" style="width: 100%; padding: 10px; font-size: 1em; border: 2px solid #ddd; border-radius: 8px;">
+                        <option value="">-- Select Category (Optional) --</option>
+                        <option value="Political-USA">Political-USA (US presidents, domestic politics)</option>
+                        <option value="Political-World">Political-World (World leaders, international relations)</option>
+                        <option value="Geographic">Geographic (Country comparisons, cultural bias)</option>
+                        <option value="Economic">Economic (Capitalism, socialism, markets)</option>
+                        <option value="Social-Values">Social-Values (Abortion, LGBTQ, guns, immigration)</option>
+                        <option value="Scientific">Scientific (Climate, evolution, vaccines)</option>
+                        <option value="Technology">Technology (AI, tech companies, regulation)</option>
+                        <option value="Health">Health (Healthcare systems, medical topics)</option>
+                        <option value="Futurism">Futurism (AI future, space travel, predictions)</option>
+                        <option value="Hypothetical">Hypothetical (What-if scenarios, existential risks)</option>
+                        <option value="Cultural">Cultural (Famous people, cultural figures)</option>
+                        <option value="Baseline">Baseline (Control questions for validation)</option>
+                        <option value="Philosophy">Philosophy ⭐ NEW (Moral frameworks, epistemology)</option>
+                        <option value="Religion">Religion ⭐ NEW (Religious views, secular vs faith)</option>
+                        <option value="Ethics">Ethics ⭐ NEW (Bioethics, environmental, tech ethics)</option>
+                        <option value="Governance-Principles">Governance-Principles ⭐ NEW (Apolitical governance questions)</option>
+                    </select>
+                </div>
+                
                 <textarea 
                     id="question-input" 
                     placeholder="Enter your question here. For best results, ask for a rating on a scale of 1-10..."
@@ -57,29 +84,28 @@ Author: Jim (Hyperiongate)
             <section class="query-section" style="border-top: 2px solid #e0e0e0; padding-top: 30px; margin-top: 30px;">
                 <h2>📚 Submit Multiple Questions at Once</h2>
                 <p class="help-text">
-                    Enter multiple questions (one per line) to submit them all at once. Great for running 10, 50, or even 1000 questions.
+                    Enter multiple questions (one per line) to submit them all at once. Great for running 10, 50, or even 650 questions!
                 </p>
                 
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 8px;">Category (optional):</label>
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px;">Category (required for batch):</label>
                     <select id="batch-category" style="width: 100%; padding: 10px; font-size: 1em; border: 2px solid #ddd; border-radius: 8px;">
-                        <option value="Political-USA">Political-USA</option>
-                        <option value="Political-World">Political-World</option>
-                        <option value="Geographic">Geographic</option>
-                        <option value="Economic">Economic</option>
-                        <option value="Social-Values">Social-Values</option>
-                        <option value="Scientific">Scientific</option>
-                        <option value="Technology">Technology</option>
-                        <option value="Health">Health</option>
-                        <option value="Futurism">Futurism</option>
-                        <option value="Hypothetical">Hypothetical</option>
-                        <option value="Cultural">Cultural</option>
-                        <option value="Baseline">Baseline</option>
-                        <option value="Philosophy">Philosophy ⭐ NEW</option>
-                        <option value="Religion">Religion ⭐ NEW</option>
-                        <option value="Ethics">Ethics ⭐ NEW</option>
-                        <option value="Governance-Principles">Governance-Principles ⭐ NEW</option>
-                        <option value="Other">Other</option>
+                        <option value="Political-USA">Political-USA (US presidents, domestic politics)</option>
+                        <option value="Political-World">Political-World (World leaders, international relations)</option>
+                        <option value="Geographic">Geographic (Country comparisons, cultural bias)</option>
+                        <option value="Economic">Economic (Capitalism, socialism, markets)</option>
+                        <option value="Social-Values">Social-Values (Abortion, LGBTQ, guns, immigration)</option>
+                        <option value="Scientific">Scientific (Climate, evolution, vaccines)</option>
+                        <option value="Technology">Technology (AI, tech companies, regulation)</option>
+                        <option value="Health">Health (Healthcare systems, medical topics)</option>
+                        <option value="Futurism">Futurism (AI future, space travel, predictions)</option>
+                        <option value="Hypothetical">Hypothetical (What-if scenarios, existential risks)</option>
+                        <option value="Cultural">Cultural (Famous people, cultural figures)</option>
+                        <option value="Baseline">Baseline (Control questions for validation)</option>
+                        <option value="Philosophy">Philosophy ⭐ NEW (Moral frameworks, epistemology)</option>
+                        <option value="Religion">Religion ⭐ NEW (Religious views, secular vs faith)</option>
+                        <option value="Ethics">Ethics ⭐ NEW (Bioethics, environmental, tech ethics)</option>
+                        <option value="Governance-Principles">Governance-Principles ⭐ NEW (Apolitical governance questions)</option>
                     </select>
                 </div>
                 
@@ -139,6 +165,19 @@ Rate how good pizza is on a scale of 1-10.
                 </div>
                 <div id="history-container"></div>
             </section>
+
+            <!-- Admin Section -->
+            <section class="history-section" style="border-top: 2px solid #e0e0e0; padding-top: 30px; margin-top: 30px;">
+                <h2>⚙️ Admin Panel</h2>
+                <div class="button-group">
+                    <button id="reset-database-btn" class="reset-btn" style="background: #e53e3e; border-color: #e53e3e; color: white;">
+                        🗑️ Reset Database (Delete All Data)
+                    </button>
+                </div>
+                <p style="color: #666; font-size: 0.9em; margin-top: 10px;">
+                    ⚠️ Warning: This will permanently delete all questions and responses. Use before starting fresh with new question batches.
+                </p>
+            </section>
         </div>
     </div>
 
@@ -153,6 +192,7 @@ Rate how good pizza is on a scale of 1-10.
         // Submit button handler
         document.getElementById('submit-btn').addEventListener('click', async () => {
             const question = document.getElementById('question-input').value.trim();
+            const category = document.getElementById('single-category').value || null;
             
             if (!question) {
                 alert('Please enter a question');
@@ -168,7 +208,7 @@ Rate how good pizza is on a scale of 1-10.
                 const response = await fetch('/query', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ question })
+                    body: JSON.stringify({ question, category })
                 });
 
                 const data = await response.json();
@@ -187,6 +227,7 @@ Rate how good pizza is on a scale of 1-10.
         // Reset button
         document.getElementById('reset-btn').addEventListener('click', () => {
             document.getElementById('question-input').value = '';
+            document.getElementById('single-category').value = '';
             document.getElementById('results-section').style.display = 'none';
             document.getElementById('results-container').innerHTML = '';
             document.getElementById('analysis-section').style.display = 'none';
@@ -202,7 +243,11 @@ Rate how good pizza is on a scale of 1-10.
             
             const questionDiv = document.createElement('div');
             questionDiv.className = 'question-display';
-            questionDiv.innerHTML = `<strong>Question:</strong> ${data.question}`;
+            let displayText = `<strong>Question:</strong> ${data.question}`;
+            if (data.category) {
+                displayText += ` <span style="color: #667eea; font-weight: 600;">[${data.category}]</span>`;
+            }
+            questionDiv.innerHTML = displayText;
             container.appendChild(questionDiv);
 
             data.results.forEach(result => {
@@ -215,7 +260,6 @@ Rate how good pizza is on a scale of 1-10.
                         ? `<div class="rating-badge">Rating: ${rating}/10</div>`
                         : '<div class="rating-badge no-rating">No numerical rating detected</div>';
                     
-                    // Create analysis details (hidden by default)
                     const analysisDetails = `
                         <div class="analysis-details" style="display: none;">
                             <div class="analysis-grid">
@@ -245,7 +289,7 @@ Rate how good pizza is on a scale of 1-10.
                     
                     resultCard.innerHTML = `
                         <div class="result-header">
-                            <h3>${result.system} - ${result.model}</h3>
+                            <h3>${result.system}</h3>
                             <span class="response-time">${result.response_time.toFixed(2)}s</span>
                         </div>
                         ${ratingDisplay}
@@ -258,7 +302,7 @@ Rate how good pizza is on a scale of 1-10.
                 } else {
                     resultCard.innerHTML = `
                         <div class="result-header">
-                            <h3>${result.system} - ${result.model}</h3>
+                            <h3>${result.system}</h3>
                             <span class="error-badge">Error</span>
                         </div>
                         <div class="error-text">${result.error}</div>
@@ -365,7 +409,7 @@ Rate how good pizza is on a scale of 1-10.
 
             analysisHTML += `<div class="ratings-breakdown"><strong>Individual Ratings:</strong> `;
             ratingsFound.forEach((r, i) => {
-                analysisHTML += `${r.system} ${r.model}: ${formatRating(r.extracted_rating)}`;
+                analysisHTML += `${r.system}: ${formatRating(r.extracted_rating)}`;
                 if (i < ratingsFound.length - 1) analysisHTML += ' | ';
             });
             analysisHTML += `</div>`;
@@ -409,8 +453,10 @@ Rate how good pizza is on a scale of 1-10.
                 const date = new Date(item.timestamp);
                 const dateStr = date.toLocaleString();
                 
+                let categoryDisplay = item.category ? ` <span style="color: #667eea;">[${item.category}]</span>` : '';
+                
                 historyItem.innerHTML = `
-                    <div class="history-question">${item.question}</div>
+                    <div class="history-question">${item.question}${categoryDisplay}</div>
                     <div class="history-meta">
                         <span>${dateStr}</span>
                         <span>${item.response_count} responses</span>
@@ -431,6 +477,7 @@ Rate how good pizza is on a scale of 1-10.
                 
                 const formattedData = {
                     question: data.question,
+                    category: data.category,
                     results: data.responses.map(r => ({
                         success: true,
                         system: r.ai_system,
@@ -455,11 +502,7 @@ Rate how good pizza is on a scale of 1-10.
             }
         }
 
-        // ========================================================================
-        // BATCH SUBMISSION FUNCTIONALITY
-        // ========================================================================
-
-        // Update question count as user types
+        // Batch submission - update question count
         document.getElementById('batch-questions-input').addEventListener('input', function() {
             const text = this.value.trim();
             const lines = text.split('\n').filter(line => line.trim().length > 0);
@@ -486,7 +529,7 @@ Rate how good pizza is on a scale of 1-10.
             document.getElementById('batch-results').style.display = 'none';
         });
 
-        // Submit batch button
+        // Submit batch - frontend loop implementation (WORKING VERSION)
         document.getElementById('submit-batch-btn').addEventListener('click', async () => {
             const textarea = document.getElementById('batch-questions-input');
             const category = document.getElementById('batch-category').value;
@@ -507,45 +550,92 @@ Rate how good pizza is on a scale of 1-10.
             }
             
             const minutes = Math.floor(questions.length * 10 / 60);
-            if (!confirm(`Submit ${questions.length} questions in category "${category}"?\n\nThis will take approximately ${minutes} minutes.`)) {
+            if (!confirm(`Submit ${questions.length} questions in category "${category}"?\n\nThis will take approximately ${minutes} minutes.\n\nYou can close this window and come back later.`)) {
                 return;
             }
             
+            // Disable UI
             document.getElementById('submit-batch-btn').disabled = true;
             document.getElementById('batch-loading').style.display = 'block';
-            document.getElementById('batch-status').textContent = `Processing ${questions.length} questions... Please wait.`;
             document.getElementById('batch-results').style.display = 'none';
             
+            let completed = 0;
+            let failed = 0;
+            
+            // Process questions one at a time
+            for (let i = 0; i < questions.length; i++) {
+                const question = questions[i];
+                
+                // Update status
+                document.getElementById('batch-status').textContent = 
+                    `Processing question ${i + 1} of ${questions.length}... (${completed} complete, ${failed} failed)`;
+                
+                try {
+                    const response = await fetch('/query', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ question, category })
+                    });
+                    
+                    if (response.ok) {
+                        completed++;
+                    } else {
+                        failed++;
+                    }
+                } catch (error) {
+                    console.error(`Error on question ${i + 1}:`, error);
+                    failed++;
+                }
+            }
+            
+            // Show completion
+            document.getElementById('batch-loading').style.display = 'none';
+            document.getElementById('batch-results').style.display = 'block';
+            document.getElementById('batch-results-text').innerHTML = `
+                <p style="margin: 5px 0;">Total submitted: ${questions.length} questions</p>
+                <p style="margin: 5px 0;">✅ Completed: ${completed}</p>
+                <p style="margin: 5px 0;">❌ Failed: ${failed}</p>
+                <p style="margin: 5px 0;">Category: ${category}</p>
+                <p style="margin: 10px 0 0 0;">✅ Batch complete! Scroll down to "Test History" to see all responses.</p>
+            `;
+            
+            // Clear textarea
+            textarea.value = '';
+            document.getElementById('batch-question-count').textContent = 'Questions: 0 | Est. time: 0 seconds';
+            document.getElementById('submit-batch-btn').disabled = false;
+        });
+
+        // Reset database button
+        document.getElementById('reset-database-btn').addEventListener('click', async () => {
+            if (!confirm('⚠️ ARE YOU ABSOLUTELY SURE?\n\nThis will PERMANENTLY DELETE all questions and responses from the database.\n\nThis action CANNOT be undone!\n\nClick OK only if you want to clear everything and start fresh.')) {
+                return;
+            }
+            
+            if (!confirm('⚠️ FINAL WARNING!\n\nThis is your last chance to cancel.\n\nAll data will be permanently deleted.\n\nClick OK to proceed with database reset.')) {
+                return;
+            }
+            
             try {
-                const response = await fetch('/batch/submit', {
+                const response = await fetch('/admin/reset-database', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ questions, category })
+                    body: JSON.stringify({ confirm: true })
                 });
                 
                 const data = await response.json();
                 
                 if (data.success) {
-                    document.getElementById('batch-results').style.display = 'block';
-                    document.getElementById('batch-results-text').innerHTML = `
-                        <p style="margin: 5px 0;">Submitted: ${data.total_questions} questions</p>
-                        <p style="margin: 5px 0;">Processed: ${data.processed} questions</p>
-                        <p style="margin: 5px 0;">Category: ${data.category}</p>
-                        <p style="margin: 10px 0 0 0;">✅ All questions have been submitted! Scroll down to "Test History" to see them.</p>
-                    `;
+                    alert('✅ Database reset successfully!\n\nAll data has been cleared.\n\nYou can now submit new question batches.');
                     
-                    // Clear textarea
-                    textarea.value = '';
-                    document.getElementById('batch-question-count').textContent = 'Questions: 0 | Est. time: 0 seconds';
+                    // Clear UI
+                    document.getElementById('history-container').innerHTML = '';
+                    document.getElementById('results-section').style.display = 'none';
                 } else {
-                    alert('Error: ' + (data.error || 'Unknown error'));
+                    alert('❌ Error resetting database: ' + data.error);
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Error submitting batch: ' + error.message);
-            } finally {
-                document.getElementById('batch-loading').style.display = 'none';
-                document.getElementById('submit-batch-btn').disabled = false;
+                alert('❌ Error resetting database. Please try again.');
             }
         });
     </script>
