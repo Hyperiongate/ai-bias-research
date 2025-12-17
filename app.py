@@ -1,9 +1,16 @@
 """
 AI Bias Research Tool - Production Version
 Created: December 13, 2024
-Last Updated: December 16, 2024 - LATE EVENING UPDATE
+Last Updated: December 17, 2024 - EVENING UPDATE
 
 CHANGE LOG:
+- December 17, 2024 (Evening): CRITICAL FIX - CSV Export now includes Category
+  * Fixed @app.route('/export/csv') to include q.category in SELECT
+  * Added 'Category' column to CSV export header
+  * Added category data to CSV export rows
+  * OpenAI systems remain separate (GPT-4, GPT-3.5-Turbo treated as distinct)
+  * This fixes missing category data in exported CSV files
+
 - December 16, 2024 (Late Evening): Fixed database migration issue
   * Added automatic migration for `category` column
   * Fixes "Unexpected token" error in batch submission
@@ -33,7 +40,7 @@ WORKING FEATURES:
 - Parallel execution (~5 seconds for all 9)
 - Automatic text analysis metrics
 - Rating extraction from responses
-- CSV export of all test history
+- CSV export of all test history WITH CATEGORY
 - Enhanced analysis display per response
 - SQLite database with full schema
 - Debug endpoints for testing individual AIs
@@ -782,14 +789,15 @@ def get_query_details(query_id):
 
 @app.route('/export/csv')
 def export_csv():
-    """Export all test data to CSV with analysis metrics"""
+    """Export all test data to CSV with analysis metrics INCLUDING CATEGORY"""
     db = get_db()
     
-    # Get all queries and responses
+    # CRITICAL FIX: Added q.category to SELECT statement
     data = db.execute('''
         SELECT 
             q.id as query_id,
             q.question,
+            q.category,
             q.timestamp as query_timestamp,
             r.ai_system,
             r.model,
@@ -811,19 +819,20 @@ def export_csv():
     output = io.StringIO()
     writer = csv.writer(output)
     
-    # Header row
+    # Header row - ADDED 'Category' column
     writer.writerow([
-        'Query ID', 'Question', 'Timestamp', 'AI System', 'Model',
+        'Query ID', 'Question', 'Category', 'Timestamp', 'AI System', 'Model',
         'Rating', 'Response Time (s)', 'Word Count', 'Hedge Count',
         'Hedge Frequency (%)', 'Sentiment Score', 'Controversy Words',
         'Provided Rating', 'Raw Response'
     ])
     
-    # Data rows
+    # Data rows - ADDED category data
     for row in data:
         writer.writerow([
             row['query_id'],
             row['question'],
+            row['category'] if row['category'] else 'Uncategorized',  # ADDED THIS
             row['query_timestamp'],
             row['ai_system'],
             row['model'],
