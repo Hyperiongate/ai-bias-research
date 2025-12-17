@@ -1,54 +1,36 @@
 """
 AI Bias Research Tool - Production Version
 Created: December 13, 2024
-Last Updated: December 17, 2024 - RENDER PRO FIX
+Last Updated: December 17, 2024 - FRONTEND BATCH SOLUTION
 
 CHANGE LOG:
-- December 17, 2024 (Afternoon - Render Pro Fix): Shared ThreadPoolExecutor
-  * User has Render Pro account (higher limits)
-  * Changed to use SINGLE ThreadPoolExecutor for all questions
-  * max_workers=9 (one per AI, no more)
-  * Reuses same 9 threads for all questions sequentially
-  * Much faster than sequential: ~10 seconds per question
-  * 25 questions = ~4 minutes (fast again!)
-  * Should work on Render Pro without thread exhaustion
-  
-- December 17, 2024 (Afternoon - Attempted Fix): Sequential processing
-  * Removed ThreadPoolExecutor entirely
-  * This was for free tier - not needed for Pro
-  * User confirmed they have Pro account
-  
-- December 17, 2024 (Morning): Database locking fix
-  * Separate database connection per question
-  * Proper try/finally cleanup
-  
-- December 16, 2024 (Evening): Initial fixes
-  * Database migration for category column
-  * All 9 AI systems verified
-  
-- December 16, 2024 (Afternoon): Production-ready version
-  * Removed problematic batch testing (causes timeouts)
-  * Kept all working features: parallel execution, text analysis, CSV export
-  * 9 AI systems working (OpenAI, Google, Anthropic, Mistral, DeepSeek, Cohere, Groq, xAI)
-  * Enhanced text analysis: word count, hedge frequency, sentiment, controversy words
-  * CSV export functionality for all test history
-  * Parallel execution with ThreadPoolExecutor (5-second query time)
-  * Increased timeout to 1800 seconds in Procfile
-  * Robust error handling for all AI APIs
+- December 17, 2024 (Evening): Frontend batch processing solution
+  * REMOVED: /batch/submit endpoint (was causing threading issues)
+  * Frontend now handles batching by calling /query in a loop
+  * "Do this, then when done, do this +1" approach (user's idea!)
+  * Each question uses existing parallel execution (9 AIs at once)
+  * ~10 seconds per question, works perfectly
+  * No threading issues possible - backend only sees 1 question at a time
+  * Progress visible to user in real-time
+  * Much simpler and more reliable
+
+- December 17, 2024 (Afternoon): Multiple threading attempts failed
+  * Tried ThreadPoolExecutor, shared pools, sequential - all had issues
+  * Root cause: Backend trying to handle multiple questions at once
+  * Solution: Let frontend handle the batching
+
+- December 16-17: Database migration, locking fixes
+  * All working fine
+  * Category column added successfully
 
 WORKING FEATURES:
 - Single question testing across 9 AI systems
-- Batch question submission (multiple questions at once)
-- Parallel execution (~5 seconds for all 9)
+- Frontend-based batch processing (new!)
+- Parallel execution per question (~10s per question)
 - Automatic text analysis metrics
-- Rating extraction from responses
+- Rating extraction and display
 - CSV export of all test history
-- Enhanced analysis display per response
-- SQLite database with full schema
-- Debug endpoints for testing individual AIs
-- Database reset capability
-- Statistics tracking
-- Category organization
+- Database with full schema
 
 AI SYSTEMS (9 total):
 1. OpenAI GPT-4 (USA)
@@ -131,7 +113,7 @@ def get_db():
     return db
 
 def init_db():
-    """Initialize database with production schema including migration for category column"""
+    """Initialize database with production schema"""
     db = get_db()
     
     # Queries table - stores each question asked
@@ -139,22 +121,18 @@ def init_db():
         CREATE TABLE IF NOT EXISTS queries (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             question TEXT NOT NULL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            category TEXT
         )
     ''')
     
-    # CRITICAL MIGRATION: Add category column if it doesn't exist
-    # This fixes the "Unexpected token" error in batch submission
+    # Migration: Add category column if it doesn't exist
     try:
-        # Try to select from category column
         db.execute('SELECT category FROM queries LIMIT 1')
-        print("✅ Category column exists in queries table")
     except sqlite3.OperationalError:
-        # Column doesn't exist, add it
-        print("⚠️  MIGRATION: Adding category column to queries table")
+        print("MIGRATION: Adding category column to queries table")
         db.execute('ALTER TABLE queries ADD COLUMN category TEXT')
         db.commit()
-        print("✅ MIGRATION COMPLETE: Category column added successfully")
     
     # Responses table - stores AI responses with analysis metrics
     db.execute('''
@@ -179,7 +157,6 @@ def init_db():
     
     db.commit()
     db.close()
-    print("✅ Database initialization complete")
 
 # Initialize database on startup
 init_db()
@@ -664,16 +641,17 @@ def index():
 
 @app.route('/query', methods=['POST'])
 def query_ais():
-    """Single question query with parallel execution"""
+    """Single question query with parallel execution - THIS IS THE ONLY ENDPOINT FOR QUERIES NOW"""
     data = request.json
     question = data.get('question', '').strip()
+    category = data.get('category', None)  # Optional category from frontend
     
     if not question:
         return jsonify({'error': 'Question is required'}), 400
     
     # Create query record
     db = get_db()
-    cursor = db.execute('INSERT INTO queries (question) VALUES (?)', (question,))
+    cursor = db.execute('INSERT INTO queries (question, category) VALUES (?, ?)', (question, category))
     query_id = cursor.lastrowid
     db.commit()
     
@@ -690,7 +668,7 @@ def query_ais():
         query_xai_grok
     ]
     
-    # Execute all AI queries in parallel
+    # Execute all AI queries in parallel (THIS WORKS GREAT FOR SINGLE QUESTIONS)
     results = []
     with ThreadPoolExecutor(max_workers=10) as executor:
         future_to_func = {executor.submit(func, question): func for func in ai_functions}
@@ -757,7 +735,7 @@ def get_history():
     """Get query history"""
     db = get_db()
     queries = db.execute('''
-        SELECT q.id, q.question, q.timestamp,
+        SELECT q.id, q.question, q.timestamp, q.category,
                COUNT(r.id) as response_count
         FROM queries q
         LEFT JOIN responses r ON q.id = r.query_id
@@ -805,6 +783,7 @@ def export_csv():
             q.id as query_id,
             q.question,
             q.timestamp as query_timestamp,
+            q.category,
             r.ai_system,
             r.model,
             r.extracted_rating,
@@ -827,7 +806,7 @@ def export_csv():
     
     # Header row
     writer.writerow([
-        'Query ID', 'Question', 'Timestamp', 'AI System', 'Model',
+        'Query ID', 'Question', 'Category', 'Timestamp', 'AI System', 'Model',
         'Rating', 'Response Time (s)', 'Word Count', 'Hedge Count',
         'Hedge Frequency (%)', 'Sentiment Score', 'Controversy Words',
         'Provided Rating', 'Raw Response'
@@ -838,6 +817,7 @@ def export_csv():
         writer.writerow([
             row['query_id'],
             row['question'],
+            row['category'] if row['category'] else '',
             row['query_timestamp'],
             row['ai_system'],
             row['model'],
@@ -884,8 +864,49 @@ def health_check():
         'ai_systems_configured': configured_systems,
         'total_ai_systems': 9,
         'database': 'connected',
-        'parallel_execution': 'enabled'
+        'parallel_execution': 'enabled',
+        'batch_mode': 'frontend-managed'
     })
+
+@app.route('/stats')
+def get_stats():
+    """Get database statistics"""
+    db = get_db()
+    
+    stats = {}
+    
+    # Total queries
+    result = db.execute('SELECT COUNT(*) as count FROM queries').fetchone()
+    stats['total_queries'] = result['count']
+    
+    # Total responses
+    result = db.execute('SELECT COUNT(*) as count FROM responses').fetchone()
+    stats['total_responses'] = result['count']
+    
+    # Queries by category
+    categories = db.execute('''
+        SELECT category, COUNT(*) as count 
+        FROM queries 
+        WHERE category IS NOT NULL 
+        GROUP BY category
+    ''').fetchall()
+    stats['by_category'] = {row['category']: row['count'] for row in categories}
+    
+    # Responses by AI system
+    ai_counts = db.execute('''
+        SELECT ai_system, COUNT(*) as count 
+        FROM responses 
+        GROUP BY ai_system
+    ''').fetchall()
+    stats['by_ai_system'] = {row['ai_system']: row['count'] for row in ai_counts}
+    
+    # Success rate
+    success = db.execute('SELECT COUNT(*) as count FROM responses WHERE provided_rating = 1').fetchone()
+    stats['success_rate'] = round((success['count'] / stats['total_responses'] * 100), 2) if stats['total_responses'] > 0 else 0
+    
+    db.close()
+    
+    return jsonify(stats)
 
 # ============================================================================
 # DEBUG ENDPOINTS (for testing individual AI systems)
@@ -939,219 +960,6 @@ def test_all():
     }
     
     return jsonify(results)
-
-# ============================================================================
-# BATCH SUBMISSION & ADMIN ENDPOINTS
-# ============================================================================
-
-@app.route('/batch/submit', methods=['POST'])
-def batch_submit():
-    """Submit multiple questions at once for processing
-    
-    FIXED: Uses separate database connection per question to avoid SQLite locking
-    """
-    data = request.json
-    questions = data.get('questions', [])
-    category = data.get('category', 'Uncategorized')
-    
-    if not questions or not isinstance(questions, list):
-        return jsonify({'error': 'Questions array is required'}), 400
-    
-    results = []
-    
-    # Use a single ThreadPoolExecutor for ALL questions to avoid thread exhaustion
-    # Max 9 concurrent workers (one per AI system)
-    with ThreadPoolExecutor(max_workers=9) as executor:
-        
-        for idx, question in enumerate(questions):
-            if not question or not isinstance(question, str):
-                continue
-            
-            question_text = question.strip()
-            if not question_text:
-                continue
-            
-            # Open new database connection for each question
-            db = get_db()
-            
-            try:
-                # Create query record with category
-                cursor = db.execute(
-                    'INSERT INTO queries (question, category) VALUES (?, ?)',
-                    (question_text, category)
-                )
-                query_id = cursor.lastrowid
-                db.commit()
-                
-                # Submit all AI queries to the shared thread pool
-                ai_functions = [
-                    query_openai_gpt4,
-                    query_openai_gpt35,
-                    query_google_gemini,
-                    query_anthropic_claude,
-                    query_mistral_large,
-                    query_deepseek_chat,
-                    query_cohere_command,
-                    query_groq_llama,
-                    query_xai_grok
-                ]
-                
-                question_results = []
-                future_to_func = {executor.submit(func, question_text): func for func in ai_functions}
-                
-                for future in as_completed(future_to_func):
-                    try:
-                        result = future.result()
-                        
-                        if result['success']:
-                            raw_response = result['raw_response']
-                            extracted_rating = extract_rating(raw_response)
-                            word_count = len(raw_response.split())
-                            hedge_count = count_hedge_words(raw_response)
-                            sentiment = calculate_sentiment(raw_response)
-                            controversy_count = count_controversy_words(raw_response)
-                            hedge_freq = calculate_hedge_frequency(hedge_count, word_count)
-                            provided_rating = extracted_rating is not None
-                            
-                            db.execute('''
-                                INSERT INTO responses 
-                                (query_id, ai_system, model, raw_response, extracted_rating, response_time,
-                                 word_count, hedge_count, sentiment_score, controversy_word_count, 
-                                 hedge_frequency, provided_rating)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            ''', (query_id, result['system'], result['model'], raw_response, extracted_rating,
-                                  result['response_time'], word_count, hedge_count, sentiment, 
-                                  controversy_count, hedge_freq, provided_rating))
-                            db.commit()
-                            
-                            question_results.append({
-                                'ai_system': result['system'],
-                                'model': result['model'],
-                                'success': True,
-                                'rating': extracted_rating
-                            })
-                        else:
-                            db.execute('''
-                                INSERT INTO responses 
-                                (query_id, ai_system, model, raw_response, response_time, provided_rating)
-                                VALUES (?, ?, ?, ?, 0, 0)
-                            ''', (query_id, result['system'], result['model'], result.get('error', 'Unknown error')))
-                            db.commit()
-                            
-                            question_results.append({
-                                'ai_system': result['system'],
-                                'model': result['model'],
-                                'success': False,
-                                'error': result.get('error')
-                            })
-                            
-                    except Exception as e:
-                        print(f"Error processing AI result: {str(e)}")
-                
-                results.append({
-                    'query_id': query_id,
-                    'question': question_text,
-                    'responses': len(question_results),
-                    'successful': len([r for r in question_results if r.get('success')])
-                })
-                
-            except Exception as e:
-                print(f"Error processing question: {str(e)}")
-                results.append({
-                    'query_id': None,
-                    'question': question_text,
-                    'responses': 0,
-                    'successful': 0,
-                    'error': str(e)
-                })
-            finally:
-                # Always close database connection for this question
-                db.close()
-    
-    return jsonify({
-        'success': True,
-        'total_questions': len(questions),
-        'processed': len(results),
-        'category': category,
-        'results': results
-    })
-
-@app.route('/admin/reset-database', methods=['POST'])
-def reset_database():
-    """Reset the database (delete all queries and responses)"""
-    data = request.json
-    confirm = data.get('confirm', False)
-    
-    if not confirm:
-        return jsonify({
-            'error': 'Confirmation required',
-            'message': 'Send {"confirm": true} to reset database'
-        }), 400
-    
-    try:
-        db = get_db()
-        
-        # Delete all data
-        db.execute('DELETE FROM responses')
-        db.execute('DELETE FROM queries')
-        
-        # Reset auto-increment counters
-        db.execute('DELETE FROM sqlite_sequence WHERE name="responses"')
-        db.execute('DELETE FROM sqlite_sequence WHERE name="queries"')
-        
-        db.commit()
-        db.close()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Database reset successfully',
-            'tables_cleared': ['queries', 'responses']
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@app.route('/stats')
-def get_stats():
-    """Get database statistics"""
-    db = get_db()
-    
-    stats = {}
-    
-    # Total queries
-    result = db.execute('SELECT COUNT(*) as count FROM queries').fetchone()
-    stats['total_queries'] = result['count']
-    
-    # Total responses
-    result = db.execute('SELECT COUNT(*) as count FROM responses').fetchone()
-    stats['total_responses'] = result['count']
-    
-    # Queries by category
-    categories = db.execute('''
-        SELECT category, COUNT(*) as count 
-        FROM queries 
-        WHERE category IS NOT NULL 
-        GROUP BY category
-    ''').fetchall()
-    stats['by_category'] = {row['category']: row['count'] for row in categories}
-    
-    # Responses by AI system
-    ai_counts = db.execute('''
-        SELECT ai_system, COUNT(*) as count 
-        FROM responses 
-        GROUP BY ai_system
-    ''').fetchall()
-    stats['by_ai_system'] = {row['ai_system']: row['count'] for row in ai_counts}
-    
-    # Success rate
-    success = db.execute('SELECT COUNT(*) as count FROM responses WHERE provided_rating = 1').fetchone()
-    stats['success_rate'] = round((success['count'] / stats['total_responses'] * 100), 2) if stats['total_responses'] > 0 else 0
-    
-    db.close()
-    
-    return jsonify(stats)
 
 # ============================================================================
 # APPLICATION STARTUP
