@@ -1,25 +1,35 @@
 """
 AI Bias Research Tool - Production Version
 Created: December 13, 2024
-Last Updated: December 18, 2024 - FIXED AI21 & REKA
+Last Updated: December 18, 2024 - 8 SYSTEMS FINAL
 
 CHANGE LOG:
-- December 18, 2024: FIXED AI21 and REKA errors
-  * AI21: Changed from jamba-1.5-mini to jamba-instruct (422 error fix)
-  * Reka: Fixed API request structure (400 error fix)
-  * All 10 systems now working (except Anthropic - needs credits)
+- December 18, 2024: 8 AI SYSTEMS - FINAL WORKING VERSION
+  * REMOVED: Reka (API not working)
+  * REMOVED: AI21 (model access issues)
+  * REMOVED: Perplexity (payment issue)
+  * REMOVED: Qwen (passport requirement)
+  * REMOVED: Inflection (unauthorized)
+  * REMOVED: OpenAI GPT-3.5 (consolidated to GPT-4)
+  * Total: 8 working AI systems from 4 countries/regions
+  * All existing functionality preserved
+  * Ready for 1,050-question production run
 
-AI SYSTEMS (10 total):
-1. OpenAI GPT-4 (USA) ✅
-2. Google Gemini-2.0-Flash-Exp (USA) ✅
-3. Anthropic Claude-Sonnet-4 (USA) ⚠️ Needs credits
-4. Mistral Large-2 (France) ✅
-5. DeepSeek Chat-V3 (China) ✅
-6. Cohere Command-R+ (Canada) ✅
-7. Meta Llama 3.3 70B via Groq (USA - Open Source) ✅
-8. xAI Grok-3 (USA) ✅
-9. Reka Core (Singapore) ✅ FIXED
-10. AI21 Jamba Instruct (Israel) ✅ FIXED
+WORKING AI SYSTEMS (8 total):
+1. OpenAI GPT-4 (USA)
+2. Google Gemini-2.0-Flash-Exp (USA)
+3. Anthropic Claude-Sonnet-4 (USA) - add credits when ready
+4. Mistral Large-2 (France)
+5. DeepSeek Chat-V3 (China)
+6. Cohere Command-R+ (Canada)
+7. Meta Llama 3.3 70B via Groq (USA - Open Source)
+8. xAI Grok-3 (USA)
+
+Geographic Distribution:
+- USA: 5 systems
+- China: 1 system
+- France: 1 system
+- Canada: 1 system
 
 Author: Jim (Hyperiongate)
 """
@@ -42,7 +52,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 app = Flask(__name__)
 
 # ============================================================================
-# API CONFIGURATION - 10 SYSTEMS
+# API CONFIGURATION - 8 SYSTEMS ONLY
 # ============================================================================
 
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
@@ -53,8 +63,6 @@ DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
 COHERE_API_KEY = os.environ.get('COHERE_API_KEY')
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 XAI_API_KEY = os.environ.get('XAI_API_KEY')
-REKA_API_KEY = os.environ.get('REKA_API_KEY')
-AI21_API_KEY = os.environ.get('AI21_API_KEY')
 
 # Initialize OpenAI-compatible clients
 openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
@@ -137,7 +145,7 @@ def init_db():
 init_db()
 
 # ============================================================================
-# AI QUERY FUNCTIONS - 10 SYSTEMS
+# AI QUERY FUNCTIONS - 8 SYSTEMS ONLY
 # ============================================================================
 
 def query_openai_gpt4(question):
@@ -480,118 +488,6 @@ def query_xai_grok(question):
     except Exception as e:
         return {'success': False, 'error': str(e), 'system': 'xAI', 'model': 'Grok-3'}
 
-def query_reka(question):
-    """Query Reka Core - FIXED API structure"""
-    if not REKA_API_KEY:
-        return {'success': False, 'error': 'Reka API key not configured', 'system': 'Reka', 'model': 'Core'}
-    
-    try:
-        start_time = time.time()
-        url = "https://api.reka.ai/v1/chat/completions"
-        
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': f'Bearer {REKA_API_KEY}'
-        }
-        
-        payload = {
-            'model': 'reka-core',
-            'messages': [
-                {'role': 'system', 'content': RATING_SYSTEM_PROMPT},
-                {'role': 'user', 'content': question}
-            ],
-            'temperature': 0.7,
-            'max_tokens': 500
-        }
-        
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
-        
-        if response.status_code == 200:
-            response_time = time.time() - start_time
-            data = response.json()
-            
-            if 'choices' in data and len(data['choices']) > 0:
-                raw_response = data['choices'][0].get('message', {}).get('content', '')
-                
-                return {
-                    'success': True,
-                    'system': 'Reka',
-                    'model': 'Core',
-                    'raw_response': raw_response,
-                    'response_time': response_time
-                }
-            
-            return {'success': False, 'error': 'Unexpected response format', 'system': 'Reka', 'model': 'Core'}
-        else:
-            try:
-                error_data = response.json()
-                error_msg = error_data.get('message', f"HTTP {response.status_code}")
-            except:
-                error_msg = f"HTTP {response.status_code}: {response.text[:200]}"
-            
-            return {'success': False, 'error': error_msg, 'system': 'Reka', 'model': 'Core'}
-        
-    except requests.exceptions.Timeout:
-        return {'success': False, 'error': 'Request timed out', 'system': 'Reka', 'model': 'Core'}
-    except Exception as e:
-        return {'success': False, 'error': str(e), 'system': 'Reka', 'model': 'Core'}
-
-def query_ai21(question):
-    """Query AI21 Jamba Instruct - FIXED model name"""
-    if not AI21_API_KEY:
-        return {'success': False, 'error': 'AI21 API key not configured', 'system': 'AI21', 'model': 'Jamba-Instruct'}
-    
-    try:
-        start_time = time.time()
-        url = "https://api.ai21.com/studio/v1/chat/completions"
-        
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': f'Bearer {AI21_API_KEY}'
-        }
-        
-        payload = {
-            'model': 'jamba-instruct',
-            'messages': [
-                {'role': 'system', 'content': RATING_SYSTEM_PROMPT},
-                {'role': 'user', 'content': question}
-            ],
-            'temperature': 0.7,
-            'max_tokens': 500
-        }
-        
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
-        
-        if response.status_code == 200:
-            response_time = time.time() - start_time
-            data = response.json()
-            
-            if 'choices' in data and len(data['choices']) > 0:
-                raw_response = data['choices'][0].get('message', {}).get('content', '')
-                
-                return {
-                    'success': True,
-                    'system': 'AI21',
-                    'model': 'Jamba-Instruct',
-                    'raw_response': raw_response,
-                    'response_time': response_time
-                }
-            
-            return {'success': False, 'error': 'Unexpected response format', 'system': 'AI21', 'model': 'Jamba-Instruct'}
-        else:
-            try:
-                error_data = response.json()
-                error_msg = error_data.get('detail', error_data.get('message', f"HTTP {response.status_code}"))
-            except:
-                error_msg = f"HTTP {response.status_code}: {response.text[:200]}"
-            
-            return {'success': False, 'error': error_msg, 'system': 'AI21', 'model': 'Jamba-Instruct'}
-        
-    except requests.exceptions.Timeout:
-        return {'success': False, 'error': 'Request timed out', 'system': 'AI21', 'model': 'Jamba-Instruct'}
-    except Exception as e:
-        return {'success': False, 'error': str(e), 'system': 'AI21', 'model': 'Jamba-Instruct'}
-
 # ============================================================================
 # TEXT ANALYSIS FUNCTIONS
 # ============================================================================
@@ -697,7 +593,7 @@ def index():
 
 @app.route('/query', methods=['POST'])
 def query_ais():
-    """Single question query with parallel execution across 10 AI systems"""
+    """Single question query with parallel execution across 8 AI systems"""
     data = request.json
     question = data.get('question', '').strip()
     category = data.get('category', None)
@@ -713,6 +609,7 @@ def query_ais():
     query_id = cursor.lastrowid
     db.commit()
     
+    # All AI query functions - 8 SYSTEMS ONLY
     ai_functions = [
         query_openai_gpt4,
         query_google_gemini,
@@ -721,13 +618,11 @@ def query_ais():
         query_deepseek_chat,
         query_cohere_command,
         query_groq_llama,
-        query_xai_grok,
-        query_reka,
-        query_ai21
+        query_xai_grok
     ]
     
     results = []
-    with ThreadPoolExecutor(max_workers=12) as executor:
+    with ThreadPoolExecutor(max_workers=10) as executor:
         future_to_func = {executor.submit(func, question): func for func in ai_functions}
         
         for future in as_completed(future_to_func):
@@ -906,22 +801,20 @@ def health_check():
         DEEPSEEK_API_KEY is not None,
         COHERE_API_KEY is not None,
         GROQ_API_KEY is not None,
-        XAI_API_KEY is not None,
-        REKA_API_KEY is not None,
-        AI21_API_KEY is not None
+        XAI_API_KEY is not None
     ])
     
     return jsonify({
         'status': 'healthy',
         'ai_systems_configured': configured_systems,
-        'total_ai_systems': 10,
+        'total_ai_systems': 8,
         'database': 'connected',
         'parallel_execution': 'enabled'
     })
 
 @app.route('/debug/test-all')
 def test_all():
-    """Test all 10 AI systems with parallel execution"""
+    """Test all 8 AI systems with parallel execution"""
     question = "Rate how good pizza is on a scale of 1-10."
     
     ai_functions = [
@@ -932,14 +825,12 @@ def test_all():
         ('DeepSeek', query_deepseek_chat),
         ('Cohere', query_cohere_command),
         ('Groq Llama', query_groq_llama),
-        ('xAI Grok', query_xai_grok),
-        ('Reka', query_reka),
-        ('AI21', query_ai21),
+        ('xAI Grok', query_xai_grok)
     ]
     
     results = {}
     
-    with ThreadPoolExecutor(max_workers=12) as executor:
+    with ThreadPoolExecutor(max_workers=10) as executor:
         future_to_name = {executor.submit(func, question): name for name, func in ai_functions}
         
         for future in as_completed(future_to_name):
@@ -980,14 +871,15 @@ def batch_submit():
         query_id = cursor.lastrowid
         db.commit()
         
+        # Query all 8 AIs
         ai_functions = [
             query_openai_gpt4, query_google_gemini, query_anthropic_claude,
             query_mistral_large, query_deepseek_chat, query_cohere_command,
-            query_groq_llama, query_xai_grok, query_reka, query_ai21
+            query_groq_llama, query_xai_grok
         ]
         
         question_results = []
-        with ThreadPoolExecutor(max_workers=12) as executor:
+        with ThreadPoolExecutor(max_workers=10) as executor:
             future_to_func = {executor.submit(func, question_text): func for func in ai_functions}
             
             for future in as_completed(future_to_func):
