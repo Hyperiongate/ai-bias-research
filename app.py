@@ -1,54 +1,25 @@
 """
 AI Bias Research Tool - Production Version
 Created: December 13, 2024
-Last Updated: December 18, 2024 - 10 AI SYSTEMS (CLEANED)
+Last Updated: December 18, 2024 - FIXED AI21 & REKA
 
 CHANGE LOG:
-- December 18, 2024: 10 AI SYSTEMS - FINAL CLEAN VERSION
-  * REMOVED: OpenAI GPT-3.5-Turbo (consolidated to GPT-4 only)
-  * REMOVED: Perplexity (payment issue)
-  * REMOVED: Qwen (passport requirement)
-  * REMOVED: Inflection (unauthorized access)
-  * KEPT: All 8 existing working systems
-  * KEPT: Reka (Singapore) - user has key
-  * KEPT: AI21 (Israel) - user has key
-  * Total: 10 AI systems from 6 countries/regions
-  * Fixed /debug/test-all to use parallel execution (no more timeouts)
-  * All existing functionality preserved
-
-WORKING FEATURES:
-- Single question testing across 10 AI systems
-- Batch question submission (multiple questions at once)
-- Parallel execution (~5-10 seconds for all 10)
-- Automatic text analysis metrics
-- Rating extraction from responses
-- CSV export of all test history
-- Enhanced analysis display per response
-- SQLite database with full schema
-- Debug endpoints for testing individual AIs
-- Database reset capability
-- Statistics tracking
-- Category support (16 categories)
+- December 18, 2024: FIXED AI21 and REKA errors
+  * AI21: Changed from jamba-1.5-mini to jamba-instruct (422 error fix)
+  * Reka: Fixed API request structure (400 error fix)
+  * All 10 systems now working (except Anthropic - needs credits)
 
 AI SYSTEMS (10 total):
-1. OpenAI GPT-4 (USA)
-2. Google Gemini-2.0-Flash-Exp (USA)
-3. Anthropic Claude-Sonnet-4 (USA)
-4. Mistral Large-2 (France)
-5. DeepSeek Chat-V3 (China)
-6. Cohere Command-R+ (Canada)
-7. Meta Llama 3.3 70B via Groq (USA - Open Source)
-8. xAI Grok-3 (USA)
-9. Reka Core (Singapore)
-10. AI21 Jamba Mini (Israel)
-
-Geographic Distribution:
-- USA: 5 systems
-- China: 1 system
-- France: 1 system
-- Canada: 1 system
-- Singapore: 1 system
-- Israel: 1 system
+1. OpenAI GPT-4 (USA) ✅
+2. Google Gemini-2.0-Flash-Exp (USA) ✅
+3. Anthropic Claude-Sonnet-4 (USA) ⚠️ Needs credits
+4. Mistral Large-2 (France) ✅
+5. DeepSeek Chat-V3 (China) ✅
+6. Cohere Command-R+ (Canada) ✅
+7. Meta Llama 3.3 70B via Groq (USA - Open Source) ✅
+8. xAI Grok-3 (USA) ✅
+9. Reka Core (Singapore) ✅ FIXED
+10. AI21 Jamba Instruct (Israel) ✅ FIXED
 
 Author: Jim (Hyperiongate)
 """
@@ -71,10 +42,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 app = Flask(__name__)
 
 # ============================================================================
-# API CONFIGURATION - 10 SYSTEMS ONLY
+# API CONFIGURATION - 10 SYSTEMS
 # ============================================================================
 
-# Configure API keys from environment variables
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
@@ -91,7 +61,6 @@ openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 deepseek_client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com") if DEEPSEEK_API_KEY else None
 groq_client = OpenAI(api_key=GROQ_API_KEY, base_url="https://api.groq.com/openai/v1") if GROQ_API_KEY else None
 xai_client = OpenAI(api_key=XAI_API_KEY, base_url="https://api.x.ai/v1") if XAI_API_KEY else None
-ai21_client = OpenAI(api_key=AI21_API_KEY, base_url="https://api.ai21.com/studio/v1") if AI21_API_KEY else None
 
 # ============================================================================
 # SYSTEM PROMPT FOR CONSISTENT RESPONSES
@@ -126,7 +95,6 @@ def init_db():
     """Initialize database with production schema"""
     db = get_db()
     
-    # Queries table - stores each question asked
     db.execute('''
         CREATE TABLE IF NOT EXISTS queries (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -136,17 +104,13 @@ def init_db():
         )
     ''')
     
-    # Check if category column exists
     cursor = db.execute("PRAGMA table_info(queries)")
     columns = [row[1] for row in cursor.fetchall()]
     
     if 'category' not in columns:
-        print("MIGRATION: Adding category column to queries table")
         db.execute('ALTER TABLE queries ADD COLUMN category TEXT')
         db.commit()
-        print("MIGRATION: Category column added successfully")
     
-    # Responses table - stores AI responses with analysis metrics
     db.execute('''
         CREATE TABLE IF NOT EXISTS responses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -170,11 +134,10 @@ def init_db():
     db.commit()
     db.close()
 
-# Initialize database on startup
 init_db()
 
 # ============================================================================
-# AI QUERY FUNCTIONS - 10 SYSTEMS ONLY
+# AI QUERY FUNCTIONS - 10 SYSTEMS
 # ============================================================================
 
 def query_openai_gpt4(question):
@@ -518,17 +481,17 @@ def query_xai_grok(question):
         return {'success': False, 'error': str(e), 'system': 'xAI', 'model': 'Grok-3'}
 
 def query_reka(question):
-    """Query Reka Core"""
+    """Query Reka Core - FIXED API structure"""
     if not REKA_API_KEY:
         return {'success': False, 'error': 'Reka API key not configured', 'system': 'Reka', 'model': 'Core'}
     
     try:
         start_time = time.time()
-        url = "https://api.reka.ai/v1/chat"
+        url = "https://api.reka.ai/v1/chat/completions"
         
         headers = {
             'Content-Type': 'application/json',
-            'X-Api-Key': REKA_API_KEY
+            'Authorization': f'Bearer {REKA_API_KEY}'
         }
         
         payload = {
@@ -547,8 +510,8 @@ def query_reka(question):
             response_time = time.time() - start_time
             data = response.json()
             
-            if 'responses' in data and len(data['responses']) > 0:
-                raw_response = data['responses'][0]['message']['content']
+            if 'choices' in data and len(data['choices']) > 0:
+                raw_response = data['choices'][0].get('message', {}).get('content', '')
                 
                 return {
                     'success': True,
@@ -574,33 +537,60 @@ def query_reka(question):
         return {'success': False, 'error': str(e), 'system': 'Reka', 'model': 'Core'}
 
 def query_ai21(question):
-    """Query AI21 Jamba Mini"""
-    if not ai21_client:
-        return {'success': False, 'error': 'AI21 API key not configured', 'system': 'AI21', 'model': 'Jamba-Mini'}
+    """Query AI21 Jamba Instruct - FIXED model name"""
+    if not AI21_API_KEY:
+        return {'success': False, 'error': 'AI21 API key not configured', 'system': 'AI21', 'model': 'Jamba-Instruct'}
     
     try:
         start_time = time.time()
-        response = ai21_client.chat.completions.create(
-            model="jamba-1.5-mini",
-            messages=[
-                {"role": "system", "content": RATING_SYSTEM_PROMPT},
-                {"role": "user", "content": question}
-            ],
-            temperature=0.7,
-            max_tokens=500
-        )
-        response_time = time.time() - start_time
-        raw_response = response.choices[0].message.content
+        url = "https://api.ai21.com/studio/v1/chat/completions"
         
-        return {
-            'success': True,
-            'system': 'AI21',
-            'model': 'Jamba-Mini',
-            'raw_response': raw_response,
-            'response_time': response_time
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {AI21_API_KEY}'
         }
+        
+        payload = {
+            'model': 'jamba-instruct',
+            'messages': [
+                {'role': 'system', 'content': RATING_SYSTEM_PROMPT},
+                {'role': 'user', 'content': question}
+            ],
+            'temperature': 0.7,
+            'max_tokens': 500
+        }
+        
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        
+        if response.status_code == 200:
+            response_time = time.time() - start_time
+            data = response.json()
+            
+            if 'choices' in data and len(data['choices']) > 0:
+                raw_response = data['choices'][0].get('message', {}).get('content', '')
+                
+                return {
+                    'success': True,
+                    'system': 'AI21',
+                    'model': 'Jamba-Instruct',
+                    'raw_response': raw_response,
+                    'response_time': response_time
+                }
+            
+            return {'success': False, 'error': 'Unexpected response format', 'system': 'AI21', 'model': 'Jamba-Instruct'}
+        else:
+            try:
+                error_data = response.json()
+                error_msg = error_data.get('detail', error_data.get('message', f"HTTP {response.status_code}"))
+            except:
+                error_msg = f"HTTP {response.status_code}: {response.text[:200]}"
+            
+            return {'success': False, 'error': error_msg, 'system': 'AI21', 'model': 'Jamba-Instruct'}
+        
+    except requests.exceptions.Timeout:
+        return {'success': False, 'error': 'Request timed out', 'system': 'AI21', 'model': 'Jamba-Instruct'}
     except Exception as e:
-        return {'success': False, 'error': str(e), 'system': 'AI21', 'model': 'Jamba-Mini'}
+        return {'success': False, 'error': str(e), 'system': 'AI21', 'model': 'Jamba-Instruct'}
 
 # ============================================================================
 # TEXT ANALYSIS FUNCTIONS
@@ -611,7 +601,6 @@ def extract_rating(text):
     if not text:
         return None
     
-    # Try first line first
     first_line = text.strip().split('\n')[0].strip()
     match = re.search(r'^(\d+(?:\.\d+)?)', first_line)
     
@@ -623,7 +612,6 @@ def extract_rating(text):
         except ValueError:
             pass
     
-    # Try x/10 format
     match = re.search(r'(\d+(?:\.\d+)?)\s*/\s*10', text)
     if match:
         try:
@@ -717,7 +705,6 @@ def query_ais():
     if not question:
         return jsonify({'error': 'Question is required'}), 400
     
-    # Create query record WITH CATEGORY
     db = get_db()
     if category:
         cursor = db.execute('INSERT INTO queries (question, category) VALUES (?, ?)', (question, category))
@@ -726,7 +713,6 @@ def query_ais():
     query_id = cursor.lastrowid
     db.commit()
     
-    # All AI query functions - 10 SYSTEMS ONLY
     ai_functions = [
         query_openai_gpt4,
         query_google_gemini,
@@ -740,7 +726,6 @@ def query_ais():
         query_ai21
     ]
     
-    # Execute all AI queries in parallel
     results = []
     with ThreadPoolExecutor(max_workers=12) as executor:
         future_to_func = {executor.submit(func, question): func for func in ai_functions}
@@ -759,7 +744,6 @@ def query_ais():
                     hedge_freq = calculate_hedge_frequency(hedge_count, word_count)
                     provided_rating = extracted_rating is not None
                     
-                    # Save to database
                     db.execute('''
                         INSERT INTO responses 
                         (query_id, ai_system, model, raw_response, extracted_rating, response_time,
@@ -771,7 +755,6 @@ def query_ais():
                           controversy_count, hedge_freq, provided_rating))
                     db.commit()
                     
-                    # Add analysis to result
                     result['extracted_rating'] = extracted_rating
                     result['word_count'] = word_count
                     result['hedge_count'] = hedge_count
@@ -779,7 +762,6 @@ def query_ais():
                     result['sentiment_score'] = sentiment
                     result['controversy_word_count'] = controversy_count
                 else:
-                    # Record error in database
                     db.execute('''
                         INSERT INTO responses 
                         (query_id, ai_system, model, raw_response, response_time, provided_rating)
@@ -939,7 +921,7 @@ def health_check():
 
 @app.route('/debug/test-all')
 def test_all():
-    """Test all 10 AI systems with parallel execution (FIXED - no more timeouts)"""
+    """Test all 10 AI systems with parallel execution"""
     question = "Rate how good pizza is on a scale of 1-10."
     
     ai_functions = [
@@ -957,7 +939,6 @@ def test_all():
     
     results = {}
     
-    # Run in parallel to avoid timeout
     with ThreadPoolExecutor(max_workers=12) as executor:
         future_to_name = {executor.submit(func, question): name for name, func in ai_functions}
         
@@ -999,7 +980,6 @@ def batch_submit():
         query_id = cursor.lastrowid
         db.commit()
         
-        # Query all 10 AIs
         ai_functions = [
             query_openai_gpt4, query_google_gemini, query_anthropic_claude,
             query_mistral_large, query_deepseek_chat, query_cohere_command,
@@ -1078,7 +1058,7 @@ def batch_submit():
 
 @app.route('/admin/reset-database', methods=['POST'])
 def reset_database():
-    """Reset the database (delete all queries and responses)"""
+    """Reset the database"""
     data = request.json
     confirm = data.get('confirm', False)
     
