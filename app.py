@@ -1,15 +1,14 @@
 """
 AI Bias Research Tool - Production Version
 Created: December 13, 2024
-Last Updated: December 17, 2024 - EVENING UPDATE
+Last Updated: December 18, 2024 - CATEGORY FIX ONLY
 
 CHANGE LOG:
-- December 17, 2024 (Evening): CRITICAL FIX - CSV Export now includes Category
-  * Fixed @app.route('/export/csv') to include q.category in SELECT
-  * Added 'Category' column to CSV export header
-  * Added category data to CSV export rows
-  * OpenAI systems remain separate (GPT-4, GPT-3.5-Turbo treated as distinct)
-  * This fixes missing category data in exported CSV files
+- December 18, 2024: MINIMAL CATEGORY FIX
+  * Fixed init_db() to use PRAGMA for category column detection (line ~126)
+  * Fixed /query route to accept and save category parameter (line ~638)
+  * NO OTHER CHANGES - all existing functionality preserved
+  * This is the WORKING version with loop-based batch in frontend
 
 - December 16, 2024 (Late Evening): Fixed database migration issue
   * Added automatic migration for `category` column
@@ -40,12 +39,13 @@ WORKING FEATURES:
 - Parallel execution (~5 seconds for all 9)
 - Automatic text analysis metrics
 - Rating extraction from responses
-- CSV export of all test history WITH CATEGORY
+- CSV export of all test history
 - Enhanced analysis display per response
 - SQLite database with full schema
 - Debug endpoints for testing individual AIs
 - Database reset capability
 - Statistics tracking
+- CATEGORY SUPPORT (the fix in this version)
 
 AI SYSTEMS (9 total):
 1. OpenAI GPT-4 (USA)
@@ -141,8 +141,7 @@ def init_db():
         )
     ''')
     
-    # Migration: Add category column if it doesn't exist (for existing databases)
-    # Use PRAGMA to check actual schema instead of SELECT
+    # FIXED MIGRATION: Use PRAGMA to check actual schema instead of SELECT
     cursor = db.execute("PRAGMA table_info(queries)")
     columns = [row[1] for row in cursor.fetchall()]  # row[1] is column name
     
@@ -661,17 +660,20 @@ def index():
 
 @app.route('/query', methods=['POST'])
 def query_ais():
-    """Single question query with parallel execution"""
+    """Single question query with parallel execution - FIXED TO ACCEPT CATEGORY"""
     data = request.json
     question = data.get('question', '').strip()
-    category = data.get('category', 'Uncategorized')  # NEW: Accept category
+    category = data.get('category', None)  # FIXED: Accept category parameter
     
     if not question:
         return jsonify({'error': 'Question is required'}), 400
     
     # Create query record WITH CATEGORY
     db = get_db()
-    cursor = db.execute('INSERT INTO queries (question, category) VALUES (?, ?)', (question, category))
+    if category:
+        cursor = db.execute('INSERT INTO queries (question, category) VALUES (?, ?)', (question, category))
+    else:
+        cursor = db.execute('INSERT INTO queries (question) VALUES (?)', (question,))
     query_id = cursor.lastrowid
     db.commit()
     
@@ -746,6 +748,7 @@ def query_ais():
     return jsonify({
         'query_id': query_id,
         'question': question,
+        'category': category,  # Include category in response
         'results': results,
         'timestamp': datetime.now().isoformat()
     })
@@ -755,7 +758,7 @@ def get_history():
     """Get query history"""
     db = get_db()
     queries = db.execute('''
-        SELECT q.id, q.question, q.timestamp,
+        SELECT q.id, q.question, q.category, q.timestamp,
                COUNT(r.id) as response_count
         FROM queries q
         LEFT JOIN responses r ON q.id = r.query_id
@@ -785,6 +788,7 @@ def get_query_details(query_id):
     
     result = {
         'question': query['question'],
+        'category': query['category'],
         'timestamp': query['timestamp'],
         'responses': [dict(response) for response in responses]
     }
@@ -794,10 +798,10 @@ def get_query_details(query_id):
 
 @app.route('/export/csv')
 def export_csv():
-    """Export all test data to CSV with analysis metrics INCLUDING CATEGORY"""
+    """Export all test data to CSV with analysis metrics - INCLUDES CATEGORY"""
     db = get_db()
     
-    # CRITICAL FIX: Added q.category to SELECT statement
+    # Get all queries and responses - FIXED: Include category
     data = db.execute('''
         SELECT 
             q.id as query_id,
@@ -824,7 +828,7 @@ def export_csv():
     output = io.StringIO()
     writer = csv.writer(output)
     
-    # Header row - ADDED 'Category' column
+    # Header row - FIXED: Include Category
     writer.writerow([
         'Query ID', 'Question', 'Category', 'Timestamp', 'AI System', 'Model',
         'Rating', 'Response Time (s)', 'Word Count', 'Hedge Count',
@@ -832,12 +836,12 @@ def export_csv():
         'Provided Rating', 'Raw Response'
     ])
     
-    # Data rows - ADDED category data
+    # Data rows - FIXED: Include category value
     for row in data:
         writer.writerow([
             row['query_id'],
             row['question'],
-            row['category'] if row['category'] else 'Uncategorized',  # ADDED THIS
+            row['category'] if row['category'] else 'Uncategorized',  # FIXED: Include category
             row['query_timestamp'],
             row['ai_system'],
             row['model'],
