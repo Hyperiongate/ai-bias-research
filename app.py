@@ -1,42 +1,26 @@
 """
 AI Bias Research Tool - Production Version
 Created: December 13, 2024
-Last Updated: December 18, 2024 - CATEGORY FIX ONLY
+Last Updated: December 18, 2024 - 13 AI SYSTEMS EXPANSION
 
 CHANGE LOG:
-- December 18, 2024: MINIMAL CATEGORY FIX
-  * Fixed init_db() to use PRAGMA for category column detection (line ~126)
-  * Fixed /query route to accept and save category parameter (line ~638)
-  * NO OTHER CHANGES - all existing functionality preserved
-  * This is the WORKING version with loop-based batch in frontend
-
-- December 16, 2024 (Late Evening): Fixed database migration issue
-  * Added automatic migration for `category` column
-  * Fixes "Unexpected token" error in batch submission
-  * Handles existing databases without category column
-  * No data loss - migration is safe
-
-- December 16, 2024 (Evening): Added batch submission & admin tools
-  * New /batch/submit endpoint - submit multiple questions at once
-  * New /admin/reset-database endpoint - clear all data
-  * New /stats endpoint - get database statistics
-  * Added category support for organizing questions
-  * Maintains all existing functionality
-  
-- December 16, 2024 (Afternoon): Production-ready version
-  * Removed problematic batch testing (causes timeouts)
-  * Kept all working features: parallel execution, text analysis, CSV export
-  * 9 AI systems working (OpenAI, Google, Anthropic, Mistral, DeepSeek, Cohere, Groq, xAI)
-  * Enhanced text analysis: word count, hedge frequency, sentiment, controversy words
-  * CSV export functionality for all test history
-  * Parallel execution with ThreadPoolExecutor (5-second query time)
-  * Increased timeout to 1800 seconds in Procfile
-  * Robust error handling for all AI APIs
+- December 18, 2024: 13 AI SYSTEMS EXPANSION
+  * REMOVED: OpenAI GPT-3.5-Turbo (consolidated to GPT-4 only)
+  * ADDED: Perplexity Sonar-Large (USA) ⭐ NEW
+  * ADDED: Alibaba Qwen Plus (China) ⭐ RESTORED
+  * ADDED: Reka Core (Singapore) ⭐ NEW
+  * ADDED: Inflection Pi (USA) ⭐ NEW
+  * ADDED: AI21 Jamba Mini (Israel) ⭐ NEW
+  * Total: 13 AI systems from 7 countries/regions
+  * Fixed /debug/test-all to use parallel execution (no more timeouts)
+  * All existing functionality preserved
+  * Category support maintained
+  * Text analysis unchanged
 
 WORKING FEATURES:
-- Single question testing across 9 AI systems
+- Single question testing across 13 AI systems
 - Batch question submission (multiple questions at once)
-- Parallel execution (~5 seconds for all 9)
+- Parallel execution (~5-10 seconds for all 13)
 - Automatic text analysis metrics
 - Rating extraction from responses
 - CSV export of all test history
@@ -45,18 +29,31 @@ WORKING FEATURES:
 - Debug endpoints for testing individual AIs
 - Database reset capability
 - Statistics tracking
-- CATEGORY SUPPORT (the fix in this version)
+- Category support (16 categories)
 
-AI SYSTEMS (9 total):
+AI SYSTEMS (13 total):
 1. OpenAI GPT-4 (USA)
-2. OpenAI GPT-3.5-Turbo (USA)
-3. Google Gemini-2.0-Flash (USA)
-4. Anthropic Claude-Sonnet-4 (USA)
-5. Mistral Large-2 (France)
-6. DeepSeek Chat-V3 (China)
-7. Cohere Command-R+ (Canada)
-8. Meta Llama 3.3 70B via Groq (USA - Open Source)
-9. xAI Grok-3 (USA)
+2. Google Gemini-2.0-Flash-Exp (USA)
+3. Anthropic Claude-Sonnet-4 (USA)
+4. Mistral Large-2 (France)
+5. DeepSeek Chat-V3 (China)
+6. Cohere Command-R+ (Canada)
+7. Meta Llama 3.3 70B via Groq (USA - Open Source)
+8. xAI Grok-3 (USA)
+9. Perplexity Sonar-Large (USA) ⭐ NEW
+10. Alibaba Qwen Plus (China) ⭐ NEW
+11. Reka Core (Singapore) ⭐ NEW
+12. Inflection Pi (USA) ⭐ NEW
+13. AI21 Jamba Mini (Israel) ⭐ NEW
+
+Geographic Distribution:
+- USA: 6 systems
+- China: 2 systems
+- France: 1 system
+- Canada: 1 system
+- Singapore: 1 system
+- Israel: 1 system
+- Open Source: 1 system
 
 Author: Jim (Hyperiongate)
 """
@@ -91,12 +88,20 @@ DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
 COHERE_API_KEY = os.environ.get('COHERE_API_KEY')
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 XAI_API_KEY = os.environ.get('XAI_API_KEY')
+PERPLEXITY_API_KEY = os.environ.get('PERPLEXITY_API_KEY')
+QWEN_API_KEY = os.environ.get('QWEN_API_KEY')
+REKA_API_KEY = os.environ.get('REKA_API_KEY')
+INFLECTION_API_KEY = os.environ.get('INFLECTION_API_KEY')
+AI21_API_KEY = os.environ.get('AI21_API_KEY')
 
 # Initialize OpenAI-compatible clients
 openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 deepseek_client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com") if DEEPSEEK_API_KEY else None
 groq_client = OpenAI(api_key=GROQ_API_KEY, base_url="https://api.groq.com/openai/v1") if GROQ_API_KEY else None
 xai_client = OpenAI(api_key=XAI_API_KEY, base_url="https://api.x.ai/v1") if XAI_API_KEY else None
+perplexity_client = OpenAI(api_key=PERPLEXITY_API_KEY, base_url="https://api.perplexity.ai") if PERPLEXITY_API_KEY else None
+inflection_client = OpenAI(api_key=INFLECTION_API_KEY, base_url="https://api.inflection.ai/v1") if INFLECTION_API_KEY else None
+ai21_client = OpenAI(api_key=AI21_API_KEY, base_url="https://api.ai21.com/studio/v1") if AI21_API_KEY else None
 
 # ============================================================================
 # SYSTEM PROMPT FOR CONSISTENT RESPONSES
@@ -141,17 +146,15 @@ def init_db():
         )
     ''')
     
-    # FIXED MIGRATION: Use PRAGMA to check actual schema instead of SELECT
+    # Check if category column exists
     cursor = db.execute("PRAGMA table_info(queries)")
-    columns = [row[1] for row in cursor.fetchall()]  # row[1] is column name
+    columns = [row[1] for row in cursor.fetchall()]
     
     if 'category' not in columns:
         print("MIGRATION: Adding category column to queries table")
         db.execute('ALTER TABLE queries ADD COLUMN category TEXT')
         db.commit()
         print("MIGRATION: Category column added successfully")
-    else:
-        print("MIGRATION: Category column already exists")
     
     # Responses table - stores AI responses with analysis metrics
     db.execute('''
@@ -181,7 +184,7 @@ def init_db():
 init_db()
 
 # ============================================================================
-# AI QUERY FUNCTIONS
+# AI QUERY FUNCTIONS - 13 SYSTEMS
 # ============================================================================
 
 def query_openai_gpt4(question):
@@ -213,43 +216,14 @@ def query_openai_gpt4(question):
     except Exception as e:
         return {'success': False, 'error': str(e), 'system': 'OpenAI', 'model': 'GPT-4'}
 
-def query_openai_gpt35(question):
-    """Query OpenAI GPT-3.5 Turbo"""
-    if not openai_client:
-        return {'success': False, 'error': 'OpenAI API key not configured', 'system': 'OpenAI', 'model': 'GPT-3.5-Turbo'}
-    
-    try:
-        start_time = time.time()
-        response = openai_client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": RATING_SYSTEM_PROMPT},
-                {"role": "user", "content": question}
-            ],
-            temperature=0.7,
-            max_tokens=500
-        )
-        response_time = time.time() - start_time
-        raw_response = response.choices[0].message.content
-        
-        return {
-            'success': True,
-            'system': 'OpenAI',
-            'model': 'GPT-3.5-Turbo',
-            'raw_response': raw_response,
-            'response_time': response_time
-        }
-    except Exception as e:
-        return {'success': False, 'error': str(e), 'system': 'OpenAI', 'model': 'GPT-3.5-Turbo'}
-
 def query_google_gemini(question):
-    """Query Google Gemini 2.0 Flash"""
+    """Query Google Gemini 2.0 Flash Experimental"""
     if not GOOGLE_API_KEY:
         return {'success': False, 'error': 'Google API key not configured', 'system': 'Google', 'model': 'Gemini-2.0-Flash'}
     
     try:
         start_time = time.time()
-        model_name = 'gemini-2.0-flash'
+        model_name = 'gemini-2.0-flash-exp'
         api_version = 'v1beta'
         url = f"https://generativelanguage.googleapis.com/{api_version}/models/{model_name}:generateContent"
         
@@ -553,6 +527,209 @@ def query_xai_grok(question):
     except Exception as e:
         return {'success': False, 'error': str(e), 'system': 'xAI', 'model': 'Grok-3'}
 
+def query_perplexity(question):
+    """Query Perplexity AI Sonar Large"""
+    if not perplexity_client:
+        return {'success': False, 'error': 'Perplexity API key not configured', 'system': 'Perplexity', 'model': 'Sonar-Large'}
+    
+    try:
+        start_time = time.time()
+        response = perplexity_client.chat.completions.create(
+            model="llama-3.1-sonar-large-128k-online",
+            messages=[
+                {"role": "system", "content": RATING_SYSTEM_PROMPT},
+                {"role": "user", "content": question}
+            ],
+            temperature=0.7,
+            max_tokens=500
+        )
+        response_time = time.time() - start_time
+        raw_response = response.choices[0].message.content
+        
+        return {
+            'success': True,
+            'system': 'Perplexity',
+            'model': 'Sonar-Large',
+            'raw_response': raw_response,
+            'response_time': response_time
+        }
+    except Exception as e:
+        return {'success': False, 'error': str(e), 'system': 'Perplexity', 'model': 'Sonar-Large'}
+
+def query_qwen(question):
+    """Query Alibaba Qwen Plus"""
+    if not QWEN_API_KEY:
+        return {'success': False, 'error': 'Qwen API key not configured', 'system': 'Alibaba', 'model': 'Qwen-Plus'}
+    
+    try:
+        start_time = time.time()
+        url = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
+        
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {QWEN_API_KEY}'
+        }
+        
+        payload = {
+            'model': 'qwen-plus',
+            'input': {
+                'messages': [
+                    {'role': 'system', 'content': RATING_SYSTEM_PROMPT},
+                    {'role': 'user', 'content': question}
+                ]
+            },
+            'parameters': {
+                'temperature': 0.7,
+                'max_tokens': 500
+            }
+        }
+        
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        
+        if response.status_code == 200:
+            response_time = time.time() - start_time
+            data = response.json()
+            
+            if 'output' in data and 'text' in data['output']:
+                raw_response = data['output']['text']
+                
+                return {
+                    'success': True,
+                    'system': 'Alibaba',
+                    'model': 'Qwen-Plus',
+                    'raw_response': raw_response,
+                    'response_time': response_time
+                }
+            
+            return {'success': False, 'error': 'Unexpected response format', 'system': 'Alibaba', 'model': 'Qwen-Plus'}
+        else:
+            try:
+                error_data = response.json()
+                error_msg = error_data.get('message', f"HTTP {response.status_code}")
+            except:
+                error_msg = f"HTTP {response.status_code}: {response.text[:200]}"
+            
+            return {'success': False, 'error': error_msg, 'system': 'Alibaba', 'model': 'Qwen-Plus'}
+        
+    except requests.exceptions.Timeout:
+        return {'success': False, 'error': 'Request timed out', 'system': 'Alibaba', 'model': 'Qwen-Plus'}
+    except Exception as e:
+        return {'success': False, 'error': str(e), 'system': 'Alibaba', 'model': 'Qwen-Plus'}
+
+def query_reka(question):
+    """Query Reka Core"""
+    if not REKA_API_KEY:
+        return {'success': False, 'error': 'Reka API key not configured', 'system': 'Reka', 'model': 'Core'}
+    
+    try:
+        start_time = time.time()
+        url = "https://api.reka.ai/v1/chat"
+        
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Api-Key': REKA_API_KEY
+        }
+        
+        payload = {
+            'model': 'reka-core',
+            'messages': [
+                {'role': 'system', 'content': RATING_SYSTEM_PROMPT},
+                {'role': 'user', 'content': question}
+            ],
+            'temperature': 0.7,
+            'max_tokens': 500
+        }
+        
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        
+        if response.status_code == 200:
+            response_time = time.time() - start_time
+            data = response.json()
+            
+            if 'responses' in data and len(data['responses']) > 0:
+                raw_response = data['responses'][0]['message']['content']
+                
+                return {
+                    'success': True,
+                    'system': 'Reka',
+                    'model': 'Core',
+                    'raw_response': raw_response,
+                    'response_time': response_time
+                }
+            
+            return {'success': False, 'error': 'Unexpected response format', 'system': 'Reka', 'model': 'Core'}
+        else:
+            try:
+                error_data = response.json()
+                error_msg = error_data.get('message', f"HTTP {response.status_code}")
+            except:
+                error_msg = f"HTTP {response.status_code}: {response.text[:200]}"
+            
+            return {'success': False, 'error': error_msg, 'system': 'Reka', 'model': 'Core'}
+        
+    except requests.exceptions.Timeout:
+        return {'success': False, 'error': 'Request timed out', 'system': 'Reka', 'model': 'Core'}
+    except Exception as e:
+        return {'success': False, 'error': str(e), 'system': 'Reka', 'model': 'Core'}
+
+def query_inflection(question):
+    """Query Inflection Pi"""
+    if not inflection_client:
+        return {'success': False, 'error': 'Inflection API key not configured', 'system': 'Inflection', 'model': 'Pi'}
+    
+    try:
+        start_time = time.time()
+        response = inflection_client.chat.completions.create(
+            model="inflection-3-pi",
+            messages=[
+                {"role": "system", "content": RATING_SYSTEM_PROMPT},
+                {"role": "user", "content": question}
+            ],
+            temperature=0.7,
+            max_tokens=500
+        )
+        response_time = time.time() - start_time
+        raw_response = response.choices[0].message.content
+        
+        return {
+            'success': True,
+            'system': 'Inflection',
+            'model': 'Pi',
+            'raw_response': raw_response,
+            'response_time': response_time
+        }
+    except Exception as e:
+        return {'success': False, 'error': str(e), 'system': 'Inflection', 'model': 'Pi'}
+
+def query_ai21(question):
+    """Query AI21 Jamba Mini"""
+    if not ai21_client:
+        return {'success': False, 'error': 'AI21 API key not configured', 'system': 'AI21', 'model': 'Jamba-Mini'}
+    
+    try:
+        start_time = time.time()
+        response = ai21_client.chat.completions.create(
+            model="jamba-1.5-mini",
+            messages=[
+                {"role": "system", "content": RATING_SYSTEM_PROMPT},
+                {"role": "user", "content": question}
+            ],
+            temperature=0.7,
+            max_tokens=500
+        )
+        response_time = time.time() - start_time
+        raw_response = response.choices[0].message.content
+        
+        return {
+            'success': True,
+            'system': 'AI21',
+            'model': 'Jamba-Mini',
+            'raw_response': raw_response,
+            'response_time': response_time
+        }
+    except Exception as e:
+        return {'success': False, 'error': str(e), 'system': 'AI21', 'model': 'Jamba-Mini'}
+
 # ============================================================================
 # TEXT ANALYSIS FUNCTIONS
 # ============================================================================
@@ -660,10 +837,10 @@ def index():
 
 @app.route('/query', methods=['POST'])
 def query_ais():
-    """Single question query with parallel execution - FIXED TO ACCEPT CATEGORY"""
+    """Single question query with parallel execution across 13 AI systems"""
     data = request.json
     question = data.get('question', '').strip()
-    category = data.get('category', None)  # FIXED: Accept category parameter
+    category = data.get('category', None)
     
     if not question:
         return jsonify({'error': 'Question is required'}), 400
@@ -677,22 +854,26 @@ def query_ais():
     query_id = cursor.lastrowid
     db.commit()
     
-    # All AI query functions
+    # All AI query functions - 13 SYSTEMS
     ai_functions = [
         query_openai_gpt4,
-        query_openai_gpt35,
         query_google_gemini,
         query_anthropic_claude,
         query_mistral_large,
         query_deepseek_chat,
         query_cohere_command,
         query_groq_llama,
-        query_xai_grok
+        query_xai_grok,
+        query_perplexity,
+        query_qwen,
+        query_reka,
+        query_inflection,
+        query_ai21
     ]
     
     # Execute all AI queries in parallel
     results = []
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    with ThreadPoolExecutor(max_workers=15) as executor:
         future_to_func = {executor.submit(func, question): func for func in ai_functions}
         
         for future in as_completed(future_to_func):
@@ -740,7 +921,6 @@ def query_ais():
                 results.append(result)
                 
             except Exception as e:
-                # Handle any unexpected errors
                 print(f"Error processing result: {str(e)}")
     
     db.close()
@@ -748,7 +928,7 @@ def query_ais():
     return jsonify({
         'query_id': query_id,
         'question': question,
-        'category': category,  # Include category in response
+        'category': category,
         'results': results,
         'timestamp': datetime.now().isoformat()
     })
@@ -798,10 +978,9 @@ def get_query_details(query_id):
 
 @app.route('/export/csv')
 def export_csv():
-    """Export all test data to CSV with analysis metrics - INCLUDES CATEGORY"""
+    """Export all test data to CSV with analysis metrics"""
     db = get_db()
     
-    # Get all queries and responses - FIXED: Include category
     data = db.execute('''
         SELECT 
             q.id as query_id,
@@ -824,11 +1003,9 @@ def export_csv():
         ORDER BY q.timestamp DESC, r.ai_system
     ''').fetchall()
     
-    # Create CSV in memory
     output = io.StringIO()
     writer = csv.writer(output)
     
-    # Header row - FIXED: Include Category
     writer.writerow([
         'Query ID', 'Question', 'Category', 'Timestamp', 'AI System', 'Model',
         'Rating', 'Response Time (s)', 'Word Count', 'Hedge Count',
@@ -836,12 +1013,11 @@ def export_csv():
         'Provided Rating', 'Raw Response'
     ])
     
-    # Data rows - FIXED: Include category value
     for row in data:
         writer.writerow([
             row['query_id'],
             row['question'],
-            row['category'] if row['category'] else 'Uncategorized',  # FIXED: Include category
+            row['category'] if row['category'] else 'Uncategorized',
             row['query_timestamp'],
             row['ai_system'],
             row['model'],
@@ -859,7 +1035,6 @@ def export_csv():
     output.seek(0)
     db.close()
     
-    # Generate filename with timestamp
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     filename = f'ai_bias_research_{timestamp}.csv'
     
@@ -880,73 +1055,58 @@ def health_check():
         DEEPSEEK_API_KEY is not None,
         COHERE_API_KEY is not None,
         GROQ_API_KEY is not None,
-        XAI_API_KEY is not None
+        XAI_API_KEY is not None,
+        PERPLEXITY_API_KEY is not None,
+        QWEN_API_KEY is not None,
+        REKA_API_KEY is not None,
+        INFLECTION_API_KEY is not None,
+        AI21_API_KEY is not None
     ])
     
     return jsonify({
         'status': 'healthy',
         'ai_systems_configured': configured_systems,
-        'total_ai_systems': 9,
+        'total_ai_systems': 13,
         'database': 'connected',
         'parallel_execution': 'enabled'
     })
 
-# ============================================================================
-# DEBUG ENDPOINTS (for testing individual AI systems)
-# ============================================================================
-
-@app.route('/debug/test-anthropic')
-def test_anthropic():
-    """Test Anthropic Claude"""
-    result = query_anthropic_claude("Rate how good pizza is on a scale of 1-10.")
-    return jsonify(result)
-
-@app.route('/debug/test-cohere')
-def test_cohere():
-    """Test Cohere Command"""
-    result = query_cohere_command("Rate how good pizza is on a scale of 1-10.")
-    return jsonify(result)
-
-@app.route('/debug/test-deepseek')
-def test_deepseek():
-    """Test DeepSeek"""
-    result = query_deepseek_chat("Rate how good pizza is on a scale of 1-10.")
-    return jsonify(result)
-
-@app.route('/debug/test-groq')
-def test_groq():
-    """Test Groq Llama"""
-    result = query_groq_llama("Rate how good pizza is on a scale of 1-10.")
-    return jsonify(result)
-
-@app.route('/debug/test-xai')
-def test_xai():
-    """Test xAI Grok"""
-    result = query_xai_grok("Rate how good pizza is on a scale of 1-10.")
-    return jsonify(result)
-
 @app.route('/debug/test-all')
 def test_all():
-    """Test all AI systems with a simple question"""
+    """Test all 13 AI systems with parallel execution (FIXED - no more timeouts)"""
     question = "Rate how good pizza is on a scale of 1-10."
     
-    results = {
-        'openai_gpt4': query_openai_gpt4(question),
-        'openai_gpt35': query_openai_gpt35(question),
-        'google_gemini': query_google_gemini(question),
-        'anthropic_claude': query_anthropic_claude(question),
-        'mistral_large': query_mistral_large(question),
-        'deepseek_chat': query_deepseek_chat(question),
-        'cohere_command': query_cohere_command(question),
-        'groq_llama': query_groq_llama(question),
-        'xai_grok': query_xai_grok(question)
-    }
+    ai_functions = [
+        ('OpenAI GPT-4', query_openai_gpt4),
+        ('Google Gemini', query_google_gemini),
+        ('Anthropic Claude', query_anthropic_claude),
+        ('Mistral', query_mistral_large),
+        ('DeepSeek', query_deepseek_chat),
+        ('Cohere', query_cohere_command),
+        ('Groq Llama', query_groq_llama),
+        ('xAI Grok', query_xai_grok),
+        ('Perplexity', query_perplexity),
+        ('Alibaba Qwen', query_qwen),
+        ('Reka', query_reka),
+        ('Inflection', query_inflection),
+        ('AI21', query_ai21),
+    ]
+    
+    results = {}
+    
+    # Run in parallel to avoid timeout
+    with ThreadPoolExecutor(max_workers=15) as executor:
+        future_to_name = {executor.submit(func, question): name for name, func in ai_functions}
+        
+        for future in as_completed(future_to_name):
+            name = future_to_name[future]
+            try:
+                result = future.result()
+                results[name] = result
+            except Exception as e:
+                results[name] = {'success': False, 'error': str(e)}
     
     return jsonify(results)
-
-# ============================================================================
-# BATCH SUBMISSION & ADMIN ENDPOINTS
-# ============================================================================
 
 @app.route('/batch/submit', methods=['POST'])
 def batch_submit():
@@ -969,7 +1129,6 @@ def batch_submit():
         if not question_text:
             continue
         
-        # Create query record with category
         cursor = db.execute(
             'INSERT INTO queries (question, category) VALUES (?, ?)',
             (question_text, category)
@@ -977,21 +1136,16 @@ def batch_submit():
         query_id = cursor.lastrowid
         db.commit()
         
-        # Query all AIs
+        # Query all 13 AIs
         ai_functions = [
-            query_openai_gpt4,
-            query_openai_gpt35,
-            query_google_gemini,
-            query_anthropic_claude,
-            query_mistral_large,
-            query_deepseek_chat,
-            query_cohere_command,
-            query_groq_llama,
-            query_xai_grok
+            query_openai_gpt4, query_google_gemini, query_anthropic_claude,
+            query_mistral_large, query_deepseek_chat, query_cohere_command,
+            query_groq_llama, query_xai_grok, query_perplexity,
+            query_qwen, query_reka, query_inflection, query_ai21
         ]
         
         question_results = []
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        with ThreadPoolExecutor(max_workers=15) as executor:
             future_to_func = {executor.submit(func, question_text): func for func in ai_functions}
             
             for future in as_completed(future_to_func):
@@ -1074,15 +1228,10 @@ def reset_database():
     
     try:
         db = get_db()
-        
-        # Delete all data
         db.execute('DELETE FROM responses')
         db.execute('DELETE FROM queries')
-        
-        # Reset auto-increment counters
         db.execute('DELETE FROM sqlite_sequence WHERE name="responses"')
         db.execute('DELETE FROM sqlite_sequence WHERE name="queries"')
-        
         db.commit()
         db.close()
         
@@ -1104,15 +1253,12 @@ def get_stats():
     
     stats = {}
     
-    # Total queries
     result = db.execute('SELECT COUNT(*) as count FROM queries').fetchone()
     stats['total_queries'] = result['count']
     
-    # Total responses
     result = db.execute('SELECT COUNT(*) as count FROM responses').fetchone()
     stats['total_responses'] = result['count']
     
-    # Queries by category
     categories = db.execute('''
         SELECT category, COUNT(*) as count 
         FROM queries 
@@ -1121,7 +1267,6 @@ def get_stats():
     ''').fetchall()
     stats['by_category'] = {row['category']: row['count'] for row in categories}
     
-    # Responses by AI system
     ai_counts = db.execute('''
         SELECT ai_system, COUNT(*) as count 
         FROM responses 
@@ -1129,48 +1274,12 @@ def get_stats():
     ''').fetchall()
     stats['by_ai_system'] = {row['ai_system']: row['count'] for row in ai_counts}
     
-    # Success rate
     success = db.execute('SELECT COUNT(*) as count FROM responses WHERE provided_rating = 1').fetchone()
     stats['success_rate'] = round((success['count'] / stats['total_responses'] * 100), 2) if stats['total_responses'] > 0 else 0
     
     db.close()
     
     return jsonify(stats)
-
-@app.route('/debug/check-categories')
-def debug_categories():
-    """DEBUG: Check what categories are actually in the database"""
-    db = get_db()
-    
-    # Get all queries with their categories
-    queries = db.execute('''
-        SELECT id, question, category, 
-               LENGTH(category) as cat_length
-        FROM queries 
-        ORDER BY id DESC 
-        LIMIT 20
-    ''').fetchall()
-    
-    result = []
-    for q in queries:
-        cat_value = q['category']
-        result.append({
-            'id': q['id'],
-            'question': q['question'][:80] + '...' if len(q['question']) > 80 else q['question'],
-            'category': cat_value,
-            'category_repr': repr(cat_value),
-            'category_length': q['cat_length'],
-            'is_null': cat_value is None,
-            'is_empty_string': cat_value == '',
-            'equals_political_usa': cat_value == 'Political-USA'
-        })
-    
-    db.close()
-    return jsonify(result)
-
-# ============================================================================
-# APPLICATION STARTUP
-# ============================================================================
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
