@@ -2,16 +2,18 @@
 <!--
 AI Bias Research Tool - Frontend Interface
 Created: December 13, 2024
-Last Updated: December 17, 2025 - Added 4 new categories
+Last Updated: December 18, 2024 - Added Boundary-Testing category
 
 CHANGE LOG:
+- December 18, 2024: Added Boundary-Testing category
+  * Boundary-Testing ⭐ NEW (Safety testing questions)
+  * Total now 17 categories
 - December 17, 2025: Added 4 new categories to working loop version
   * Philosophy ⭐ NEW
   * Religion ⭐ NEW  
   * Ethics ⭐ NEW
   * Governance-Principles ⭐ NEW
   * KEPT WORKING LOOP: Processes questions one at a time with progress tracking
-  * Total now 16 categories
 
 Author: Jim (Hyperiongate)
 -->
@@ -26,8 +28,8 @@ Author: Jim (Hyperiongate)
     <div class="container">
         <header>
             <h1>🔬 AI Bias Research Tool</h1>
-            <p class="subtitle">Comprehensive AI Analysis Across 9 Systems</p>
-            <p class="subtitle-small">Parallel Execution | Text Analysis | CSV Export | 16 Categories</p>
+            <p class="subtitle">Comprehensive AI Analysis Across 8 Systems</p>
+            <p class="subtitle-small">Parallel Execution | Text Analysis | CSV Export | 17 Categories</p>
         </header>
 
         <div class="main-content">
@@ -35,7 +37,7 @@ Author: Jim (Hyperiongate)
             <section class="query-section">
                 <h2>Ask a Question</h2>
                 <p class="help-text">
-                    Query all 9 AI systems simultaneously. For best results, ask for a rating on a scale of 1-10.
+                    Query all 8 AI systems simultaneously. For best results, ask for a rating on a scale of 1-10.
                 </p>
                 
                 <div style="margin-bottom: 15px;">
@@ -58,6 +60,7 @@ Author: Jim (Hyperiongate)
                         <option value="Religion">Religion ⭐ NEW (Religious views, secular vs faith)</option>
                         <option value="Ethics">Ethics ⭐ NEW (Bioethics, environmental, tech ethics)</option>
                         <option value="Governance-Principles">Governance-Principles ⭐ NEW (Apolitical governance questions)</option>
+                        <option value="Boundary-Testing">Boundary-Testing ⭐ NEW (AI safety boundary tests)</option>
                     </select>
                 </div>
                 
@@ -76,7 +79,7 @@ Author: Jim (Hyperiongate)
                 </div>
                 <div id="loading" class="loading" style="display: none;">
                     <div class="spinner"></div>
-                    <p>Querying 9 AI systems in parallel... (~5-10 seconds)</p>
+                    <p>Querying 8 AI systems in parallel... (~5-10 seconds)</p>
                 </div>
             </section>
 
@@ -84,7 +87,7 @@ Author: Jim (Hyperiongate)
             <section class="query-section" style="border-top: 2px solid #e0e0e0; padding-top: 30px; margin-top: 30px;">
                 <h2>📚 Submit Multiple Questions at Once</h2>
                 <p class="help-text">
-                    Enter multiple questions (one per line) to submit them all at once. Great for running 10, 50, or even 650 questions!
+                    Enter multiple questions (one per line) to submit them all at once. Great for running 10, 50, or even 1,050 questions!
                 </p>
                 
                 <div style="margin-bottom: 15px;">
@@ -106,6 +109,7 @@ Author: Jim (Hyperiongate)
                         <option value="Religion">Religion ⭐ NEW (Religious views, secular vs faith)</option>
                         <option value="Ethics">Ethics ⭐ NEW (Bioethics, environmental, tech ethics)</option>
                         <option value="Governance-Principles">Governance-Principles ⭐ NEW (Apolitical governance questions)</option>
+                        <option value="Boundary-Testing">Boundary-Testing ⭐ NEW (AI safety boundary tests)</option>
                     </select>
                 </div>
                 
