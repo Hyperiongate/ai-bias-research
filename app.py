@@ -1,26 +1,25 @@
 """
 AI Bias Research Tool - Production Version
 Created: December 13, 2024
-Last Updated: December 18, 2024 - 13 AI SYSTEMS EXPANSION
+Last Updated: December 18, 2024 - 10 AI SYSTEMS (CLEANED)
 
 CHANGE LOG:
-- December 18, 2024: 13 AI SYSTEMS EXPANSION
+- December 18, 2024: 10 AI SYSTEMS - FINAL CLEAN VERSION
   * REMOVED: OpenAI GPT-3.5-Turbo (consolidated to GPT-4 only)
-  * ADDED: Perplexity Sonar-Large (USA) ⭐ NEW
-  * ADDED: Alibaba Qwen Plus (China) ⭐ RESTORED
-  * ADDED: Reka Core (Singapore) ⭐ NEW
-  * ADDED: Inflection Pi (USA) ⭐ NEW
-  * ADDED: AI21 Jamba Mini (Israel) ⭐ NEW
-  * Total: 13 AI systems from 7 countries/regions
+  * REMOVED: Perplexity (payment issue)
+  * REMOVED: Qwen (passport requirement)
+  * REMOVED: Inflection (unauthorized access)
+  * KEPT: All 8 existing working systems
+  * KEPT: Reka (Singapore) - user has key
+  * KEPT: AI21 (Israel) - user has key
+  * Total: 10 AI systems from 6 countries/regions
   * Fixed /debug/test-all to use parallel execution (no more timeouts)
   * All existing functionality preserved
-  * Category support maintained
-  * Text analysis unchanged
 
 WORKING FEATURES:
-- Single question testing across 13 AI systems
+- Single question testing across 10 AI systems
 - Batch question submission (multiple questions at once)
-- Parallel execution (~5-10 seconds for all 13)
+- Parallel execution (~5-10 seconds for all 10)
 - Automatic text analysis metrics
 - Rating extraction from responses
 - CSV export of all test history
@@ -31,7 +30,7 @@ WORKING FEATURES:
 - Statistics tracking
 - Category support (16 categories)
 
-AI SYSTEMS (13 total):
+AI SYSTEMS (10 total):
 1. OpenAI GPT-4 (USA)
 2. Google Gemini-2.0-Flash-Exp (USA)
 3. Anthropic Claude-Sonnet-4 (USA)
@@ -40,20 +39,16 @@ AI SYSTEMS (13 total):
 6. Cohere Command-R+ (Canada)
 7. Meta Llama 3.3 70B via Groq (USA - Open Source)
 8. xAI Grok-3 (USA)
-9. Perplexity Sonar-Large (USA) ⭐ NEW
-10. Alibaba Qwen Plus (China) ⭐ NEW
-11. Reka Core (Singapore) ⭐ NEW
-12. Inflection Pi (USA) ⭐ NEW
-13. AI21 Jamba Mini (Israel) ⭐ NEW
+9. Reka Core (Singapore)
+10. AI21 Jamba Mini (Israel)
 
 Geographic Distribution:
-- USA: 6 systems
-- China: 2 systems
+- USA: 5 systems
+- China: 1 system
 - France: 1 system
 - Canada: 1 system
 - Singapore: 1 system
 - Israel: 1 system
-- Open Source: 1 system
 
 Author: Jim (Hyperiongate)
 """
@@ -76,7 +71,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 app = Flask(__name__)
 
 # ============================================================================
-# API CONFIGURATION
+# API CONFIGURATION - 10 SYSTEMS ONLY
 # ============================================================================
 
 # Configure API keys from environment variables
@@ -88,10 +83,7 @@ DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
 COHERE_API_KEY = os.environ.get('COHERE_API_KEY')
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 XAI_API_KEY = os.environ.get('XAI_API_KEY')
-PERPLEXITY_API_KEY = os.environ.get('PERPLEXITY_API_KEY')
-QWEN_API_KEY = os.environ.get('QWEN_API_KEY')
 REKA_API_KEY = os.environ.get('REKA_API_KEY')
-INFLECTION_API_KEY = os.environ.get('INFLECTION_API_KEY')
 AI21_API_KEY = os.environ.get('AI21_API_KEY')
 
 # Initialize OpenAI-compatible clients
@@ -99,8 +91,6 @@ openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 deepseek_client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com") if DEEPSEEK_API_KEY else None
 groq_client = OpenAI(api_key=GROQ_API_KEY, base_url="https://api.groq.com/openai/v1") if GROQ_API_KEY else None
 xai_client = OpenAI(api_key=XAI_API_KEY, base_url="https://api.x.ai/v1") if XAI_API_KEY else None
-perplexity_client = OpenAI(api_key=PERPLEXITY_API_KEY, base_url="https://api.perplexity.ai") if PERPLEXITY_API_KEY else None
-inflection_client = OpenAI(api_key=INFLECTION_API_KEY, base_url="https://api.inflection.ai/v1") if INFLECTION_API_KEY else None
 ai21_client = OpenAI(api_key=AI21_API_KEY, base_url="https://api.ai21.com/studio/v1") if AI21_API_KEY else None
 
 # ============================================================================
@@ -184,7 +174,7 @@ def init_db():
 init_db()
 
 # ============================================================================
-# AI QUERY FUNCTIONS - 13 SYSTEMS
+# AI QUERY FUNCTIONS - 10 SYSTEMS ONLY
 # ============================================================================
 
 def query_openai_gpt4(question):
@@ -527,95 +517,6 @@ def query_xai_grok(question):
     except Exception as e:
         return {'success': False, 'error': str(e), 'system': 'xAI', 'model': 'Grok-3'}
 
-def query_perplexity(question):
-    """Query Perplexity AI Sonar Large"""
-    if not perplexity_client:
-        return {'success': False, 'error': 'Perplexity API key not configured', 'system': 'Perplexity', 'model': 'Sonar-Large'}
-    
-    try:
-        start_time = time.time()
-        response = perplexity_client.chat.completions.create(
-            model="llama-3.1-sonar-large-128k-online",
-            messages=[
-                {"role": "system", "content": RATING_SYSTEM_PROMPT},
-                {"role": "user", "content": question}
-            ],
-            temperature=0.7,
-            max_tokens=500
-        )
-        response_time = time.time() - start_time
-        raw_response = response.choices[0].message.content
-        
-        return {
-            'success': True,
-            'system': 'Perplexity',
-            'model': 'Sonar-Large',
-            'raw_response': raw_response,
-            'response_time': response_time
-        }
-    except Exception as e:
-        return {'success': False, 'error': str(e), 'system': 'Perplexity', 'model': 'Sonar-Large'}
-
-def query_qwen(question):
-    """Query Alibaba Qwen Plus"""
-    if not QWEN_API_KEY:
-        return {'success': False, 'error': 'Qwen API key not configured', 'system': 'Alibaba', 'model': 'Qwen-Plus'}
-    
-    try:
-        start_time = time.time()
-        url = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
-        
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': f'Bearer {QWEN_API_KEY}'
-        }
-        
-        payload = {
-            'model': 'qwen-plus',
-            'input': {
-                'messages': [
-                    {'role': 'system', 'content': RATING_SYSTEM_PROMPT},
-                    {'role': 'user', 'content': question}
-                ]
-            },
-            'parameters': {
-                'temperature': 0.7,
-                'max_tokens': 500
-            }
-        }
-        
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
-        
-        if response.status_code == 200:
-            response_time = time.time() - start_time
-            data = response.json()
-            
-            if 'output' in data and 'text' in data['output']:
-                raw_response = data['output']['text']
-                
-                return {
-                    'success': True,
-                    'system': 'Alibaba',
-                    'model': 'Qwen-Plus',
-                    'raw_response': raw_response,
-                    'response_time': response_time
-                }
-            
-            return {'success': False, 'error': 'Unexpected response format', 'system': 'Alibaba', 'model': 'Qwen-Plus'}
-        else:
-            try:
-                error_data = response.json()
-                error_msg = error_data.get('message', f"HTTP {response.status_code}")
-            except:
-                error_msg = f"HTTP {response.status_code}: {response.text[:200]}"
-            
-            return {'success': False, 'error': error_msg, 'system': 'Alibaba', 'model': 'Qwen-Plus'}
-        
-    except requests.exceptions.Timeout:
-        return {'success': False, 'error': 'Request timed out', 'system': 'Alibaba', 'model': 'Qwen-Plus'}
-    except Exception as e:
-        return {'success': False, 'error': str(e), 'system': 'Alibaba', 'model': 'Qwen-Plus'}
-
 def query_reka(question):
     """Query Reka Core"""
     if not REKA_API_KEY:
@@ -671,35 +572,6 @@ def query_reka(question):
         return {'success': False, 'error': 'Request timed out', 'system': 'Reka', 'model': 'Core'}
     except Exception as e:
         return {'success': False, 'error': str(e), 'system': 'Reka', 'model': 'Core'}
-
-def query_inflection(question):
-    """Query Inflection Pi"""
-    if not inflection_client:
-        return {'success': False, 'error': 'Inflection API key not configured', 'system': 'Inflection', 'model': 'Pi'}
-    
-    try:
-        start_time = time.time()
-        response = inflection_client.chat.completions.create(
-            model="inflection-3-pi",
-            messages=[
-                {"role": "system", "content": RATING_SYSTEM_PROMPT},
-                {"role": "user", "content": question}
-            ],
-            temperature=0.7,
-            max_tokens=500
-        )
-        response_time = time.time() - start_time
-        raw_response = response.choices[0].message.content
-        
-        return {
-            'success': True,
-            'system': 'Inflection',
-            'model': 'Pi',
-            'raw_response': raw_response,
-            'response_time': response_time
-        }
-    except Exception as e:
-        return {'success': False, 'error': str(e), 'system': 'Inflection', 'model': 'Pi'}
 
 def query_ai21(question):
     """Query AI21 Jamba Mini"""
@@ -837,7 +709,7 @@ def index():
 
 @app.route('/query', methods=['POST'])
 def query_ais():
-    """Single question query with parallel execution across 13 AI systems"""
+    """Single question query with parallel execution across 10 AI systems"""
     data = request.json
     question = data.get('question', '').strip()
     category = data.get('category', None)
@@ -854,7 +726,7 @@ def query_ais():
     query_id = cursor.lastrowid
     db.commit()
     
-    # All AI query functions - 13 SYSTEMS
+    # All AI query functions - 10 SYSTEMS ONLY
     ai_functions = [
         query_openai_gpt4,
         query_google_gemini,
@@ -864,16 +736,13 @@ def query_ais():
         query_cohere_command,
         query_groq_llama,
         query_xai_grok,
-        query_perplexity,
-        query_qwen,
         query_reka,
-        query_inflection,
         query_ai21
     ]
     
     # Execute all AI queries in parallel
     results = []
-    with ThreadPoolExecutor(max_workers=15) as executor:
+    with ThreadPoolExecutor(max_workers=12) as executor:
         future_to_func = {executor.submit(func, question): func for func in ai_functions}
         
         for future in as_completed(future_to_func):
@@ -1056,24 +925,21 @@ def health_check():
         COHERE_API_KEY is not None,
         GROQ_API_KEY is not None,
         XAI_API_KEY is not None,
-        PERPLEXITY_API_KEY is not None,
-        QWEN_API_KEY is not None,
         REKA_API_KEY is not None,
-        INFLECTION_API_KEY is not None,
         AI21_API_KEY is not None
     ])
     
     return jsonify({
         'status': 'healthy',
         'ai_systems_configured': configured_systems,
-        'total_ai_systems': 13,
+        'total_ai_systems': 10,
         'database': 'connected',
         'parallel_execution': 'enabled'
     })
 
 @app.route('/debug/test-all')
 def test_all():
-    """Test all 13 AI systems with parallel execution (FIXED - no more timeouts)"""
+    """Test all 10 AI systems with parallel execution (FIXED - no more timeouts)"""
     question = "Rate how good pizza is on a scale of 1-10."
     
     ai_functions = [
@@ -1085,17 +951,14 @@ def test_all():
         ('Cohere', query_cohere_command),
         ('Groq Llama', query_groq_llama),
         ('xAI Grok', query_xai_grok),
-        ('Perplexity', query_perplexity),
-        ('Alibaba Qwen', query_qwen),
         ('Reka', query_reka),
-        ('Inflection', query_inflection),
         ('AI21', query_ai21),
     ]
     
     results = {}
     
     # Run in parallel to avoid timeout
-    with ThreadPoolExecutor(max_workers=15) as executor:
+    with ThreadPoolExecutor(max_workers=12) as executor:
         future_to_name = {executor.submit(func, question): name for name, func in ai_functions}
         
         for future in as_completed(future_to_name):
@@ -1136,16 +999,15 @@ def batch_submit():
         query_id = cursor.lastrowid
         db.commit()
         
-        # Query all 13 AIs
+        # Query all 10 AIs
         ai_functions = [
             query_openai_gpt4, query_google_gemini, query_anthropic_claude,
             query_mistral_large, query_deepseek_chat, query_cohere_command,
-            query_groq_llama, query_xai_grok, query_perplexity,
-            query_qwen, query_reka, query_inflection, query_ai21
+            query_groq_llama, query_xai_grok, query_reka, query_ai21
         ]
         
         question_results = []
-        with ThreadPoolExecutor(max_workers=15) as executor:
+        with ThreadPoolExecutor(max_workers=12) as executor:
             future_to_func = {executor.submit(func, question_text): func for func in ai_functions}
             
             for future in as_completed(future_to_func):
