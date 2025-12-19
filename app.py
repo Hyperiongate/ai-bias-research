@@ -232,7 +232,7 @@ def query_google_gemini(question):
                 candidate = data['candidates'][0]
                 if 'content' in candidate and 'parts' in candidate['content']:
                     raw_response = candidate['content']['parts'][0].get('text', '')
-                    raw_response = truncate_response(raw_response)  # Limit response size
+                    raw_response = truncate_response(raw_response)
                     
                     return {
                         'success': True,
@@ -345,7 +345,7 @@ def query_mistral_large(question):
             
             if 'choices' in data and len(data['choices']) > 0:
                 raw_response = data['choices'][0].get('message', {}).get('content', '')
-                    raw_response = truncate_response(raw_response)
+                raw_response = truncate_response(raw_response)
                 
                 return {
                     'success': True,
