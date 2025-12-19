@@ -1,16 +1,16 @@
 """
 AI Bias Research Tool - Production Version
 Created: December 13, 2024
-Last Updated: December 18, 2024 - GOOGLE GEMINI FIXED
+Last Updated: December 18, 2024 - GOOGLE GEMINI MODEL CHANGE ONLY
 
 CHANGE LOG:
-- December 18, 2024 (v2): GOOGLE GEMINI QUOTA FIX
-  * FIXED: Changed gemini-2.0-flash-exp → gemini-1.5-flash (higher quota)
-  * FIXED: Changed v1beta → v1 API (stable)
-  * FIXED: Removed systemInstruction (not supported in v1 API)
-  * FIXED: Now prepends system prompt to user message instead
-  * Google Gemini now has 360+ RPM quota (was 10 RPM)
-  * All 8 systems verified working
+- December 18, 2024 (v3): REVERTED TO ORIGINAL CODE - SIMPLE MODEL CHANGE
+  * REVERTED: Back to original working Google Gemini code structure
+  * CHANGED: Only model name: gemini-2.0-flash-exp → gemini-2.0-flash
+  * REASON: gemini-2.0-flash-exp has 10 RPM quota, gemini-2.0-flash should have higher
+  * KEPT: v1beta API (works)
+  * KEPT: systemInstruction structure (works)
+  * NO OTHER CHANGES - original working code restored
 
 - December 18, 2024 (v1): 8 AI SYSTEMS - INITIAL VERSION
   * REMOVED: Reka (API not working)
@@ -192,17 +192,14 @@ def query_google_gemini(question):
     
     try:
         start_time = time.time()
-        model_name = 'gemini-1.5-flash'
-        api_version = 'v1'
+        model_name = 'gemini-2.0-flash'
+        api_version = 'v1beta'
         url = f"https://generativelanguage.googleapis.com/{api_version}/models/{model_name}:generateContent"
         
         headers = {'Content-Type': 'application/json'}
-        
-        # v1 API doesn't support systemInstruction, so prepend to user message
-        full_prompt = f"{RATING_SYSTEM_PROMPT}\n\n{question}"
-        
         payload = {
-            'contents': [{'parts': [{'text': full_prompt}]}],
+            'systemInstruction': {'parts': [{'text': RATING_SYSTEM_PROMPT}]},
+            'contents': [{'parts': [{'text': question}]}],
             'generationConfig': {'temperature': 0.7, 'maxOutputTokens': 500}
         }
         
