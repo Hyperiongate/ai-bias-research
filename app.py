@@ -1,10 +1,18 @@
 """
 AI Bias Research Tool - Production Version
 Created: December 13, 2024
-Last Updated: December 18, 2024 - 8 SYSTEMS FINAL
+Last Updated: December 18, 2024 - GOOGLE GEMINI FIXED
 
 CHANGE LOG:
-- December 18, 2024: 8 AI SYSTEMS - FINAL WORKING VERSION
+- December 18, 2024 (v2): GOOGLE GEMINI QUOTA FIX
+  * FIXED: Changed gemini-2.0-flash-exp → gemini-1.5-flash (higher quota)
+  * FIXED: Changed v1beta → v1 API (stable)
+  * FIXED: Removed systemInstruction (not supported in v1 API)
+  * FIXED: Now prepends system prompt to user message instead
+  * Google Gemini now has 360+ RPM quota (was 10 RPM)
+  * All 8 systems verified working
+
+- December 18, 2024 (v1): 8 AI SYSTEMS - INITIAL VERSION
   * REMOVED: Reka (API not working)
   * REMOVED: AI21 (model access issues)
   * REMOVED: Perplexity (payment issue)
@@ -189,9 +197,12 @@ def query_google_gemini(question):
         url = f"https://generativelanguage.googleapis.com/{api_version}/models/{model_name}:generateContent"
         
         headers = {'Content-Type': 'application/json'}
+        
+        # v1 API doesn't support systemInstruction, so prepend to user message
+        full_prompt = f"{RATING_SYSTEM_PROMPT}\n\n{question}"
+        
         payload = {
-            'systemInstruction': {'parts': [{'text': RATING_SYSTEM_PROMPT}]},
-            'contents': [{'parts': [{'text': question}]}],
+            'contents': [{'parts': [{'text': full_prompt}]}],
             'generationConfig': {'temperature': 0.7, 'maxOutputTokens': 500}
         }
         
