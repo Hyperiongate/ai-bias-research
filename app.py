@@ -184,8 +184,8 @@ def query_google_gemini(question):
     
     try:
         start_time = time.time()
-        model_name = 'gemini-2.0-flash-exp'
-        api_version = 'v1beta'
+        model_name = 'gemini-1.5-flash'
+        api_version = 'v1'
         url = f"https://generativelanguage.googleapis.com/{api_version}/models/{model_name}:generateContent"
         
         headers = {'Content-Type': 'application/json'}
