@@ -1,9 +1,14 @@
 """
 AI Bias Research Tool - Production Version
 Created: December 13, 2024
-Last Updated: December 18, 2024 - 8 SYSTEMS FINAL
+Last Updated: December 19, 2024 - Removed Google Gemini due to quota limits
 
 CHANGE LOG:
+- December 19, 2024: 7 AI SYSTEMS - REMOVED GOOGLE GEMINI
+  * REMOVED: Google Gemini (quota exceeded - exceeding rate limits)
+  * Total: 7 working AI systems from 4 countries/regions
+  * All existing functionality preserved
+  * Ready for 1,250-question production run
 - December 18, 2024: 8 AI SYSTEMS - FINAL WORKING VERSION
   * REMOVED: Reka (API not working)
   * REMOVED: AI21 (model access issues)
@@ -15,18 +20,20 @@ CHANGE LOG:
   * All existing functionality preserved
   * Ready for 1,050-question production run
 
-WORKING AI SYSTEMS (8 total):
+WORKING AI SYSTEMS (7 total):
 1. OpenAI GPT-4 (USA)
-2. Google Gemini-2.0-Flash-Exp (USA)
-3. Anthropic Claude-Sonnet-4 (USA) - add credits when ready
-4. Mistral Large-2 (France)
-5. DeepSeek Chat-V3 (China)
-6. Cohere Command-R+ (Canada)
-7. Meta Llama 3.3 70B via Groq (USA - Open Source)
-8. xAI Grok-3 (USA)
+2. Anthropic Claude-Sonnet-4 (USA) - add credits when ready
+3. Mistral Large-2 (France)
+4. DeepSeek Chat-V3 (China)
+5. Cohere Command-R+ (Canada)
+6. Meta Llama 3.3 70B via Groq (USA - Open Source)
+7. xAI Grok-3 (USA) - may need credits
+
+TEMPORARILY DISABLED:
+- Google Gemini-2.0-Flash (USA) - Quota exceeded, can re-enable when quota increases
 
 Geographic Distribution:
-- USA: 5 systems
+- USA: 4 systems (including 1 open source)
 - China: 1 system
 - France: 1 system
 - Canada: 1 system
@@ -52,11 +59,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 app = Flask(__name__)
 
 # ============================================================================
-# API CONFIGURATION - 8 SYSTEMS ONLY
+# API CONFIGURATION - 7 SYSTEMS (GOOGLE GEMINI DISABLED)
 # ============================================================================
 
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
-GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
+GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')  # Keeping for future re-enable
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
 MISTRAL_API_KEY = os.environ.get('MISTRAL_API_KEY')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
@@ -145,7 +152,7 @@ def init_db():
 init_db()
 
 # ============================================================================
-# AI QUERY FUNCTIONS - 8 SYSTEMS ONLY
+# AI QUERY FUNCTIONS - 7 SYSTEMS (GOOGLE GEMINI COMMENTED OUT)
 # ============================================================================
 
 def query_openai_gpt4(question):
@@ -177,8 +184,11 @@ def query_openai_gpt4(question):
     except Exception as e:
         return {'success': False, 'error': str(e), 'system': 'OpenAI', 'model': 'GPT-4'}
 
+# GOOGLE GEMINI TEMPORARILY DISABLED DUE TO QUOTA LIMITS
+# Uncomment when quota increases
+"""
 def query_google_gemini(question):
-    """Query Google Gemini 2.0 Flash Experimental"""
+    '''Query Google Gemini 2.0 Flash'''
     if not GOOGLE_API_KEY:
         return {'success': False, 'error': 'Google API key not configured', 'system': 'Google', 'model': 'Gemini-2.0-Flash'}
     
@@ -228,6 +238,7 @@ def query_google_gemini(question):
         return {'success': False, 'error': 'Request timed out after 30 seconds', 'system': 'Google', 'model': 'Gemini-2.0-Flash'}
     except Exception as e:
         return {'success': False, 'error': str(e), 'system': 'Google', 'model': 'Gemini-2.0-Flash'}
+"""
 
 def query_anthropic_claude(question):
     """Query Anthropic Claude Sonnet 4"""
@@ -394,7 +405,7 @@ def query_cohere_command(question):
             'max_tokens': 500
         }
         
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        response = requests.post(url, headers=headers, json=payload, timeout=60)
         
         if response.status_code == 200:
             response_time = time.time() - start_time
@@ -593,7 +604,7 @@ def index():
 
 @app.route('/query', methods=['POST'])
 def query_ais():
-    """Single question query with parallel execution across 8 AI systems"""
+    """Single question query with parallel execution across 7 AI systems (Google Gemini disabled)"""
     data = request.json
     question = data.get('question', '').strip()
     category = data.get('category', None)
@@ -609,10 +620,10 @@ def query_ais():
     query_id = cursor.lastrowid
     db.commit()
     
-    # All AI query functions - 8 SYSTEMS ONLY
+    # All AI query functions - 7 SYSTEMS (Google Gemini removed)
     ai_functions = [
         query_openai_gpt4,
-        query_google_gemini,
+        # query_google_gemini,  # DISABLED - Quota exceeded
         query_anthropic_claude,
         query_mistral_large,
         query_deepseek_chat,
@@ -622,7 +633,7 @@ def query_ais():
     ]
     
     results = []
-    with ThreadPoolExecutor(max_workers=8) as executor:
+    with ThreadPoolExecutor(max_workers=7) as executor:
         future_to_func = {executor.submit(func, question): func for func in ai_functions}
         
         for future in as_completed(future_to_func):
@@ -795,7 +806,7 @@ def health_check():
     """Health check endpoint"""
     configured_systems = sum([
         OPENAI_API_KEY is not None,
-        GOOGLE_API_KEY is not None,
+        # GOOGLE_API_KEY is not None,  # Disabled
         ANTHROPIC_API_KEY is not None,
         MISTRAL_API_KEY is not None,
         DEEPSEEK_API_KEY is not None,
@@ -807,19 +818,20 @@ def health_check():
     return jsonify({
         'status': 'healthy',
         'ai_systems_configured': configured_systems,
-        'total_ai_systems': 8,
+        'total_ai_systems': 7,
+        'disabled_systems': ['Google Gemini (quota exceeded)'],
         'database': 'connected',
         'parallel_execution': 'enabled'
     })
 
 @app.route('/debug/test-all')
 def test_all():
-    """Test all 8 AI systems with parallel execution"""
+    """Test all 7 AI systems with parallel execution (Google Gemini disabled)"""
     question = "Rate how good pizza is on a scale of 1-10."
     
     ai_functions = [
         ('OpenAI GPT-4', query_openai_gpt4),
-        ('Google Gemini', query_google_gemini),
+        # ('Google Gemini', query_google_gemini),  # DISABLED
         ('Anthropic Claude', query_anthropic_claude),
         ('Mistral', query_mistral_large),
         ('DeepSeek', query_deepseek_chat),
@@ -830,7 +842,7 @@ def test_all():
     
     results = {}
     
-    with ThreadPoolExecutor(max_workers=8) as executor:
+    with ThreadPoolExecutor(max_workers=7) as executor:
         future_to_name = {executor.submit(func, question): name for name, func in ai_functions}
         
         for future in as_completed(future_to_name):
@@ -871,15 +883,17 @@ def batch_submit():
         query_id = cursor.lastrowid
         db.commit()
         
-        # Query all 8 AIs
+        # Query all 7 AIs (Google Gemini removed)
         ai_functions = [
-            query_openai_gpt4, query_google_gemini, query_anthropic_claude,
+            query_openai_gpt4, 
+            # query_google_gemini,  # DISABLED
+            query_anthropic_claude,
             query_mistral_large, query_deepseek_chat, query_cohere_command,
             query_groq_llama, query_xai_grok
         ]
         
         question_results = []
-        with ThreadPoolExecutor(max_workers=8) as executor:
+        with ThreadPoolExecutor(max_workers=7) as executor:
             future_to_func = {executor.submit(func, question_text): func for func in ai_functions}
             
             for future in as_completed(future_to_func):
