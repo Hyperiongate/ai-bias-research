@@ -1,9 +1,16 @@
 """
 AI Bias Research Tool - Production Version
 Created: December 13, 2024
-Last Updated: December 18, 2024 - COHERE TIMEOUT INCREASED
+Last Updated: December 18, 2024 - MEMORY FIX
 
 CHANGE LOG:
+- December 18, 2024 (v5): MEMORY EXHAUSTION FIX ⚠️ CRITICAL
+  * REDUCED: ThreadPoolExecutor max_workers from 10 → 4
+  * REASON: Server running out of memory (512MB limit on free tier)
+  * SYMPTOM: "Worker was sent SIGKILL! Perhaps out of memory?"
+  * IMPACT: Slightly slower (still parallel, just 4 at a time instead of 8)
+  * RESULT: Should eliminate 20% failure rate from memory crashes
+
 - December 18, 2024 (v4): COHERE TIMEOUT FIX
   * INCREASED: Cohere timeout from 30s → 60s (handles slower Canadian responses)
   * REASON: Cohere times out 20% of the time with 30s timeout
@@ -635,7 +642,7 @@ def query_ais():
     ]
     
     results = []
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    with ThreadPoolExecutor(max_workers=4) as executor:
         future_to_func = {executor.submit(func, question): func for func in ai_functions}
         
         for future in as_completed(future_to_func):
@@ -843,7 +850,7 @@ def test_all():
     
     results = {}
     
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    with ThreadPoolExecutor(max_workers=4) as executor:
         future_to_name = {executor.submit(func, question): name for name, func in ai_functions}
         
         for future in as_completed(future_to_name):
@@ -892,7 +899,7 @@ def batch_submit():
         ]
         
         question_results = []
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        with ThreadPoolExecutor(max_workers=4) as executor:
             future_to_func = {executor.submit(func, question_text): func for func in ai_functions}
             
             for future in as_completed(future_to_func):
