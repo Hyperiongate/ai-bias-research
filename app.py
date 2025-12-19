@@ -1,9 +1,14 @@
 """
 AI Bias Research Tool - Production Version
 Created: December 13, 2024
-Last Updated: December 18, 2024 - GOOGLE GEMINI MODEL CHANGE ONLY
+Last Updated: December 18, 2024 - COHERE TIMEOUT INCREASED
 
 CHANGE LOG:
+- December 18, 2024 (v4): COHERE TIMEOUT FIX
+  * INCREASED: Cohere timeout from 30s → 60s (handles slower Canadian responses)
+  * REASON: Cohere times out 20% of the time with 30s timeout
+  * All other AIs remain at 30s timeout (they're fast enough)
+
 - December 18, 2024 (v3): REVERTED TO ORIGINAL CODE - SIMPLE MODEL CHANGE
   * REVERTED: Back to original working Google Gemini code structure
   * CHANGED: Only model name: gemini-2.0-flash-exp → gemini-2.0-flash
@@ -402,7 +407,7 @@ def query_cohere_command(question):
             'max_tokens': 500
         }
         
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        response = requests.post(url, headers=headers, json=payload, timeout=60)
         
         if response.status_code == 200:
             response_time = time.time() - start_time
@@ -434,7 +439,7 @@ def query_cohere_command(question):
             return {'success': False, 'error': error_msg, 'system': 'Cohere', 'model': 'Command-R+'}
         
     except requests.exceptions.Timeout:
-        return {'success': False, 'error': 'Request timed out', 'system': 'Cohere', 'model': 'Command-R+'}
+        return {'success': False, 'error': 'Request timed out after 60 seconds', 'system': 'Cohere', 'model': 'Command-R+'}
     except Exception as e:
         return {'success': False, 'error': str(e), 'system': 'Cohere', 'model': 'Command-R+'}
 
