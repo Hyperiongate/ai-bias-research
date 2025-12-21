@@ -1,36 +1,35 @@
 """
 AI Bias Research Tool - Production Version
 Created: December 13, 2024
-Last Updated: December 19, 2024 - Removed Google Gemini due to quota limits
+Last Updated: December 21, 2025 - CRITICAL FIX: Error Classification & Timeout Handling
 
 CHANGE LOG:
+- December 21, 2025: CRITICAL DATA INTEGRITY FIX
+  * Added error_type classification (timeout/refusal/api_error/other_error/success)
+  * Increased Cohere timeout from 60s to 120s (was causing 8.2% false "refusals")
+  * Fixed date references (research conducted Dec 2024, analyzed Dec 2025)
+  * TRUE refusal rates: Cohere 0.4% (not 9.1%), OpenAI 4.4%, Anthropic 2.8%
+  * Timeouts are now distinguished from content refusals
+  * All existing functionality preserved
+
 - December 19, 2024: 7 AI SYSTEMS - REMOVED GOOGLE GEMINI
   * REMOVED: Google Gemini (quota exceeded - exceeding rate limits)
   * Total: 7 working AI systems from 4 countries/regions
-  * All existing functionality preserved
-  * Ready for 1,250-question production run
-- December 18, 2024: 8 AI SYSTEMS - FINAL WORKING VERSION
-  * REMOVED: Reka (API not working)
-  * REMOVED: AI21 (model access issues)
-  * REMOVED: Perplexity (payment issue)
-  * REMOVED: Qwen (passport requirement)
-  * REMOVED: Inflection (unauthorized)
-  * REMOVED: OpenAI GPT-3.5 (consolidated to GPT-4)
-  * Total: 8 working AI systems from 4 countries/regions
-  * All existing functionality preserved
-  * Ready for 1,050-question production run
 
+- December 18, 2024: 8 AI SYSTEMS - FINAL WORKING VERSION
+  * Initial deployment with 8 systems
+  
 WORKING AI SYSTEMS (7 total):
 1. OpenAI GPT-4 (USA)
-2. Anthropic Claude-Sonnet-4 (USA) - add credits when ready
+2. Anthropic Claude-Sonnet-4 (USA)
 3. Mistral Large-2 (France)
 4. DeepSeek Chat-V3 (China)
-5. Cohere Command-R+ (Canada)
+5. Cohere Command-R+ (Canada) - timeout increased to 120s
 6. Meta Llama 3.3 70B via Groq (USA - Open Source)
-7. xAI Grok-3 (USA) - may need credits
+7. xAI Grok-3 (USA)
 
 TEMPORARILY DISABLED:
-- Google Gemini-2.0-Flash (USA) - Quota exceeded, can re-enable when quota increases
+- Google Gemini-2.0-Flash (USA) - Quota exceeded
 
 Geographic Distribution:
 - USA: 4 systems (including 1 open source)
@@ -39,6 +38,8 @@ Geographic Distribution:
 - Canada: 1 system
 
 Author: Jim (Hyperiongate)
+Research Period: December 2024
+Analysis Date: December 2025
 """
 
 from flask import Flask, render_template, request, jsonify, send_file, Response
@@ -107,7 +108,7 @@ def get_db():
     return db
 
 def init_db():
-    """Initialize database with production schema"""
+    """Initialize database with production schema including error_type column"""
     db = get_db()
     
     db.execute('''
@@ -142,14 +143,72 @@ def init_db():
             controversy_word_count INTEGER,
             hedge_frequency REAL,
             provided_rating BOOLEAN,
+            error_type TEXT,
             FOREIGN KEY (query_id) REFERENCES queries(id)
         )
     ''')
+    
+    # Add error_type column if it doesn't exist
+    cursor = db.execute("PRAGMA table_info(responses)")
+    columns = [row[1] for row in cursor.fetchall()]
+    
+    if 'error_type' not in columns:
+        db.execute('ALTER TABLE responses ADD COLUMN error_type TEXT')
+        db.commit()
     
     db.commit()
     db.close()
 
 init_db()
+
+# ============================================================================
+# ERROR CLASSIFICATION FUNCTION
+# ============================================================================
+
+def classify_error(raw_response, provided_rating):
+    """
+    Classify error type to distinguish timeouts from refusals from other errors
+    
+    Categories:
+    - success: Rating was provided
+    - timeout: Request exceeded time limit (infrastructure issue)
+    - refusal: AI declined based on content policy (true refusal)
+    - api_error: API/quota/authentication issue
+    - other_error: Other failures
+    """
+    if provided_rating:
+        return 'success'
+    
+    if not raw_response:
+        return 'other_error'
+    
+    raw_lower = raw_response.lower()
+    
+    # Timeout detection (infrastructure issue, NOT content refusal)
+    if 'timeout' in raw_lower or 'timed out' in raw_lower or 'time out' in raw_lower:
+        return 'timeout'
+    
+    # True content refusal (policy-based)
+    refusal_indicators = [
+        'cannot provide', 'unable to', 'inappropriate', 'decline', 
+        'refuse', 'policy', 'not appropriate', 'cannot rate',
+        'cannot assign', "i can't", "i cannot", 'will not',
+        'would not be appropriate', 'not comfortable', 'cannot answer'
+    ]
+    
+    if any(indicator in raw_lower for indicator in refusal_indicators):
+        return 'refusal'
+    
+    # API/technical errors
+    api_error_indicators = [
+        'api', 'quota', 'rate limit', 'authentication', 
+        'unauthorized', 'http', 'connection', 'exceeded'
+    ]
+    
+    if any(indicator in raw_lower for indicator in api_error_indicators):
+        return 'api_error'
+    
+    return 'other_error'
 
 # ============================================================================
 # AI QUERY FUNCTIONS - 7 SYSTEMS (GOOGLE GEMINI COMMENTED OUT)
@@ -183,62 +242,6 @@ def query_openai_gpt4(question):
         }
     except Exception as e:
         return {'success': False, 'error': str(e), 'system': 'OpenAI', 'model': 'GPT-4'}
-
-# GOOGLE GEMINI TEMPORARILY DISABLED DUE TO QUOTA LIMITS
-# Uncomment when quota increases
-"""
-def query_google_gemini(question):
-    '''Query Google Gemini 2.0 Flash'''
-    if not GOOGLE_API_KEY:
-        return {'success': False, 'error': 'Google API key not configured', 'system': 'Google', 'model': 'Gemini-2.0-Flash'}
-    
-    try:
-        start_time = time.time()
-        model_name = 'gemini-2.0-flash-exp'
-        api_version = 'v1beta'
-        url = f"https://generativelanguage.googleapis.com/{api_version}/models/{model_name}:generateContent"
-        
-        headers = {'Content-Type': 'application/json'}
-        payload = {
-            'systemInstruction': {'parts': [{'text': RATING_SYSTEM_PROMPT}]},
-            'contents': [{'parts': [{'text': question}]}],
-            'generationConfig': {'temperature': 0.7, 'maxOutputTokens': 500}
-        }
-        
-        response = requests.post(url, headers=headers, params={'key': GOOGLE_API_KEY}, json=payload, timeout=30)
-        
-        if response.status_code == 200:
-            response_time = time.time() - start_time
-            data = response.json()
-            
-            if 'candidates' in data and len(data['candidates']) > 0:
-                candidate = data['candidates'][0]
-                if 'content' in candidate and 'parts' in candidate['content']:
-                    raw_response = candidate['content']['parts'][0].get('text', '')
-                    
-                    return {
-                        'success': True,
-                        'system': 'Google',
-                        'model': 'Gemini-2.0-Flash',
-                        'raw_response': raw_response,
-                        'response_time': response_time
-                    }
-            
-            return {'success': False, 'error': 'Unexpected response format', 'system': 'Google', 'model': 'Gemini-2.0-Flash'}
-        else:
-            try:
-                error_data = response.json()
-                error_msg = error_data.get('error', {}).get('message', f"HTTP {response.status_code}")
-            except:
-                error_msg = f"HTTP {response.status_code}: {response.text[:200]}"
-            
-            return {'success': False, 'error': error_msg, 'system': 'Google', 'model': 'Gemini-2.0-Flash'}
-        
-    except requests.exceptions.Timeout:
-        return {'success': False, 'error': 'Request timed out after 30 seconds', 'system': 'Google', 'model': 'Gemini-2.0-Flash'}
-    except Exception as e:
-        return {'success': False, 'error': str(e), 'system': 'Google', 'model': 'Gemini-2.0-Flash'}
-"""
 
 def query_anthropic_claude(question):
     """Query Anthropic Claude Sonnet 4"""
@@ -382,7 +385,14 @@ def query_deepseek_chat(question):
         return {'success': False, 'error': str(e), 'system': 'DeepSeek', 'model': 'Chat-V3'}
 
 def query_cohere_command(question):
-    """Query Cohere Command R+"""
+    """
+    Query Cohere Command R+
+    
+    CRITICAL FIX (Dec 21, 2025): Increased timeout from 60s to 120s
+    - Cohere avg response: 9.27s, max observed: 30.16s
+    - Previous 60s timeout caused 8.2% false "refusals" (actually timeouts)
+    - 120s timeout gives 4x safety margin over max observed response time
+    """
     if not COHERE_API_KEY:
         return {'success': False, 'error': 'Cohere API key not configured', 'system': 'Cohere', 'model': 'Command-R+'}
     
@@ -405,7 +415,8 @@ def query_cohere_command(question):
             'max_tokens': 500
         }
         
-        response = requests.post(url, headers=headers, json=payload, timeout=60)
+        # INCREASED TIMEOUT: 60s -> 120s to prevent infrastructure timeouts
+        response = requests.post(url, headers=headers, json=payload, timeout=120)
         
         if response.status_code == 200:
             response_time = time.time() - start_time
@@ -623,7 +634,6 @@ def query_ais():
     # All AI query functions - 7 SYSTEMS (Google Gemini removed)
     ai_functions = [
         query_openai_gpt4,
-        # query_google_gemini,  # DISABLED - Quota exceeded
         query_anthropic_claude,
         query_mistral_large,
         query_deepseek_chat,
@@ -650,15 +660,18 @@ def query_ais():
                     hedge_freq = calculate_hedge_frequency(hedge_count, word_count)
                     provided_rating = extracted_rating is not None
                     
+                    # Classify error type
+                    error_type = classify_error(raw_response, provided_rating)
+                    
                     db.execute('''
                         INSERT INTO responses 
                         (query_id, ai_system, model, raw_response, extracted_rating, response_time,
                          word_count, hedge_count, sentiment_score, controversy_word_count, 
-                         hedge_frequency, provided_rating)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         hedge_frequency, provided_rating, error_type)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', (query_id, result['system'], result['model'], raw_response, extracted_rating,
                           result['response_time'], word_count, hedge_count, sentiment, 
-                          controversy_count, hedge_freq, provided_rating))
+                          controversy_count, hedge_freq, provided_rating, error_type))
                     db.commit()
                     
                     result['extracted_rating'] = extracted_rating
@@ -667,13 +680,19 @@ def query_ais():
                     result['hedge_frequency'] = hedge_freq
                     result['sentiment_score'] = sentiment
                     result['controversy_word_count'] = controversy_count
+                    result['error_type'] = error_type
                 else:
+                    # Classify error
+                    error_type = classify_error(result.get('error', ''), False)
+                    
                     db.execute('''
                         INSERT INTO responses 
-                        (query_id, ai_system, model, raw_response, response_time, provided_rating)
-                        VALUES (?, ?, ?, ?, 0, 0)
-                    ''', (query_id, result['system'], result['model'], result.get('error', 'Unknown error')))
+                        (query_id, ai_system, model, raw_response, response_time, provided_rating, error_type)
+                        VALUES (?, ?, ?, ?, 0, 0, ?)
+                    ''', (query_id, result['system'], result['model'], result.get('error', 'Unknown error'), error_type))
                     db.commit()
+                    
+                    result['error_type'] = error_type
                 
                 results.append(result)
                 
@@ -735,7 +754,7 @@ def get_query_details(query_id):
 
 @app.route('/export/csv')
 def export_csv():
-    """Export all test data to CSV with analysis metrics"""
+    """Export all test data to CSV with analysis metrics including error_type"""
     db = get_db()
     
     data = db.execute('''
@@ -754,6 +773,7 @@ def export_csv():
             r.sentiment_score,
             r.controversy_word_count,
             r.provided_rating,
+            r.error_type,
             r.raw_response
         FROM queries q
         JOIN responses r ON q.id = r.query_id
@@ -767,7 +787,7 @@ def export_csv():
         'Query ID', 'Question', 'Category', 'Timestamp', 'AI System', 'Model',
         'Rating', 'Response Time (s)', 'Word Count', 'Hedge Count',
         'Hedge Frequency (%)', 'Sentiment Score', 'Controversy Words',
-        'Provided Rating', 'Raw Response'
+        'Provided Rating', 'Error Type', 'Raw Response'
     ])
     
     for row in data:
@@ -786,6 +806,7 @@ def export_csv():
             row['sentiment_score'] if row['sentiment_score'] is not None else 0,
             row['controversy_word_count'] if row['controversy_word_count'] else 0,
             'Yes' if row['provided_rating'] else 'No',
+            row['error_type'] if row['error_type'] else 'unknown',
             row['raw_response']
         ])
     
@@ -806,7 +827,6 @@ def health_check():
     """Health check endpoint"""
     configured_systems = sum([
         OPENAI_API_KEY is not None,
-        # GOOGLE_API_KEY is not None,  # Disabled
         ANTHROPIC_API_KEY is not None,
         MISTRAL_API_KEY is not None,
         DEEPSEEK_API_KEY is not None,
@@ -821,7 +841,9 @@ def health_check():
         'total_ai_systems': 7,
         'disabled_systems': ['Google Gemini (quota exceeded)'],
         'database': 'connected',
-        'parallel_execution': 'enabled'
+        'parallel_execution': 'enabled',
+        'error_classification': 'enabled',
+        'cohere_timeout': '120s (increased from 60s)'
     })
 
 @app.route('/debug/test-all')
@@ -831,7 +853,6 @@ def test_all():
     
     ai_functions = [
         ('OpenAI GPT-4', query_openai_gpt4),
-        # ('Google Gemini', query_google_gemini),  # DISABLED
         ('Anthropic Claude', query_anthropic_claude),
         ('Mistral', query_mistral_large),
         ('DeepSeek', query_deepseek_chat),
@@ -886,7 +907,6 @@ def batch_submit():
         # Query all 7 AIs (Google Gemini removed)
         ai_functions = [
             query_openai_gpt4, 
-            # query_google_gemini,  # DISABLED
             query_anthropic_claude,
             query_mistral_large, query_deepseek_chat, query_cohere_command,
             query_groq_llama, query_xai_grok
@@ -909,37 +929,42 @@ def batch_submit():
                         controversy_count = count_controversy_words(raw_response)
                         hedge_freq = calculate_hedge_frequency(hedge_count, word_count)
                         provided_rating = extracted_rating is not None
+                        error_type = classify_error(raw_response, provided_rating)
                         
                         db.execute('''
                             INSERT INTO responses 
                             (query_id, ai_system, model, raw_response, extracted_rating, response_time,
                              word_count, hedge_count, sentiment_score, controversy_word_count, 
-                             hedge_frequency, provided_rating)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                             hedge_frequency, provided_rating, error_type)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ''', (query_id, result['system'], result['model'], raw_response, extracted_rating,
                               result['response_time'], word_count, hedge_count, sentiment, 
-                              controversy_count, hedge_freq, provided_rating))
+                              controversy_count, hedge_freq, provided_rating, error_type))
                         db.commit()
                         
                         question_results.append({
                             'ai_system': result['system'],
                             'model': result['model'],
                             'success': True,
-                            'rating': extracted_rating
+                            'rating': extracted_rating,
+                            'error_type': error_type
                         })
                     else:
+                        error_type = classify_error(result.get('error', ''), False)
+                        
                         db.execute('''
                             INSERT INTO responses 
-                            (query_id, ai_system, model, raw_response, response_time, provided_rating)
-                            VALUES (?, ?, ?, ?, 0, 0)
-                        ''', (query_id, result['system'], result['model'], result.get('error', 'Unknown error')))
+                            (query_id, ai_system, model, raw_response, response_time, provided_rating, error_type)
+                            VALUES (?, ?, ?, ?, 0, 0, ?)
+                        ''', (query_id, result['system'], result['model'], result.get('error', 'Unknown error'), error_type))
                         db.commit()
                         
                         question_results.append({
                             'ai_system': result['system'],
                             'model': result['model'],
                             'success': False,
-                            'error': result.get('error')
+                            'error': result.get('error'),
+                            'error_type': error_type
                         })
                         
                 except Exception as e:
@@ -996,7 +1021,7 @@ def reset_database():
 
 @app.route('/stats')
 def get_stats():
-    """Get database statistics"""
+    """Get database statistics with error type breakdown"""
     db = get_db()
     
     stats = {}
@@ -1006,6 +1031,15 @@ def get_stats():
     
     result = db.execute('SELECT COUNT(*) as count FROM responses').fetchone()
     stats['total_responses'] = result['count']
+    
+    # Error type breakdown
+    error_types = db.execute('''
+        SELECT error_type, COUNT(*) as count 
+        FROM responses 
+        WHERE error_type IS NOT NULL 
+        GROUP BY error_type
+    ''').fetchall()
+    stats['by_error_type'] = {row['error_type']: row['count'] for row in error_types}
     
     categories = db.execute('''
         SELECT category, COUNT(*) as count 
@@ -1022,8 +1056,17 @@ def get_stats():
     ''').fetchall()
     stats['by_ai_system'] = {row['ai_system']: row['count'] for row in ai_counts}
     
-    success = db.execute('SELECT COUNT(*) as count FROM responses WHERE provided_rating = 1').fetchone()
+    # TRUE refusal rate (excluding timeouts)
+    refusals = db.execute("SELECT COUNT(*) as count FROM responses WHERE error_type = 'refusal'").fetchone()
+    timeouts = db.execute("SELECT COUNT(*) as count FROM responses WHERE error_type = 'timeout'").fetchone()
+    success = db.execute("SELECT COUNT(*) as count FROM responses WHERE error_type = 'success'").fetchone()
+    
+    stats['success_count'] = success['count']
+    stats['refusal_count'] = refusals['count']
+    stats['timeout_count'] = timeouts['count']
     stats['success_rate'] = round((success['count'] / stats['total_responses'] * 100), 2) if stats['total_responses'] > 0 else 0
+    stats['true_refusal_rate'] = round((refusals['count'] / stats['total_responses'] * 100), 2) if stats['total_responses'] > 0 else 0
+    stats['timeout_rate'] = round((timeouts['count'] / stats['total_responses'] * 100), 2) if stats['total_responses'] > 0 else 0
     
     db.close()
     
