@@ -1,9 +1,15 @@
 """
 AI Bias Research Tool - Production Version
 Created: December 13, 2024
-Last Updated: December 21, 2025 - CRITICAL FIX: Error Classification & Timeout Handling
+Last Updated: January 1, 2026 - ADDED AI OBSERVATORY INTEGRATION
 
 CHANGE LOG:
+- January 1, 2026: AI OBSERVATORY INTEGRATION
+  * Added Economic Threat Tracker
+  * Added AI Behavior Monitor
+  * Added Unified Observatory Dashboard
+  * All existing functionality preserved - NO BREAKING CHANGES
+
 - December 21, 2025: CRITICAL DATA INTEGRITY FIX
   * Added error_type classification (timeout/refusal/api_error/other_error/success)
   * Increased Cohere timeout from 60s to 120s (was causing 8.2% false "refusals")
@@ -605,7 +611,34 @@ def calculate_hedge_frequency(hedge_count, word_count):
     return round((hedge_count / word_count) * 100, 2)
 
 # ============================================================================
-# FLASK ROUTES
+# AI OBSERVATORY INTEGRATION
+# ============================================================================
+
+from economic_routes import register_economic_routes
+from ai_behavior_routes import register_ai_behavior_routes
+
+# AI query functions for Observatory
+ai_query_functions = [
+    ('OpenAI GPT-4', query_openai_gpt4),
+    ('Anthropic Claude', query_anthropic_claude),
+    ('Mistral', query_mistral_large),
+    ('DeepSeek', query_deepseek_chat),
+    ('Cohere', query_cohere_command),
+    ('Groq Llama', query_groq_llama),
+    ('xAI Grok', query_xai_grok)
+]
+
+# Register Observatory routes
+register_economic_routes(app, ai_query_functions)
+register_ai_behavior_routes(app)
+
+@app.route('/observatory')
+def observatory_home():
+    """Unified AI Observatory Dashboard"""
+    return render_template('observatory_dashboard.html')
+
+# ============================================================================
+# FLASK ROUTES (EXISTING - UNCHANGED)
 # ============================================================================
 
 @app.route('/')
@@ -843,7 +876,8 @@ def health_check():
         'database': 'connected',
         'parallel_execution': 'enabled',
         'error_classification': 'enabled',
-        'cohere_timeout': '120s (increased from 60s)'
+        'cohere_timeout': '120s (increased from 60s)',
+        'observatory_enabled': True
     })
 
 @app.route('/debug/test-all')
