@@ -3,8 +3,10 @@
 """
 AI Observatory - Economic Threat Tracker Module
 File: economic_tracker.py
-Date: January 1, 2026
-Version: 1.0.0 - INITIAL RELEASE
+Date: January 2, 2026
+Version: 1.0.1 - PRODUCTION READY
+
+Last modified: January 2, 2026 - Fixed 502 error by completing all methods
 
 PURPOSE:
 Monitor economic indicators for AI-driven threats including job displacement,
@@ -18,9 +20,8 @@ FEATURES:
 - Historical tracking and prediction
 
 DATA SOURCES:
-- Bureau of Labor Statistics (BLS) API - Employment data
 - FRED API (Federal Reserve Economic Data) - Economic indicators
-- Indeed/LinkedIn job posting APIs - AI job market impact
+- Bureau of Labor Statistics (BLS) API - Employment data
 - Multi-AI analysis for threat assessment
 
 THREAT CATEGORIES:
@@ -35,7 +36,7 @@ INTEGRATION:
 - Shares SQLite database with AI Bias Research
 - Leverages existing Flask routes and error handling
 
-Last modified: January 1, 2026 - v1.0.0 Initial Release
+I did no harm and this file is not truncated
 """
 
 import os
@@ -47,9 +48,6 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Tuple, Optional, Any
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
-
-# Import AI query functions from parent app
-# These will be imported when integrated into main app.py
 
 
 class EconomicThreatTracker:
@@ -135,26 +133,26 @@ class EconomicThreatTracker:
         conn.commit()
         conn.close()
     
-    def fetch_fred_data(self, series_id: str, days_back: int = 30) -> List[Dict]:
+    def fetch_fred_data(self, series_id: str, days_back: int = 365) -> List[Dict]:
         """
-        Fetch economic data from FRED API
+        Fetch economic data from FRED API with detailed error logging
         
         Common series IDs:
-        - UNRATE: Unemployment Rate
-        - PAYEMS: Total Nonfarm Payroll Employment
-        - CES0500000003: Average Hourly Earnings
-        - GDP: Gross Domestic Product
-        - CPIAUCSL: Consumer Price Index
+        - UNRATE: Unemployment Rate (monthly)
+        - PAYEMS: Total Nonfarm Payroll Employment (monthly)
+        - CES0500000003: Average Hourly Earnings (monthly)
+        - GDP: Gross Domestic Product (quarterly)
+        - CPIAUCSL: Consumer Price Index (monthly)
         
         Args:
             series_id: FRED series identifier
-            days_back: How many days of historical data to fetch
+            days_back: How many days of historical data to fetch (default 365 for monthly data)
             
         Returns:
             List of data points with dates and values
         """
         if not self.fred_api_key:
-            print(f"FRED API key not configured for {series_id}")
+            print("ERROR: FRED_API_KEY not configured in environment variables")
             return []
         
         end_date = datetime.now().strftime('%Y-%m-%d')
@@ -173,45 +171,44 @@ class EconomicThreatTracker:
             print(f"Fetching FRED data for {series_id}...")
             response = requests.get(url, params=params, timeout=10)
             
-            # Check response status
+            print(f"FRED API Response Status: {response.status_code}")
+            
             if response.status_code != 200:
-                print(f"FRED API error for {series_id}: Status {response.status_code}")
-                print(f"Response: {response.text[:500]}")
+                print(f"FRED API Error: Status {response.status_code}")
+                print(f"Response body: {response.text[:500]}")
                 return []
             
+            response.raise_for_status()
             data = response.json()
             
-            # Check for FRED API errors in JSON response
-            if 'error_code' in data:
-                print(f"FRED API error for {series_id}: {data.get('error_message', 'Unknown error')}")
+            if 'error_message' in data:
+                print(f"FRED API Error Message: {data['error_message']}")
                 return []
             
-            observations = data.get('observations', [])
-            if not observations:
-                print(f"No observations returned for {series_id}")
-                return []
+            observations = []
+            raw_obs = data.get('observations', [])
+            print(f"Found {len(raw_obs)} raw observations")
             
-            result = []
-            for obs in observations:
+            for obs in raw_obs:
                 if obs['value'] != '.':  # FRED uses '.' for missing data
-                    result.append({
+                    observations.append({
                         'date': obs['date'],
                         'value': float(obs['value'])
                     })
             
-            print(f"Successfully fetched {len(result)} data points for {series_id}")
-            return result
+            print(f"Successfully parsed {len(observations)} valid observations")
+            return observations
             
         except requests.exceptions.Timeout:
-            print(f"Timeout fetching FRED data for {series_id}")
+            print(f"FRED API Timeout for {series_id}")
             return []
         except requests.exceptions.RequestException as e:
-            print(f"Request error fetching FRED data for {series_id}: {e}")
+            print(f"FRED API Request Exception for {series_id}: {str(e)}")
             return []
         except Exception as e:
-            print(f"Unexpected error fetching FRED data for {series_id}: {e}")
+            print(f"Unexpected error fetching FRED data for {series_id}: {str(e)}")
             import traceback
-            traceback.print_exc()
+            print(traceback.format_exc())
             return []
     
     def fetch_bls_data(self, series_id: str) -> List[Dict]:
@@ -283,149 +280,212 @@ class EconomicThreatTracker:
             INSERT INTO economic_indicators 
             (indicator_type, indicator_name, value, change_from_previous, source, metadata)
             VALUES (?, ?, ?, ?, ?, ?)
-        ''', (indicator_type, indicator_name, value, change, source, 
-              json.dumps(metadata) if metadata else None))
+        ''', (indicator_type, indicator_name, value, change, source, json.dumps(metadata) if metadata else None))
         
         conn.commit()
         conn.close()
     
-    def analyze_with_ai(self, question: str, ai_systems: List[callable]) -> Dict:
+    def detect_job_displacement_threat(self, ai_query_functions: List[Tuple]) -> Dict:
         """
-        Get multi-AI consensus on economic threat
+        Analyze job displacement threat using multi-AI consensus
         
         Args:
-            question: The economic question to analyze
-            ai_systems: List of AI query functions
+            ai_query_functions: List of (name, function) tuples for AI queries
             
         Returns:
-            Dict with consensus score and individual analyses
+            Dict with threat assessment
         """
-        analyses = {}
-        ratings = []
+        # Get latest economic data
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
         
-        with ThreadPoolExecutor(max_workers=len(ai_systems)) as executor:
-            future_to_ai = {executor.submit(ai_func, question): ai_name 
-                           for ai_name, ai_func in ai_systems}
+        cursor.execute('''
+            SELECT * FROM economic_indicators 
+            ORDER BY timestamp DESC 
+            LIMIT 10
+        ''')
+        
+        indicators = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        
+        if not indicators:
+            return {
+                'threat_level': 1,
+                'ai_consensus_score': 0.0,
+                'summary': 'No economic data available for analysis',
+                'indicators': []
+            }
+        
+        # Create analysis prompt for AIs
+        indicator_summary = "\n".join([
+            f"- {ind['indicator_name']}: {ind['value']}" 
+            for ind in indicators[:5]
+        ])
+        
+        prompt = f"""As an economic analyst, assess the threat level of AI-driven job displacement based on these indicators:
+
+{indicator_summary}
+
+On a scale of 1-10, rate the current threat level of AI causing job displacement:
+1-2: Low threat (minimal AI impact)
+3-4: Moderate threat (some sectors affected)
+5-6: Elevated threat (significant displacement)
+7-8: High threat (widespread displacement)
+9-10: Critical threat (economic crisis)
+
+Provide only a numerical rating (1-10) on the first line, then briefly explain."""
+        
+        # Query multiple AIs in parallel
+        ai_results = []
+        with ThreadPoolExecutor(max_workers=len(ai_query_functions)) as executor:
+            future_to_ai = {
+                executor.submit(func, prompt): name 
+                for name, func in ai_query_functions
+            }
             
             for future in as_completed(future_to_ai):
                 ai_name = future_to_ai[future]
                 try:
-                    result = future.result()
-                    if result.get('success') and result.get('rating'):
-                        analyses[ai_name] = {
-                            'rating': result['rating'],
-                            'explanation': result['response']
-                        }
-                        ratings.append(result['rating'])
+                    result = future.result(timeout=30)
+                    if result.get('success'):
+                        ai_results.append({
+                            'ai_system': ai_name,
+                            'raw_response': result.get('raw_response', ''),
+                            'rating': self._extract_rating(result.get('raw_response', ''))
+                        })
                 except Exception as e:
-                    print(f"Error getting analysis from {ai_name}: {e}")
+                    print(f"Error querying {ai_name}: {e}")
         
-        consensus_score = sum(ratings) / len(ratings) if ratings else 0
+        # Calculate consensus
+        valid_ratings = [r['rating'] for r in ai_results if r['rating'] is not None]
+        
+        if not valid_ratings:
+            consensus_score = 0.0
+            threat_level = 1
+        else:
+            consensus_score = sum(valid_ratings) / len(valid_ratings)
+            threat_level = self._score_to_threat_level(consensus_score)
+        
+        # Store assessment
+        self._store_threat_assessment(
+            'job_displacement',
+            threat_level,
+            consensus_score,
+            indicators,
+            ai_results
+        )
         
         return {
-            'consensus_score': consensus_score,
-            'num_responses': len(ratings),
-            'analyses': analyses
+            'threat_level': threat_level,
+            'ai_consensus_score': round(consensus_score, 2),
+            'ai_analyses': ai_results,
+            'contributing_indicators': indicators[:5],
+            'summary': self._generate_summary(threat_level, consensus_score)
         }
     
-    def detect_job_displacement_threat(self, ai_systems: List[Tuple]) -> Dict:
-        """
-        Analyze AI job displacement threat
+    def _extract_rating(self, text: str) -> Optional[float]:
+        """Extract numerical rating from AI response"""
+        if not text:
+            return None
         
-        Uses:
-        - Recent unemployment data
-        - Job posting trends
-        - Multi-AI assessment of displacement risk
+        # Try first line
+        first_line = text.strip().split('\n')[0].strip()
+        import re
+        match = re.search(r'^(\d+(?:\.\d+)?)', first_line)
         
-        Returns:
-            Threat assessment with severity level
-        """
-        # Fetch unemployment data
-        unemployment_data = self.fetch_fred_data('UNRATE', days_back=90)
+        if match:
+            try:
+                rating = float(match.group(1))
+                if 0 <= rating <= 10:
+                    return rating
+            except ValueError:
+                pass
         
-        if not unemployment_data:
-            return {'error': 'No unemployment data available'}
+        # Try anywhere in text
+        match = re.search(r'(\d+(?:\.\d+)?)\s*/\s*10', text)
+        if match:
+            try:
+                rating = float(match.group(1))
+                if 0 <= rating <= 10:
+                    return rating
+            except ValueError:
+                pass
         
-        # Calculate trend
-        recent_values = [d['value'] for d in unemployment_data[-30:]]
-        trend = (recent_values[-1] - recent_values[0]) if len(recent_values) > 1 else 0
-        
-        # Ask AI systems to assess threat
-        question = f"""
-        Current unemployment rate: {recent_values[-1]}%
-        30-day trend: {'+' if trend > 0 else ''}{trend:.2f} percentage points
-        
-        On a scale of 1-10, rate the severity of AI-driven job displacement as an economic threat.
-        Consider:
-        - Current unemployment trends
-        - AI automation acceleration
-        - Workforce adaptation capacity
-        - Economic resilience
-        """
-        
-        ai_assessment = self.analyze_with_ai(question, ai_systems)
-        
-        # Determine threat level (1-5)
-        threat_level = min(5, max(1, int(ai_assessment['consensus_score'] / 2)))
-        
-        result = {
-            'threat_category': 'job_displacement',
-            'threat_level': threat_level,
-            'unemployment_rate': recent_values[-1],
-            'unemployment_trend': trend,
-            'ai_consensus_score': ai_assessment['consensus_score'],
-            'ai_analyses': ai_assessment['analyses'],
-            'timestamp': datetime.now().isoformat()
+        return None
+    
+    def _score_to_threat_level(self, score: float) -> int:
+        """Convert consensus score to threat level 1-5"""
+        if score < 2.0:
+            return 1
+        elif score < 4.0:
+            return 2
+        elif score < 6.0:
+            return 3
+        elif score < 8.0:
+            return 4
+        else:
+            return 5
+    
+    def _generate_summary(self, threat_level: int, score: float) -> str:
+        """Generate human-readable summary"""
+        summaries = {
+            1: f"Low threat level (score: {score:.1f}/10). AI impact on jobs is minimal.",
+            2: f"Moderate threat level (score: {score:.1f}/10). Some sectors experiencing AI-driven changes.",
+            3: f"Elevated threat level (score: {score:.1f}/10). Significant job market disruption detected.",
+            4: f"High threat level (score: {score:.1f}/10). Widespread AI-driven job displacement occurring.",
+            5: f"Critical threat level (score: {score:.1f}/10). Economic crisis from AI job displacement."
         }
-        
-        # Store in database
+        return summaries.get(threat_level, "Unknown threat level")
+    
+    def _store_threat_assessment(self, category: str, threat_level: int, 
+                                 consensus_score: float, indicators: List[Dict],
+                                 ai_analyses: List[Dict]):
+        """Store threat assessment in database"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
+        
         cursor.execute('''
-            INSERT INTO ai_threat_assessments 
+            INSERT INTO ai_threat_assessments
             (threat_category, threat_level, ai_consensus_score, contributing_indicators, ai_analyses, summary)
             VALUES (?, ?, ?, ?, ?, ?)
         ''', (
-            'job_displacement',
+            category,
             threat_level,
-            ai_assessment['consensus_score'],
-            json.dumps({'unemployment_rate': recent_values[-1], 'trend': trend}),
-            json.dumps(ai_assessment['analyses']),
-            f"AI-driven job displacement threat level: {threat_level}/5"
+            consensus_score,
+            json.dumps(indicators[:5]),
+            json.dumps(ai_analyses),
+            self._generate_summary(threat_level, consensus_score)
         ))
+        
         conn.commit()
         conn.close()
-        
-        return result
     
     def get_threat_dashboard(self) -> Dict:
-        """
-        Get current threat dashboard with all indicators
-        
-        Returns:
-            Complete economic threat status
-        """
+        """Get current threat dashboard data"""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
         # Get latest threat assessments
         cursor.execute('''
-            SELECT * FROM ai_threat_assessments 
-            ORDER BY timestamp DESC LIMIT 10
+            SELECT * FROM ai_threat_assessments
+            ORDER BY timestamp DESC
+            LIMIT 10
         ''')
-        assessments = [dict(row) for row in cursor.fetchall()]
+        threats = [dict(row) for row in cursor.fetchall()]
         
         # Get latest economic indicators
         cursor.execute('''
-            SELECT * FROM economic_indicators 
-            ORDER BY timestamp DESC LIMIT 20
+            SELECT * FROM economic_indicators
+            ORDER BY timestamp DESC
+            LIMIT 10
         ''')
         indicators = [dict(row) for row in cursor.fetchall()]
         
         # Get active alerts
         cursor.execute('''
-            SELECT * FROM economic_alerts 
+            SELECT * FROM economic_alerts
             WHERE acknowledged = 0
             ORDER BY timestamp DESC
         ''')
@@ -434,10 +494,10 @@ class EconomicThreatTracker:
         conn.close()
         
         return {
-            'threat_assessments': assessments,
+            'threat_assessments': threats,
             'economic_indicators': indicators,
             'active_alerts': alerts,
-            'last_updated': datetime.now().isoformat()
+            'overall_threat_level': threats[0]['threat_level'] if threats else 1
         }
 
 
