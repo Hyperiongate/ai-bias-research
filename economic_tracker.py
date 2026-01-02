@@ -172,6 +172,8 @@ class EconomicThreatTracker:
             response = requests.get(url, params=params, timeout=10)
             
             print(f"FRED API Response Status: {response.status_code}")
+            print(f"FRED API URL: {url}")
+            print(f"FRED API Params: series_id={series_id}, start={start_date}, end={end_date}")
             
             if response.status_code != 200:
                 print(f"FRED API Error: Status {response.status_code}")
@@ -181,6 +183,12 @@ class EconomicThreatTracker:
             response.raise_for_status()
             data = response.json()
             
+            print(f"FRED Response Keys: {data.keys()}")
+            print(f"FRED realtime_start: {data.get('realtime_start')}")
+            print(f"FRED realtime_end: {data.get('realtime_end')}")
+            print(f"FRED observation_start: {data.get('observation_start')}")
+            print(f"FRED observation_end: {data.get('observation_end')}")
+            
             if 'error_message' in data:
                 print(f"FRED API Error Message: {data['error_message']}")
                 return []
@@ -188,6 +196,9 @@ class EconomicThreatTracker:
             observations = []
             raw_obs = data.get('observations', [])
             print(f"Found {len(raw_obs)} raw observations")
+            if len(raw_obs) > 0:
+                print(f"First observation: {raw_obs[0]}")
+                print(f"Last observation: {raw_obs[-1]}")
             
             for obs in raw_obs:
                 if obs['value'] != '.':  # FRED uses '.' for missing data
