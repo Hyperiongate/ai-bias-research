@@ -3,7 +3,7 @@ AI Bias Research Tool - Production Version
 Created: December 13, 2024
 Last Updated: January 1, 2026 - ADDED AI OBSERVATORY INTEGRATION
 
-CHANGE LOG:
+CHANGE LOG: 
 - January 1, 2026: AI OBSERVATORY INTEGRATION
   * Added Economic Threat Tracker
   * Added AI Behavior Monitor
