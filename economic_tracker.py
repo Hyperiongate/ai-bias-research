@@ -133,7 +133,7 @@ class EconomicThreatTracker:
         conn.commit()
         conn.close()
     
-    def fetch_fred_data(self, series_id: str, days_back: int = 365) -> List[Dict]:
+    def fetch_fred_data(self, series_id: str, days_back: int = 730) -> List[Dict]:
         """
         Fetch economic data from FRED API with detailed error logging
         
@@ -146,7 +146,7 @@ class EconomicThreatTracker:
         
         Args:
             series_id: FRED series identifier
-            days_back: How many days of historical data to fetch (default 365 for monthly data)
+            days_back: How many days of historical data to fetch (default 730 = 2 years for monthly data)
             
         Returns:
             List of data points with dates and values
