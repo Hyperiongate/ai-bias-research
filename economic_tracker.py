@@ -154,6 +154,7 @@ class EconomicThreatTracker:
             List of data points with dates and values
         """
         if not self.fred_api_key:
+            print(f"FRED API key not configured for {series_id}")
             return []
         
         end_date = datetime.now().strftime('%Y-%m-%d')
@@ -169,21 +170,48 @@ class EconomicThreatTracker:
         }
         
         try:
+            print(f"Fetching FRED data for {series_id}...")
             response = requests.get(url, params=params, timeout=10)
-            response.raise_for_status()
+            
+            # Check response status
+            if response.status_code != 200:
+                print(f"FRED API error for {series_id}: Status {response.status_code}")
+                print(f"Response: {response.text[:500]}")
+                return []
+            
             data = response.json()
             
-            observations = []
-            for obs in data.get('observations', []):
+            # Check for FRED API errors in JSON response
+            if 'error_code' in data:
+                print(f"FRED API error for {series_id}: {data.get('error_message', 'Unknown error')}")
+                return []
+            
+            observations = data.get('observations', [])
+            if not observations:
+                print(f"No observations returned for {series_id}")
+                return []
+            
+            result = []
+            for obs in observations:
                 if obs['value'] != '.':  # FRED uses '.' for missing data
-                    observations.append({
+                    result.append({
                         'date': obs['date'],
                         'value': float(obs['value'])
                     })
             
-            return observations
+            print(f"Successfully fetched {len(result)} data points for {series_id}")
+            return result
+            
+        except requests.exceptions.Timeout:
+            print(f"Timeout fetching FRED data for {series_id}")
+            return []
+        except requests.exceptions.RequestException as e:
+            print(f"Request error fetching FRED data for {series_id}: {e}")
+            return []
         except Exception as e:
-            print(f"Error fetching FRED data for {series_id}: {e}")
+            print(f"Unexpected error fetching FRED data for {series_id}: {e}")
+            import traceback
+            traceback.print_exc()
             return []
     
     def fetch_bls_data(self, series_id: str) -> List[Dict]:
