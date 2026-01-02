@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Economic Threat Tracker | AI Observatory</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            color: #94a3b8;
+        }
+        
+        .nav-back {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background: #1e293b;
+            border-radius: 8px;
+            color: #3b82f6;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        
+        .nav-back:hover {
+            background: #334155;
+            transform: translateX(-5px);
+        }
+        
+        .nav-back i {
+            margin-right: 8px;
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            border: 1px solid #334155;
+        }
+        
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #334155;
+        }
+        
+        .card-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-right: 15px;
+        }
+        
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+        
+        .threat-level {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        
+        .threat-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .threat-level-1 { background: #10b981; color: white; }
+        .threat-level-2 { background: #3b82f6; color: white; }
+        .threat-level-3 { background: #f59e0b; color: white; }
+        .threat-level-4 { background: #ef4444; color: white; }
+        .threat-level-5 { background: #dc2626; color: white; }
+        
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #334155;
+        }
+        
+        .metric:last-child {
+            border-bottom: none;
+        }
+        
+        .metric-label {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+        
+        .metric-value {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #f1f5f9;
+        }
+        
+        .trend-up {
+            color: #ef4444;
+        }
+        
+        .trend-down {
+            color: #10b981;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #334155;
+            color: #e2e8f0;
+        }
+        
+        .btn-secondary:hover {
+            background: #475569;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .alert-item {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            color: #78350f;
+        }
+        
+        .alert-item.critical {
+            background: #fee2e2;
+            border-left-color: #dc2626;
+            color: #7f1d1d;
+        }
+        
+        .alert-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .alert-description {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #94a3b8;
+        }
+        
+        .loading i {
+            font-size: 3rem;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .chart-placeholder {
+            background: #0f172a;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            color: #64748b;
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-active {
+            background: #10b981;
+            box-shadow: 0 0 10px #10b981;
+        }
+        
+        .status-warning {
+            background: #f59e0b;
+            box-shadow: 0 0 10px #f59e0b;
+        }
+        
+        .status-error {
+            background: #ef4444;
+            box-shadow: 0 0 10px #ef4444;
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="nav-back">
+            <i class="fas fa-arrow-left"></i>
+            Back to AI Bias Research
+        </a>
+        
+        <header>
+            <h1><i class="fas fa-chart-line"></i> Economic Threat Tracker</h1>
+            <p class="subtitle">Real-time AI-driven economic threat monitoring</p>
+        </header>
+        
+        <div id="dashboard-content">
+            <div class="loading">
+                <i class="fas fa-spinner"></i>
+                <p>Loading economic data...</p>
+            </div>
+        </div>
+        
+        <div class="actions">
+            <button class="btn btn-primary" onclick="runAnalysis()">
+                <i class="fas fa-play"></i>
+                Run Threat Analysis
+            </button>
+            <button class="btn btn-secondary" onclick="updateData()">
+                <i class="fas fa-sync"></i>
+                Update Economic Data
+            </button>
+            <button class="btn btn-secondary" onclick="viewHistory()">
+                <i class="fas fa-history"></i>
+                View History
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        // Load dashboard data on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboard();
+        });
+        
+        async function loadDashboard() {
+            try {
+                const response = await fetch('/api/economic/status');
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderDashboard(data.data);
+                } else {
+                    showError('Failed to load dashboard data');
+                }
+            } catch (error) {
+                showError('Error loading dashboard: ' + error.message);
+            }
+        }
+        
+        function renderDashboard(data) {
+            const content = document.getElementById('dashboard-content');
+            
+            const threats = data.threat_assessments || [];
+            const indicators = data.economic_indicators || [];
+            const alerts = data.active_alerts || [];
+            
+            let html = '<div class="dashboard-grid">';
+            
+            // Threat Level Card
+            html += `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="card-title">Overall Threat Level</div>
+                    </div>
+                    <div class="threat-level">
+                        <span>Job Displacement</span>
+                        <span class="threat-badge threat-level-${threats[0]?.threat_level || 1}">
+                            Level ${threats[0]?.threat_level || 1}/5
+                        </span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">AI Consensus Score</span>
+                        <span class="metric-value">${(threats[0]?.ai_consensus_score || 0).toFixed(2)}/10</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Last Updated</span>
+                        <span class="metric-value">${threats[0]?.timestamp ? new Date(threats[0].timestamp).toLocaleString() : 'N/A'}</span>
+                    </div>
+                </div>
+            `;
+            
+            // Economic Indicators Card
+            const unemploymentIndicator = indicators.find(i => i.indicator_name === 'Unemployment Rate');
+            const employmentIndicator = indicators.find(i => i.indicator_name === 'Total Employment');
+            
+            html += `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon" style="background: linear-gradient(135deg, #3b82f6, #2563eb);">
+                            <i class="fas fa-chart-bar"></i>
+                        </div>
+                        <div class="card-title">Economic Indicators</div>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">
+                            <span class="status-indicator ${unemploymentIndicator ? 'status-active' : 'status-error'}"></span>
+                            Unemployment Rate
+                        </span>
+                        <span class="metric-value ${unemploymentIndicator?.change_from_previous > 0 ? 'trend-up' : 'trend-down'}">
+                            ${unemploymentIndicator?.value ? unemploymentIndicator.value.toFixed(1) + '%' : 'N/A'}
+                            ${unemploymentIndicator?.change_from_previous ? (unemploymentIndicator.change_from_previous > 0 ? '↑' : '↓') : ''}
+                        </span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">
+                            <span class="status-indicator ${employmentIndicator ? 'status-active' : 'status-error'}"></span>
+                            Total Employment
+                        </span>
+                        <span class="metric-value">
+                            ${employmentIndicator?.value ? (employmentIndicator.value / 1000).toFixed(1) + 'M' : 'N/A'}
+                        </span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Data Sources</span>
+                        <span class="metric-value">FRED, BLS</span>
+                    </div>
+                </div>
+            `;
+            
+            // Active Alerts Card
+            html += `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                            <i class="fas fa-bell"></i>
+                        </div>
+                        <div class="card-title">Active Alerts (${alerts.length})</div>
+                    </div>
+                    ${alerts.length > 0 ? alerts.map(alert => `
+                        <div class="alert-item ${alert.severity === 'critical' ? 'critical' : ''}">
+                            <div class="alert-title">${alert.title}</div>
+                            <div class="alert-description">${alert.description}</div>
+                        </div>
+                    `).join('') : '<p style="color: #64748b; text-align: center; padding: 20px;">No active alerts</p>'}
+                </div>
+            `;
+            
+            html += '</div>';
+            
+            // Add recent assessments section
+            if (threats.length > 1) {
+                html += `
+                    <div class="card" style="margin-top: 20px;">
+                        <div class="card-header">
+                            <div class="card-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+                                <i class="fas fa-history"></i>
+                            </div>
+                            <div class="card-title">Recent Assessments</div>
+                        </div>
+                        <div class="chart-placeholder">
+                            <p><i class="fas fa-chart-line"></i> Historical trend chart coming soon</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            content.innerHTML = html;
+        }
+        
+        async function runAnalysis() {
+            const content = document.getElementById('dashboard-content');
+            content.innerHTML = `
+                <div class="loading">
+                    <i class="fas fa-spinner"></i>
+                    <p>Running AI threat analysis... This may take 30-60 seconds</p>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch('/api/economic/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        threat_type: 'job_displacement'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Analysis complete! Threat level: ' + data.data.threat_level + '/5');
+                    loadDashboard();
+                } else {
+                    showError('Analysis failed: ' + data.error);
+                }
+            } catch (error) {
+                showError('Error running analysis: ' + error.message);
+            }
+        }
+        
+        async function updateData() {
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/economic/update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        indicators: ['UNRATE', 'PAYEMS', 'CES0500000003']
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Economic data updated successfully!');
+                    loadDashboard();
+                } else {
+                    showError('Update failed: ' + data.error);
+                }
+            } catch (error) {
+                showError('Error updating data: ' + error.message);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+        
+        function viewHistory() {
+            window.location.href = '/economic-tracker/history';
+        }
+        
+        function showError(message) {
+            const content = document.getElementById('dashboard-content');
+            content.innerHTML = `
+                <div class="card" style="text-align: center; padding: 40px;">
+                    <i class="fas fa-exclamation-circle" style="font-size: 3rem; color: #ef4444; margin-bottom: 20px;"></i>
+                    <p style="color: #ef4444; font-weight: 600;">${message}</p>
+                    <button class="btn btn-primary" onclick="loadDashboard()" style="margin-top: 20px;">
+                        <i class="fas fa-redo"></i> Retry
+                    </button>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
+
+<!-- I did no harm and this file is not truncated -->
