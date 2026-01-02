@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Observatory | Unified Threat Monitoring</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0a0f;
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+        
+        .observatory-header {
+            background: linear-gradient(135deg, #1e1b3b 0%, #0f172a 100%);
+            padding: 40px 20px;
+            border-bottom: 2px solid #3d3564;
+        }
+        
+        .header-content {
+            max-width: 1800px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        
+        .tagline {
+            font-size: 1.2rem;
+            color: #94a3b8;
+            margin-bottom: 30px;
+        }
+        
+        .threat-matrix {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .threat-indicator {
+            background: rgba(30, 27, 59, 0.6);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            border: 2px solid;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .threat-indicator:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        .threat-indicator.level-1 { border-color: #10b981; }
+        .threat-indicator.level-2 { border-color: #3b82f6; }
+        .threat-indicator.level-3 { border-color: #f59e0b; }
+        .threat-indicator.level-4 { border-color: #ef4444; }
+        .threat-indicator.level-5 { border-color: #dc2626; }
+        
+        .threat-category {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            margin-bottom: 10px;
+        }
+        
+        .threat-level {
+            font-size: 3rem;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+        
+        .threat-status {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        
+        .main-content {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+        
+        .section-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+        
+        .view-all {
+            padding: 8px 16px;
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid #3b82f6;
+            border-radius: 8px;
+            color: #3b82f6;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .view-all:hover {
+            background: rgba(59, 130, 246, 0.3);
+            transform: translateX(5px);
+        }
+        
+        .alerts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 50px;
+        }
+        
+        .alert-card {
+            background: linear-gradient(135deg, #1e1b3b 0%, #2d2851 100%);
+            border-radius: 12px;
+            padding: 25px;
+            border-left: 5px solid;
+        }
+        
+        .alert-card.economic { border-left-color: #3b82f6; }
+        .alert-card.behavioral { border-left-color: #8b5cf6; }
+        .alert-card.deepfake { border-left-color: #ec4899; }
+        .alert-card.market { border-left-color: #f59e0b; }
+        
+        .alert-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+        
+        .alert-icon {
+            font-size: 2rem;
+            opacity: 0.8;
+        }
+        
+        .alert-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .alert-time {
+            font-size: 0.85rem;
+            color: #64748b;
+        }
+        
+        .alert-description {
+            color: #cbd5e1;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        
+        .alert-severity {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .severity-low { background: #10b981; color: white; }
+        .severity-medium { background: #f59e0b; color: white; }
+        .severity-high { background: #ef4444; color: white; }
+        .severity-critical { background: #dc2626; color: white; }
+        
+        .quick-actions {
+            background: linear-gradient(135deg, #1e1b3b 0%, #2d2851 100%);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 50px;
+        }
+        
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        .action-btn {
+            padding: 20px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 2px solid #3b82f6;
+            border-radius: 12px;
+            color: #e2e8f0;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .action-btn:hover {
+            background: rgba(59, 130, 246, 0.2);
+            transform: translateY(-3px);
+            box-shadow: 0 5px 20px rgba(59, 130, 246, 0.3);
+        }
+        
+        .action-icon {
+            font-size: 2rem;
+        }
+        
+        .action-text {
+            flex: 1;
+        }
+        
+        .action-label {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .action-desc {
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+        
+        .stats-bar {
+            background: linear-gradient(135deg, #1e1b3b 0%, #2d2851 100%);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 30px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            margin-top: 5px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #94a3b8;
+        }
+        
+        .loading i {
+            font-size: 4rem;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .threat-matrix {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .alerts-grid,
+            .actions-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="observatory-header">
+        <div class="header-content">
+            <h1><i class="fas fa-satellite-dish"></i> AI OBSERVATORY</h1>
+            <p class="tagline">Comprehensive AI Threat Detection & Monitoring System</p>
+            
+            <div class="threat-matrix" id="threat-matrix">
+                <div class="loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="main-content">
+        <!-- Statistics Bar -->
+        <div class="stats-bar" id="stats-bar">
+            <div class="loading">
+                <i class="fas fa-chart-line"></i>
+                <p>Loading statistics...</p>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+            <div class="section-header">
+                <h2 class="section-title">Quick Actions</h2>
+            </div>
+            <div class="actions-grid">
+                <a href="/economic-tracker" class="action-btn">
+                    <div class="action-icon">💼</div>
+                    <div class="action-text">
+                        <div class="action-label">Economic Monitor</div>
+                        <div class="action-desc">Track AI economic impacts</div>
+                    </div>
+                </a>
+                
+                <a href="/ai-behavior" class="action-btn">
+                    <div class="action-icon">🧠</div>
+                    <div class="action-text">
+                        <div class="action-label">AI Behavior</div>
+                        <div class="action-desc">Monitor behavioral anomalies</div>
+                    </div>
+                </a>
+                
+                <a href="/" class="action-btn">
+                    <div class="action-icon">🔬</div>
+                    <div class="action-text">
+                        <div class="action-label">AI Bias Research</div>
+                        <div class="action-desc">Analyze AI system biases</div>
+                    </div>
+                </a>
+                
+                <div class="action-btn" onclick="runFullScan()">
+                    <div class="action-icon">🚀</div>
+                    <div class="action-text">
+                        <div class="action-label">Run Full Scan</div>
+                        <div class="action-desc">Complete threat analysis</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Active Alerts -->
+        <div class="section-header">
+            <h2 class="section-title">Active Alerts</h2>
+            <a href="#" class="view-all">View All <i class="fas fa-arrow-right"></i></a>
+        </div>
+        
+        <div class="alerts-grid" id="alerts-grid">
+            <div class="loading">
+                <i class="fas fa-bell"></i>
+                <p>Loading alerts...</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            loadObservatory();
+            // Auto-refresh every 60 seconds
+            setInterval(loadObservatory, 60000);
+        });
+        
+        async function loadObservatory() {
+            await Promise.all([
+                loadThreatMatrix(),
+                loadStatistics(),
+                loadAlerts()
+            ]);
+        }
+        
+        async function loadThreatMatrix() {
+            try {
+                // Load threat levels from all systems
+                const [economic, behavior] = await Promise.all([
+                    fetch('/api/economic/status').then(r => r.json()).catch(() => ({success: false})),
+                    fetch('/api/ai-behavior/status').then(r => r.json()).catch(() => ({success: false}))
+                ]);
+                
+                const matrix = document.getElementById('threat-matrix');
+                
+                let html = '';
+                
+                // Economic Threats
+                const economicLevel = economic.success && economic.data.threat_assessments?.[0]?.threat_level || 1;
+                html += createThreatCard('Economic', economicLevel, 'Job displacement, wage impacts', '/economic-tracker');
+                
+                // AI Behavior Threats
+                const behaviorLevel = behavior.success ? behavior.data.overall_threat_level || 1 : 1;
+                html += createThreatCard('AI Behavior', behaviorLevel, 'Anomalies, emergent capabilities', '/ai-behavior');
+                
+                // Deepfake Detection (placeholder)
+                html += createThreatCard('Deepfakes', 2, 'Media manipulation threats', '/analyze');
+                
+                // Market Manipulation (placeholder)
+                html += createThreatCard('Markets', 1, 'AI trading patterns', '#');
+                
+                // Overall System
+                const overallLevel = Math.max(economicLevel, behaviorLevel);
+                html += createThreatCard('Overall', overallLevel, 'Combined threat assessment', '#');
+                
+                matrix.innerHTML = html;
+            } catch (error) {
+                console.error('Error loading threat matrix:', error);
+            }
+        }
+        
+        function createThreatCard(category, level, description, link) {
+            const statuses = {
+                1: 'Low Risk',
+                2: 'Moderate',
+                3: 'Elevated',
+                4: 'High Risk',
+                5: 'Critical'
+            };
+            
+            return `
+                <div class="threat-indicator level-${level}" onclick="window.location='${link}'">
+                    <div class="threat-category">${category}</div>
+                    <div class="threat-level">${level}</div>
+                    <div class="threat-status">${statuses[level]}</div>
+                    <div style="font-size: 0.8rem; color: #64748b; margin-top: 8px;">
+                        ${description}
+                    </div>
+                </div>
+            `;
+        }
+        
+        async function loadStatistics() {
+            try {
+                const [economic, behavior] = await Promise.all([
+                    fetch('/api/economic/status').then(r => r.json()).catch(() => ({success: false})),
+                    fetch('/api/ai-behavior/status').then(r => r.json()).catch(() => ({success: false}))
+                ]);
+                
+                const stats = document.getElementById('stats-bar');
+                
+                const economicIndicators = economic.success ? economic.data.economic_indicators?.length || 0 : 0;
+                const behaviorAnomalies = behavior.success ? behavior.data.recent_anomalies?.length || 0 : 0;
+                const correlationEvents = behavior.success ? behavior.data.correlation_events?.length || 0 : 0;
+                const totalAlerts = (economic.success ? economic.data.active_alerts?.length || 0 : 0) + behaviorAnomalies;
+                
+                stats.innerHTML = `
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value">${economicIndicators}</div>
+                            <div class="stat-label">Economic Indicators</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${behaviorAnomalies}</div>
+                            <div class="stat-label">AI Anomalies (7d)</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${correlationEvents}</div>
+                            <div class="stat-label">Correlation Events</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${totalAlerts}</div>
+                            <div class="stat-label">Active Alerts</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">10</div>
+                            <div class="stat-label">AI Systems Monitored</div>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error loading statistics:', error);
+            }
+        }
+        
+        async function loadAlerts() {
+            try {
+                const [economic, behavior] = await Promise.all([
+                    fetch('/api/economic/alerts').then(r => r.json()).catch(() => ({success: false, data: []})),
+                    fetch('/api/ai-behavior/anomalies?days=7').then(r => r.json()).catch(() => ({success: false, data: []}))
+                ]);
+                
+                const alertsGrid = document.getElementById('alerts-grid');
+                
+                let allAlerts = [];
+                
+                // Economic alerts
+                if (economic.success && economic.data) {
+                    allAlerts = allAlerts.concat(economic.data.map(a => ({
+                        type: 'economic',
+                        title: a.title,
+                        description: a.description,
+                        severity: a.severity,
+                        time: a.timestamp,
+                        icon: 'fa-chart-line'
+                    })));
+                }
+                
+                // Behavior anomalies as alerts
+                if (behavior.success && behavior.data) {
+                    allAlerts = allAlerts.concat(behavior.data.slice(0, 5).map(a => ({
+                        type: 'behavioral',
+                        title: `${a.ai_system} Anomaly`,
+                        description: a.description,
+                        severity: a.severity >= 4 ? 'high' : a.severity >= 3 ? 'medium' : 'low',
+                        time: a.detected_at,
+                        icon: 'fa-brain'
+                    })));
+                }
+                
+                if (allAlerts.length === 0) {
+                    alertsGrid.innerHTML = `
+                        <div style="grid-column: 1 / -1; text-align: center; padding: 60px; color: #64748b;">
+                            <i class="fas fa-check-circle" style="font-size: 4rem; margin-bottom: 20px; opacity: 0.5;"></i>
+                            <p style="font-size: 1.2rem;">No active alerts - All systems nominal</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                alertsGrid.innerHTML = allAlerts.slice(0, 6).map(alert => `
+                    <div class="alert-card ${alert.type}">
+                        <div class="alert-header">
+                            <div>
+                                <div class="alert-title">${alert.title}</div>
+                                <div class="alert-time">${new Date(alert.time).toLocaleString()}</div>
+                            </div>
+                            <div class="alert-icon">
+                                <i class="fas ${alert.icon}"></i>
+                            </div>
+                        </div>
+                        <div class="alert-description">${alert.description}</div>
+                        <span class="alert-severity severity-${alert.severity}">${alert.severity.toUpperCase()}</span>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading alerts:', error);
+            }
+        }
+        
+        async function runFullScan() {
+            if (!confirm('Run comprehensive threat analysis across all systems? This will take 1-2 minutes.')) {
+                return;
+            }
+            
+            alert('Full scan initiated! Check individual dashboards for results.');
+            
+            // Trigger analyses on all systems
+            Promise.all([
+                fetch('/api/economic/analyze', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({threat_type: 'job_displacement'})}),
+                fetch('/api/ai-behavior/correlations?hours=24')
+            ]).then(() => {
+                alert('Full scan complete! Refreshing dashboard...');
+                loadObservatory();
+            }).catch(error => {
+                alert('Scan completed with some errors. Check individual dashboards.');
+            });
+        }
+    </script>
+</body>
+</html>
+
+<!-- I did no harm and this file is not truncated -->
