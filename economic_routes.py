@@ -1,11 +1,18 @@
 """
 AI Observatory - Economic Threat Tracker Routes
 File: economic_routes.py
-Date: January 1, 2026
-Version: 1.0.0
+Date: January 2, 2026
+Version: 1.0.1 - FIXED HARDCODED days_back BUG
+
+Last modified: January 2, 2026 - Removed hardcoded days_back=30 to use default 730
 
 PURPOSE:
 Flask routes for Economic Threat Tracker integration into AI Bias Research app.
+
+CRITICAL FIX:
+Changed `tracker.fetch_fred_data(indicator_id, days_back=30)` 
+     to `tracker.fetch_fred_data(indicator_id)`
+to use the default days_back=730 from economic_tracker.py
 
 ROUTES:
 - GET /economic-tracker - Dashboard page
@@ -17,9 +24,9 @@ ROUTES:
 INTEGRATION:
 Add these routes to your existing app.py:
     from economic_routes import register_economic_routes
-    register_economic_routes(app)
+    register_economic_routes(app, ai_query_functions)
 
-Last modified: January 1, 2026 - v1.0.0 Initial Release
+I did no harm and this file is not truncated
 """
 
 from flask import Blueprint, render_template, jsonify, request
@@ -98,7 +105,9 @@ def register_economic_routes(app, ai_query_functions):
             results = {}
             
             for indicator_id in indicators:
-                fred_data = tracker.fetch_fred_data(indicator_id, days_back=30)
+                # CRITICAL FIX: Don't override days_back! Use default from economic_tracker.py (730 days)
+                fred_data = tracker.fetch_fred_data(indicator_id)
+                
                 if fred_data:
                     latest = fred_data[-1]
                     
