@@ -3,7 +3,7 @@ AI Bias Research Tool - Production Version
 Created: December 13, 2024
 Last Updated: January 4, 2026 - ADDED AUTOMATED DAILY SCHEDULER
 
-CHANGE LOG:  
+CHANGE LOG: 
 - January 4, 2026: AUTOMATED DAILY SCHEDULER INTEGRATION
   * Added APScheduler for automated daily economic checks (8 AM UTC)
   * Added automated daily behavior monitoring (9 AM UTC)
@@ -663,20 +663,21 @@ def initialize_scheduler():
     global observatory_scheduler
     
     try:
-        # Get instances from the registered routes
-        # These are created when register_economic_routes and register_ai_behavior_routes are called
-        from economic_routes import economic_tracker
-        from ai_behavior_routes import ai_behavior_monitor  
+        # Import the tracker and monitor classes directly
+        from economic_tracker import EconomicTracker
+        from ai_behavior_monitor import AIBehaviorMonitor
         from economic_learning_engine import EconomicLearningEngine
         
-        # Initialize learning engine
+        # Create instances (they need database connection)
+        economic_tracker_instance = EconomicTracker(get_db)
+        ai_behavior_monitor_instance = AIBehaviorMonitor(get_db)
         learning_engine = EconomicLearningEngine(get_db)
         
         # Create scheduler
         observatory_scheduler = ObservatoryScheduler(
             app=app,
-            economic_tracker=economic_tracker,
-            ai_behavior_monitor=ai_behavior_monitor,
+            economic_tracker=economic_tracker_instance,
+            ai_behavior_monitor=ai_behavior_monitor_instance,
             learning_engine=learning_engine
         )
         
