@@ -1,8 +1,9 @@
 # AI Bias Research Tool + Economic Threat Tracker - Python Dependencies
 # Created: December 13, 2024
-# Last Updated: January 1, 2026
+# Last Updated: January 4, 2026
 #
 # UPDATES:
+# January 4, 2026: Added APScheduler and pytz for automated daily scheduler
 # January 1, 2026: Added dependencies for Economic Threat Tracker module
 # December 14, 2024: Updated openai to 1.54.0 to fix Client() initialization issue
 # December 14, 2024: Pinned httpx to 0.27.2 to fix 'proxies' argument compatibility
@@ -13,6 +14,10 @@
 # - requests: HTTP library for API calls to FRED, BLS
 # - pandas: Data analysis for economic indicators (already included below)
 # - numpy: Numerical computations for trend analysis (already included below)
+#
+# NEW DEPENDENCIES FOR AUTOMATED SCHEDULER (January 4, 2026):
+# - APScheduler: Background task scheduler for daily automated checks
+# - pytz: Timezone handling for scheduler
 #
 # These are all the packages needed to run the application
 
@@ -37,5 +42,9 @@ scikit-learn==1.5.2
 # NLP (for AI behavior analysis)
 textblob==0.18.0
 nltk==3.9.1
+
+# Automated scheduler (for daily checks)
+APScheduler==3.10.4
+pytz==2024.1
 
 # I did no harm and this file is not truncated
