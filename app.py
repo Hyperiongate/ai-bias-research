@@ -1,9 +1,18 @@
 """
 AI Bias Research Tool - Production Version
 Created: December 13, 2024
-Last Updated: January 1, 2026 - ADDED AI OBSERVATORY INTEGRATION
+Last Updated: January 4, 2026 - ADDED AUTOMATED DAILY SCHEDULER
 
 CHANGE LOG: 
+- January 4, 2026: AUTOMATED DAILY SCHEDULER INTEGRATION
+  * Added APScheduler for automated daily economic checks (8 AM UTC)
+  * Added automated daily behavior monitoring (9 AM UTC)
+  * Added daily summary report generation (10 AM UTC)
+  * Added weekly maintenance tasks (Sunday 2 AM UTC)
+  * Added weekly learning updates (Sunday 3 AM UTC)
+  * Scheduler routes for monitoring (/api/observatory/scheduler/status)
+  * All existing functionality preserved - NO BREAKING CHANGES
+
 - January 1, 2026: AI OBSERVATORY INTEGRATION
   * Added Economic Threat Tracker
   * Added AI Behavior Monitor
@@ -62,6 +71,7 @@ import csv
 from collections import defaultdict
 import statistics
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import atexit
 
 app = Flask(__name__)
 
@@ -616,6 +626,7 @@ def calculate_hedge_frequency(hedge_count, word_count):
 
 from economic_routes import register_economic_routes
 from ai_behavior_routes import register_ai_behavior_routes
+from observatory_scheduler import ObservatoryScheduler, add_scheduler_routes
 
 # AI query functions for Observatory
 ai_query_functions = [
@@ -636,6 +647,53 @@ register_ai_behavior_routes(app)
 def observatory_home():
     """Unified AI Observatory Dashboard"""
     return render_template('observatory_dashboard.html')
+
+# ============================================================================
+# AUTOMATED SCHEDULER INITIALIZATION (NEW - January 4, 2026)
+# ============================================================================
+
+# NOTE: Scheduler will be initialized after economic_tracker, ai_behavior_monitor, 
+# and learning_engine are created (they are created in the register_*_routes functions)
+
+# We'll initialize the scheduler in a deferred manner to ensure modules are ready
+observatory_scheduler = None
+
+def initialize_scheduler():
+    """Initialize scheduler after Observatory modules are ready"""
+    global observatory_scheduler
+    
+    try:
+        # Get instances from the registered routes
+        # These are created when register_economic_routes and register_ai_behavior_routes are called
+        from economic_routes import economic_tracker
+        from ai_behavior_routes import ai_behavior_monitor  
+        from economic_learning_engine import EconomicLearningEngine
+        
+        # Initialize learning engine
+        learning_engine = EconomicLearningEngine(get_db)
+        
+        # Create scheduler
+        observatory_scheduler = ObservatoryScheduler(
+            app=app,
+            economic_tracker=economic_tracker,
+            ai_behavior_monitor=ai_behavior_monitor,
+            learning_engine=learning_engine
+        )
+        
+        # Start scheduler
+        observatory_scheduler.start()
+        
+        # Add scheduler monitoring routes
+        add_scheduler_routes(app, observatory_scheduler)
+        
+        # Register shutdown handler
+        atexit.register(lambda: observatory_scheduler.stop() if observatory_scheduler else None)
+        
+        print("✅ Observatory Scheduler initialized successfully")
+        
+    except Exception as e:
+        print(f"⚠️  Warning: Could not initialize Observatory Scheduler: {str(e)}")
+        print("   Observatory will work without automated scheduling")
 
 # ============================================================================
 # FLASK ROUTES (EXISTING - UNCHANGED)
@@ -868,6 +926,8 @@ def health_check():
         XAI_API_KEY is not None
     ])
     
+    scheduler_status = 'running' if observatory_scheduler and observatory_scheduler.scheduler.running else 'not_started'
+    
     return jsonify({
         'status': 'healthy',
         'ai_systems_configured': configured_systems,
@@ -877,7 +937,8 @@ def health_check():
         'parallel_execution': 'enabled',
         'error_classification': 'enabled',
         'cohere_timeout': '120s (increased from 60s)',
-        'observatory_enabled': True
+        'observatory_enabled': True,
+        'scheduler_status': scheduler_status
     })
 
 @app.route('/debug/test-all')
@@ -1107,6 +1168,10 @@ def get_stats():
     return jsonify(stats)
 
 if __name__ == '__main__':
+    # Initialize scheduler after app is set up
+    with app.app_context():
+        initialize_scheduler()
+    
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
 
