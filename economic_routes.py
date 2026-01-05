@@ -1,25 +1,30 @@
 """
 AI Observatory - Economic Threat Tracker Routes
 File: economic_routes.py
-Date: January 2, 2026
-Version: 1.0.1 - FIXED HARDCODED days_back BUG
+Date: January 4, 2026
+Version: 1.1.0 - ENHANCED WITH COMPREHENSIVE INDICATORS
 
-Last modified: January 2, 2026 - Removed hardcoded days_back=30 to use default 730
+Last modified: January 4, 2026 - Updated /api/economic/update route
+    - Changed to use fetch_comprehensive_indicators() method
+    - Now returns all 8 indicators in one call
+    - Added /api/economic/analyze-threat route for clearer naming
+    - All existing routes preserved
+
+Previous updates:
+    - January 2, 2026 - Removed hardcoded days_back=30 to use default 730
 
 PURPOSE:
 Flask routes for Economic Threat Tracker integration into AI Bias Research app.
 
-CRITICAL FIX:
-Changed `tracker.fetch_fred_data(indicator_id, days_back=30)` 
-     to `tracker.fetch_fred_data(indicator_id)`
-to use the default days_back=730 from economic_tracker.py
-
 ROUTES:
 - GET /economic-tracker - Dashboard page
 - GET /api/economic/status - Current threat status JSON
-- POST /api/economic/analyze - Run threat analysis
+- POST /api/economic/update - Fetch latest economic data (UPDATED)
+- POST /api/economic/analyze - Run threat analysis (legacy)
+- POST /api/economic/analyze-threat - Run threat analysis (new)
 - GET /api/economic/history - Historical data
-- POST /api/economic/update - Fetch latest economic data
+- GET /api/economic/alerts - Get active alerts
+- POST /api/economic/alert/<id>/acknowledge - Acknowledge alert
 
 INTEGRATION:
 Add these routes to your existing app.py:
@@ -37,6 +42,9 @@ import json
 # Create blueprint
 economic_bp = Blueprint('economic', __name__, url_prefix='/economic-tracker')
 
+# Module-level tracker instance for scheduler access
+economic_tracker = None
+
 
 def register_economic_routes(app, ai_query_functions):
     """
@@ -47,7 +55,9 @@ def register_economic_routes(app, ai_query_functions):
         ai_query_functions: List of (name, function) tuples for AI queries
     """
     
+    global economic_tracker
     tracker = EconomicThreatTracker()
+    economic_tracker = tracker  # Make accessible to scheduler
     
     @app.route('/economic-tracker')
     def economic_dashboard():
@@ -64,6 +74,9 @@ def register_economic_routes(app, ai_query_functions):
                 'data': dashboard_data
             })
         except Exception as e:
+            print(f"Error in /api/economic/status: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
             return jsonify({
                 'success': False,
                 'error': str(e)
@@ -71,10 +84,10 @@ def register_economic_routes(app, ai_query_functions):
     
     @app.route('/api/economic/analyze', methods=['POST'])
     def economic_analyze():
-        """Run economic threat analysis"""
+        """Run economic threat analysis (legacy route)"""
         try:
             # Get threat type from request
-            data = request.json
+            data = request.json or {}
             threat_type = data.get('threat_type', 'job_displacement')
             
             if threat_type == 'job_displacement':
@@ -90,6 +103,47 @@ def register_economic_routes(app, ai_query_functions):
                 'data': result
             })
         except Exception as e:
+            print(f"Error in /api/economic/analyze: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+    
+    @app.route('/api/economic/analyze-threat', methods=['POST'])
+    def economic_analyze_threat():
+        """
+        Run AI consensus threat analysis (new clearer route name)
+        
+        This is the main analysis route that:
+        1. Gets latest economic indicators from database
+        2. Sends to 7 AI systems for analysis
+        3. Calculates weighted consensus score
+        4. Generates alerts if threat level >= 3
+        5. Returns complete threat assessment
+        """
+        try:
+            print("=" * 80)
+            print("Running AI consensus threat analysis...")
+            print("=" * 80)
+            
+            result = tracker.detect_job_displacement_threat(ai_query_functions)
+            
+            print(f"\n✓ Analysis complete: Threat Level {result['threat_level']}/5")
+            print(f"  AI Consensus Score: {result['ai_consensus_score']}/10")
+            print(f"  AIs analyzed: {len(result.get('ai_analyses', []))}")
+            print("=" * 80)
+            
+            return jsonify({
+                'success': True,
+                **result  # Spread all result fields into response
+            })
+            
+        except Exception as e:
+            print(f"\n❌ ERROR in /api/economic/analyze-threat: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
             return jsonify({
                 'success': False,
                 'error': str(e)
@@ -97,53 +151,45 @@ def register_economic_routes(app, ai_query_functions):
     
     @app.route('/api/economic/update', methods=['POST'])
     def economic_update():
-        """Fetch latest economic data from APIs"""
+        """
+        Fetch latest economic data from APIs
+        
+        UPDATED in v1.1.0: Now uses fetch_comprehensive_indicators() to get
+        all 8 economic indicators in one efficient call instead of manually
+        fetching each one.
+        
+        Returns:
+            JSON with all indicators:
+            - unemployment_rate & unemployment_change
+            - total_employment & employment_change
+            - gdp_growth & gdp_change
+            - inflation_rate & inflation_change
+            - consumer_confidence & confidence_change
+            - avg_hourly_earnings & wages_change
+            - industrial_production & production_change
+            - recession_risk (calculated 1-5)
+        """
         try:
-            data = request.json
-            indicators = data.get('indicators', ['UNRATE', 'PAYEMS', 'CES0500000003'])
+            print("=" * 80)
+            print("Fetching comprehensive economic indicators...")
+            print("=" * 80)
             
-            results = {}
+            # Use the new comprehensive fetch method
+            indicators = tracker.fetch_comprehensive_indicators()
             
-            for indicator_id in indicators:
-                # CRITICAL FIX: Don't override days_back! Use default from economic_tracker.py (730 days)
-                fred_data = tracker.fetch_fred_data(indicator_id)
-                
-                if fred_data:
-                    latest = fred_data[-1]
-                    
-                    # Map indicator IDs to readable names
-                    indicator_names = {
-                        'UNRATE': 'Unemployment Rate',
-                        'PAYEMS': 'Total Employment',
-                        'CES0500000003': 'Average Hourly Earnings',
-                        'GDP': 'GDP',
-                        'CPIAUCSL': 'Consumer Price Index'
-                    }
-                    
-                    tracker.store_indicator(
-                        indicator_type='fred',
-                        indicator_name=indicator_names.get(indicator_id, indicator_id),
-                        value=latest['value'],
-                        source='FRED API',
-                        metadata={'series_id': indicator_id, 'date': latest['date']}
-                    )
-                    
-                    results[indicator_id] = {
-                        'success': True,
-                        'value': latest['value'],
-                        'date': latest['date']
-                    }
-                else:
-                    results[indicator_id] = {
-                        'success': False,
-                        'error': 'No data available'
-                    }
+            print("\n" + "=" * 80)
+            print(f"✓ Successfully fetched {len([k for k in indicators.keys() if not k.endswith('_change')])} indicators")
+            print("=" * 80)
             
             return jsonify({
                 'success': True,
-                'data': results
+                **indicators  # Spread all indicators into the response
             })
+            
         except Exception as e:
+            print(f"\n❌ ERROR in /api/economic/update: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
             return jsonify({
                 'success': False,
                 'error': str(e)
@@ -186,6 +232,7 @@ def register_economic_routes(app, ai_query_functions):
                 'data': history
             })
         except Exception as e:
+            print(f"Error in /api/economic/history: {str(e)}")
             return jsonify({
                 'success': False,
                 'error': str(e)
@@ -211,9 +258,10 @@ def register_economic_routes(app, ai_query_functions):
             
             return jsonify({
                 'success': True,
-                'data': alerts
+                'alerts': alerts
             })
         except Exception as e:
+            print(f"Error in /api/economic/alerts: {str(e)}")
             return jsonify({
                 'success': False,
                 'error': str(e)
@@ -241,6 +289,7 @@ def register_economic_routes(app, ai_query_functions):
                 'message': f'Alert {alert_id} acknowledged'
             })
         except Exception as e:
+            print(f"Error in /api/economic/alert/acknowledge: {str(e)}")
             return jsonify({
                 'success': False,
                 'error': str(e)
