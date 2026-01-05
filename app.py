@@ -647,7 +647,14 @@ register_ai_behavior_routes(app)
 def observatory_home():
     """Unified AI Observatory Dashboard"""
     return render_template('observatory_dashboard.html')
-
+ 
+@app.route('/economic-indicators')
+   def economic_indicators():
+       """
+       Economic Indicators Trend Visualization
+       Interactive time-series charts for economic data
+       """
+       return render_template('economic_indicators_trends.html')
 # ============================================================================
 # AUTOMATED SCHEDULER INITIALIZATION (NEW - January 4, 2026)
 # ============================================================================
