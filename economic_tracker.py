@@ -3,21 +3,32 @@
 """
 AI Observatory - Economic Threat Tracker Module
 File: economic_tracker.py
-Date: January 2, 2026
-Version: 1.0.1 - PRODUCTION READY
+Date: January 4, 2026
+Version: 1.1.0 - ENHANCED WITH COMPREHENSIVE INDICATORS
 
-Last modified: January 2, 2026 - Fixed 502 error by completing all methods
+Last modified: January 4, 2026 - Added comprehensive economic indicators
+    - Added GDP growth tracking
+    - Added inflation rate (CPI) tracking
+    - Added consumer confidence tracking
+    - Added recession risk calculation
+    - Added industrial production tracking
+    - Added wage tracking
+    - Enhanced fetch_comprehensive_indicators() method
+
+Previous updates:
+    - January 2, 2026 - Fixed 502 error by completing all methods
 
 PURPOSE:
 Monitor economic indicators for AI-driven threats including job displacement,
 market manipulation, productivity disruption, and economic systemic risks.
 
 FEATURES:
-- Real-time economic data collection (unemployment, job postings, wages)
+- Real-time economic data collection (8 indicators)
 - AI impact scoring across multiple economic sectors
 - Trend detection and anomaly alerting
 - Multi-AI consensus analysis of economic threats
 - Historical tracking and prediction
+- Recession risk calculation
 
 DATA SOURCES:
 - FRED API (Federal Reserve Economic Data) - Economic indicators
@@ -143,6 +154,8 @@ class EconomicThreatTracker:
         - CES0500000003: Average Hourly Earnings (monthly)
         - GDP: Gross Domestic Product (quarterly)
         - CPIAUCSL: Consumer Price Index (monthly)
+        - UMCSENT: Consumer Confidence (monthly)
+        - INDPRO: Industrial Production Index (monthly)
         
         Args:
             series_id: FRED series identifier
@@ -172,8 +185,6 @@ class EconomicThreatTracker:
             response = requests.get(url, params=params, timeout=10)
             
             print(f"FRED API Response Status: {response.status_code}")
-            print(f"FRED API URL: {url}")
-            print(f"FRED API Params: series_id={series_id}, start={start_date}, end={end_date}")
             
             if response.status_code != 200:
                 print(f"FRED API Error: Status {response.status_code}")
@@ -183,22 +194,13 @@ class EconomicThreatTracker:
             response.raise_for_status()
             data = response.json()
             
-            print(f"FRED Response Keys: {data.keys()}")
-            print(f"FRED realtime_start: {data.get('realtime_start')}")
-            print(f"FRED realtime_end: {data.get('realtime_end')}")
-            print(f"FRED observation_start: {data.get('observation_start')}")
-            print(f"FRED observation_end: {data.get('observation_end')}")
-            
             if 'error_message' in data:
                 print(f"FRED API Error Message: {data['error_message']}")
                 return []
             
             observations = []
             raw_obs = data.get('observations', [])
-            print(f"Found {len(raw_obs)} raw observations")
-            if len(raw_obs) > 0:
-                print(f"First observation: {raw_obs[0]}")
-                print(f"Last observation: {raw_obs[-1]}")
+            print(f"Found {len(raw_obs)} raw observations for {series_id}")
             
             for obs in raw_obs:
                 if obs['value'] != '.':  # FRED uses '.' for missing data
@@ -207,7 +209,7 @@ class EconomicThreatTracker:
                         'value': float(obs['value'])
                     })
             
-            print(f"Successfully parsed {len(observations)} valid observations")
+            print(f"Successfully parsed {len(observations)} valid observations for {series_id}")
             return observations
             
         except requests.exceptions.Timeout:
@@ -268,6 +270,200 @@ class EconomicThreatTracker:
         except Exception as e:
             print(f"Error fetching BLS data for {series_id}: {e}")
             return []
+    
+    def fetch_comprehensive_indicators(self) -> Dict:
+        """
+        Fetch comprehensive set of economic indicators including GDP, inflation,
+        consumer confidence, wages, production, and calculated recession risk.
+        
+        NEW in v1.1.0: Expanded from 2 indicators to 8 comprehensive indicators
+        
+        Returns:
+            Dict with all economic indicators and calculated metrics
+        """
+        print("=" * 80)
+        print("Fetching comprehensive economic indicators...")
+        print("=" * 80)
+        
+        indicators = {}
+        
+        # 1. Unemployment Rate (UNRATE)
+        print("\n1/8: Fetching unemployment rate...")
+        unemployment_data = self.fetch_fred_data('UNRATE', days_back=365)
+        if unemployment_data:
+            latest = unemployment_data[-1]
+            previous = unemployment_data[-2] if len(unemployment_data) >= 2 else None
+            indicators['unemployment_rate'] = latest['value']
+            indicators['unemployment_change'] = (latest['value'] - previous['value']) if previous else 0
+            self.store_indicator('employment', 'Unemployment Rate', latest['value'], 'FRED')
+            print(f"   ✓ Unemployment Rate: {latest['value']}%")
+        else:
+            print("   ✗ Unemployment Rate: Failed to fetch")
+        
+        # 2. Total Employment (PAYEMS)
+        print("\n2/8: Fetching total employment...")
+        employment_data = self.fetch_fred_data('PAYEMS', days_back=365)
+        if employment_data:
+            latest = employment_data[-1]
+            previous = employment_data[-2] if len(employment_data) >= 2 else None
+            indicators['total_employment'] = latest['value'] * 1000  # PAYEMS is in thousands
+            indicators['employment_change'] = ((latest['value'] - previous['value']) * 1000) if previous else 0
+            self.store_indicator('employment', 'Total Nonfarm Employment', latest['value'], 'FRED')
+            print(f"   ✓ Total Employment: {latest['value'] * 1000:,.0f}")
+        else:
+            print("   ✗ Total Employment: Failed to fetch")
+        
+        # 3. GDP Growth Rate (GDP)
+        print("\n3/8: Fetching GDP data...")
+        gdp_data = self.fetch_fred_data('GDP', days_back=730)
+        if gdp_data and len(gdp_data) >= 2:
+            latest = gdp_data[-1]
+            previous = gdp_data[-2]
+            # Calculate quarter-over-quarter annualized growth rate
+            gdp_growth = ((latest['value'] - previous['value']) / previous['value']) * 100
+            indicators['gdp_growth'] = gdp_growth
+            indicators['gdp_change'] = gdp_growth
+            self.store_indicator('growth', 'GDP Growth Rate', gdp_growth, 'FRED')
+            print(f"   ✓ GDP Growth Rate: {gdp_growth:.2f}%")
+        else:
+            print("   ✗ GDP Growth Rate: Failed to fetch or insufficient data")
+        
+        # 4. Inflation Rate - CPI (CPIAUCSL)
+        print("\n4/8: Fetching inflation data...")
+        cpi_data = self.fetch_fred_data('CPIAUCSL', days_back=365)
+        if cpi_data and len(cpi_data) >= 13:  # Need 13 months for year-over-year
+            latest = cpi_data[-1]
+            year_ago = cpi_data[-13]
+            # Year-over-year inflation rate
+            inflation_rate = ((latest['value'] - year_ago['value']) / year_ago['value']) * 100
+            previous_month = cpi_data[-2]
+            prev_year_ago = cpi_data[-14] if len(cpi_data) >= 14 else year_ago
+            prev_inflation = ((previous_month['value'] - prev_year_ago['value']) / prev_year_ago['value']) * 100
+            indicators['inflation_rate'] = inflation_rate
+            indicators['inflation_change'] = inflation_rate - prev_inflation
+            self.store_indicator('inflation', 'CPI Inflation Rate', inflation_rate, 'FRED')
+            print(f"   ✓ Inflation Rate: {inflation_rate:.2f}%")
+        else:
+            print("   ✗ Inflation Rate: Failed to fetch or insufficient data")
+        
+        # 5. Consumer Confidence (UMCSENT - University of Michigan)
+        print("\n5/8: Fetching consumer confidence...")
+        confidence_data = self.fetch_fred_data('UMCSENT', days_back=365)
+        if confidence_data:
+            latest = confidence_data[-1]
+            previous = confidence_data[-2] if len(confidence_data) >= 2 else None
+            indicators['consumer_confidence'] = latest['value']
+            indicators['confidence_change'] = (latest['value'] - previous['value']) if previous else 0
+            self.store_indicator('sentiment', 'Consumer Confidence', latest['value'], 'FRED')
+            print(f"   ✓ Consumer Confidence: {latest['value']:.1f}")
+        else:
+            print("   ✗ Consumer Confidence: Failed to fetch")
+        
+        # 6. Average Hourly Earnings (CES0500000003)
+        print("\n6/8: Fetching wage data...")
+        wage_data = self.fetch_fred_data('CES0500000003', days_back=365)
+        if wage_data:
+            latest = wage_data[-1]
+            previous = wage_data[-2] if len(wage_data) >= 2 else None
+            indicators['avg_hourly_earnings'] = latest['value']
+            indicators['wages_change'] = (latest['value'] - previous['value']) if previous else 0
+            self.store_indicator('wages', 'Average Hourly Earnings', latest['value'], 'FRED')
+            print(f"   ✓ Average Hourly Earnings: ${latest['value']:.2f}")
+        else:
+            print("   ✗ Average Hourly Earnings: Failed to fetch")
+        
+        # 7. Industrial Production Index (INDPRO)
+        print("\n7/8: Fetching industrial production...")
+        production_data = self.fetch_fred_data('INDPRO', days_back=365)
+        if production_data:
+            latest = production_data[-1]
+            previous = production_data[-2] if len(production_data) >= 2 else None
+            indicators['industrial_production'] = latest['value']
+            indicators['production_change'] = (latest['value'] - previous['value']) if previous else 0
+            self.store_indicator('production', 'Industrial Production Index', latest['value'], 'FRED')
+            print(f"   ✓ Industrial Production: {latest['value']:.2f}")
+        else:
+            print("   ✗ Industrial Production: Failed to fetch")
+        
+        # 8. Calculate Recession Risk (composite indicator)
+        print("\n8/8: Calculating recession risk...")
+        recession_risk = self._calculate_recession_risk(indicators)
+        indicators['recession_risk'] = recession_risk
+        self.store_indicator('risk', 'Recession Risk Level', recession_risk, 'Calculated')
+        print(f"   ✓ Recession Risk: Level {recession_risk}/5")
+        
+        print("\n" + "=" * 80)
+        print(f"✓ Successfully fetched {len([k for k in indicators.keys() if not k.endswith('_change')])} economic indicators")
+        print("=" * 80)
+        
+        return indicators
+    
+    def _calculate_recession_risk(self, indicators: Dict) -> int:
+        """
+        Calculate recession risk level (1-5) based on multiple indicators.
+        
+        Risk factors considered:
+        - Rising unemployment (weight: high)
+        - Negative or low GDP growth (weight: very high)
+        - Falling consumer confidence (weight: medium)
+        - Declining industrial production (weight: medium)
+        
+        Args:
+            indicators: Dict of current economic indicators
+            
+        Returns:
+            Risk level from 1 (very low) to 5 (very high)
+        """
+        risk_score = 0
+        
+        # Check unemployment trend (0-2 points)
+        unemployment = indicators.get('unemployment_rate', 0)
+        unemployment_change = indicators.get('unemployment_change', 0)
+        
+        if unemployment > 6.0:
+            risk_score += 2  # High unemployment
+        elif unemployment > 5.0:
+            risk_score += 1  # Elevated unemployment
+        
+        if unemployment_change > 0.3:
+            risk_score += 1  # Rising unemployment
+        
+        # Check GDP growth (0-3 points) - Most important indicator
+        gdp_growth = indicators.get('gdp_growth', 0)
+        
+        if gdp_growth < -1.0:
+            risk_score += 3  # Recession territory
+        elif gdp_growth < 0:
+            risk_score += 2  # Negative growth
+        elif gdp_growth < 1.0:
+            risk_score += 1  # Weak growth
+        
+        # Check consumer confidence (0-1 points)
+        confidence = indicators.get('consumer_confidence', 100)
+        confidence_change = indicators.get('confidence_change', 0)
+        
+        if confidence < 60:
+            risk_score += 1  # Very low confidence
+        elif confidence_change < -10:
+            risk_score += 1  # Rapidly falling confidence
+        
+        # Check industrial production (0-1 points)
+        production_change = indicators.get('production_change', 0)
+        
+        if production_change < -2.0:
+            risk_score += 1  # Significant decline
+        
+        # Map total score (0-8 possible) to 1-5 risk level
+        if risk_score == 0:
+            return 1  # Very low risk - Economy healthy
+        elif risk_score <= 2:
+            return 2  # Low risk - Minor concerns
+        elif risk_score <= 4:
+            return 3  # Moderate risk - Watchful
+        elif risk_score <= 6:
+            return 4  # High risk - Significant concerns
+        else:
+            return 5  # Very high risk - Recession likely/occurring
     
     def store_indicator(self, indicator_type: str, indicator_name: str, 
                        value: float, source: str, metadata: Optional[Dict] = None):
