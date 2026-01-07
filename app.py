@@ -649,7 +649,7 @@ def observatory_home():
     return render_template('observatory_dashboard.html')
  
 @app.route('/economic-indicators')
-   def economic_indicators():
+def economic_indicators():
        """
        Economic Indicators Trend Visualization
        Interactive time-series charts for economic data
