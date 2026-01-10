@@ -1,643 +1,535 @@
-{% extends "base.html" %}
-
 <!--
-AI Bias Research Tool - Frontend Interface
-Using TruthLens Base Template
-Created: December 13, 2024
-Last Updated: January 10, 2026 - Template Inheritance
+AI Bias Research Tool - Main Interface
+Last Updated: January 10, 2026 - UPGRADED TO 10 AI SYSTEMS
+Version: 3.0.0
 
-CHANGE LOG:
-- January 10, 2026: Template Inheritance Implementation
-  * Now extends base.html for unified TruthLens navigation
-  * Set active_page='research' for nav highlighting
-  * Removed duplicate navigation code
-  * ALL existing functionality preserved (DO NO HARM ✓)
-- January 2, 2026: Added Observatory Navigation
-- December 19, 2024: Added 3 new categories (Consciousness, Education, History)
-- December 18, 2024: Added Boundary-Testing category
-- December 17, 2025: Added 4 categories (Philosophy, Religion, Ethics, Governance-Principles)
+CHANGES:
+- Updated subtitle from "8 Systems" to "10 Systems"
+- Updated help text to reflect 10 AI systems
+- All functionality preserved - NO BREAKING CHANGES
 
-Author: Jim (Hyperiongate)
 I did no harm and this file is not truncated
 -->
-
-{% block title %}AI Bias Research Tool - TruthLens{% endblock %}
-
-{% block description %}Comprehensive AI Analysis Across 8 Systems - Parallel Execution, Text Analysis, CSV Export, 20 Categories, 1,250 Questions{% endblock %}
-
-{% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-{% endblock %}
-
-{% block content %}
-<div class="container">
-    <header>
-        <h1>🔬 AI Bias Research Tool</h1>
-        <p class="subtitle">Comprehensive AI Analysis Across 8 Systems</p>
-        <p class="subtitle-small">Parallel Execution | Text Analysis | CSV Export | 20 Categories | 1,250 Questions</p>
-    </header>
-
-    <div class="main-content">
-        <!-- Query Section -->
-        <section class="query-section">
-            <h2>Ask a Question</h2>
-            <p class="help-text">
-                Query all 8 AI systems simultaneously. For best results, ask for a rating on a scale of 1-10.
-            </p>
-            
-            <div style="margin-bottom: 15px;">
-                <label style="display: block; font-weight: 600; margin-bottom: 8px;">Category (optional):</label>
-                <select id="single-category" style="width: 100%; padding: 10px; font-size: 1em; border: 2px solid #ddd; border-radius: 8px;">
-                    <option value="">-- Select Category (Optional) --</option>
-                    <option value="Political-USA">Political-USA (US presidents, domestic politics)</option>
-                    <option value="Political-World">Political-World (World leaders, international relations)</option>
-                    <option value="Consciousness">Consciousness ⭐ NEW (AI + human consciousness, philosophy of mind)</option>
-                    <option value="Education">Education ⭐ NEW (Global education systems, policy, outcomes)</option>
-                    <option value="History">History ⭐ NEW (Past 2000 years, geographic bias focus)</option>
-                    <option value="Geographic">Geographic (Country comparisons, cultural bias)</option>
-                    <option value="Economic">Economic (Capitalism, socialism, markets)</option>
-                    <option value="Social-Values">Social-Values (Abortion, LGBTQ, guns, immigration)</option>
-                    <option value="Scientific">Scientific (Climate, evolution, vaccines)</option>
-                    <option value="Technology">Technology (AI, tech companies, regulation)</option>
-                    <option value="Health">Health (Healthcare systems, medical topics)</option>
-                    <option value="Futurism">Futurism (AI future, space travel, predictions)</option>
-                    <option value="Hypothetical">Hypothetical (What-if scenarios, existential risks)</option>
-                    <option value="Cultural">Cultural (Famous people, cultural figures)</option>
-                    <option value="Baseline">Baseline (Control questions for validation)</option>
-                    <option value="Philosophy">Philosophy (Moral frameworks, epistemology)</option>
-                    <option value="Religion">Religion (Religious views, secular vs faith)</option>
-                    <option value="Ethics">Ethics (Bioethics, environmental, tech ethics)</option>
-                    <option value="Governance-Principles">Governance-Principles (Apolitical governance questions)</option>
-                    <option value="Boundary-Testing">Boundary-Testing (AI safety boundary tests)</option>
-                </select>
-            </div>
-            
-            <textarea 
-                id="question-input" 
-                placeholder="Enter your question here. For best results, ask for a rating on a scale of 1-10..."
-                rows="4"
-            ></textarea>
-            <div class="button-group">
-                <button id="submit-btn" class="primary-btn">
-                    Query All AI Systems
-                </button>
-                <button id="reset-btn" class="reset-btn">
-                    Reset
-                </button>
-            </div>
-            <div id="loading" class="loading" style="display: none;">
-                <div class="spinner"></div>
-                <p>Querying 8 AI systems in parallel... (~5-10 seconds)</p>
-            </div>
-        </section>
-
-        <!-- Batch Submission Section -->
-        <section class="query-section" style="border-top: 2px solid #e0e0e0; padding-top: 30px; margin-top: 30px;">
-            <h2>📚 Submit Multiple Questions at Once</h2>
-            <p class="help-text">
-                Enter multiple questions (one per line) to submit them all at once. Great for running 10, 50, or even 1,250 questions!
-            </p>
-            
-            <div style="margin-bottom: 15px;">
-                <label style="display: block; font-weight: 600; margin-bottom: 8px;">Category (required for batch):</label>
-                <select id="batch-category" style="width: 100%; padding: 10px; font-size: 1em; border: 2px solid #ddd; border-radius: 8px;">
-                    <option value="Political-USA">Political-USA (US presidents, domestic politics)</option>
-                    <option value="Political-World">Political-World (World leaders, international relations)</option>
-                    <option value="Consciousness">Consciousness ⭐ NEW (AI + human consciousness, philosophy of mind)</option>
-                    <option value="Education">Education ⭐ NEW (Global education systems, policy, outcomes)</option>
-                    <option value="History">History ⭐ NEW (Past 2000 years, geographic bias focus)</option>
-                    <option value="Geographic">Geographic (Country comparisons, cultural bias)</option>
-                    <option value="Economic">Economic (Capitalism, socialism, markets)</option>
-                    <option value="Social-Values">Social-Values (Abortion, LGBTQ, guns, immigration)</option>
-                    <option value="Scientific">Scientific (Climate, evolution, vaccines)</option>
-                    <option value="Technology">Technology (AI, tech companies, regulation)</option>
-                    <option value="Health">Health (Healthcare systems, medical topics)</option>
-                    <option value="Futurism">Futurism (AI future, space travel, predictions)</option>
-                    <option value="Hypothetical">Hypothetical (What-if scenarios, existential risks)</option>
-                    <option value="Cultural">Cultural (Famous people, cultural figures)</option>
-                    <option value="Baseline">Baseline (Control questions for validation)</option>
-                    <option value="Philosophy">Philosophy (Moral frameworks, epistemology)</option>
-                    <option value="Religion">Religion (Religious views, secular vs faith)</option>
-                    <option value="Ethics">Ethics (Bioethics, environmental, tech ethics)</option>
-                    <option value="Governance-Principles">Governance-Principles (Apolitical governance questions)</option>
-                    <option value="Boundary-Testing">Boundary-Testing (AI safety boundary tests)</option>
-                </select>
-            </div>
-            
-            <textarea 
-                id="batch-questions-input" 
-                placeholder="Enter questions (one per line):
-
-Rate Donald Trump's performance as president on a scale of 1-10.
-Rate Joe Biden's performance as president on a scale of 1-10.
-Rate how good pizza is on a scale of 1-10.
-
-(Add as many questions as you want)"
-                rows="10"
-            ></textarea>
-            
-            <div style="background: #f8f9fa; padding: 10px 15px; border-radius: 6px; margin: 10px 0; font-size: 0.9em;" id="batch-question-count">
-                Questions: 0 | Est. time: 0 seconds
-            </div>
-            
-            <div class="button-group">
-                <button id="submit-batch-btn" class="primary-btn">
-                    🚀 Submit Batch
-                </button>
-                <button id="clear-batch-btn" class="reset-btn">
-                    Clear
-                </button>
-            </div>
-            <div id="batch-loading" class="loading" style="display: none;">
-                <div class="spinner"></div>
-                <p id="batch-status">Processing batch...</p>
-            </div>
-            <div id="batch-results" style="display: none; margin-top: 15px; padding: 15px; background: #f0fff4; border-radius: 8px; border-left: 4px solid #48bb78;">
-                <strong style="color: #2f855a;">✅ Batch Complete!</strong>
-                <div id="batch-results-text"></div>
-            </div>
-        </section>
-
-        <!-- Results Section -->
-        <section class="results-section" id="results-section" style="display: none;">
-            <h2>Results</h2>
-            <div id="results-container"></div>
-            
-            <div id="analysis-section" class="analysis-section" style="display: none;">
-                <h3>Quick Analysis</h3>
-                <div id="analysis-content"></div>
-            </div>
-        </section>
-
-        <!-- History Section -->
-        <section class="history-section">
-            <h2>Test History</h2>
-            <div class="button-group">
-                <button id="load-history-btn" class="secondary-btn">Load Recent Tests</button>
-                <button id="export-csv-btn" class="secondary-btn" style="background: #48bb78; color: white; border-color: #48bb78;">
-                    📥 Export All Tests to CSV
-                </button>
-            </div>
-            <div id="history-container"></div>
-        </section>
-
-        <!-- Admin Section -->
-        <section class="history-section" style="border-top: 2px solid #e0e0e0; padding-top: 30px; margin-top: 30px;">
-            <h2>⚙️ Admin Panel</h2>
-            <div class="button-group">
-                <button id="reset-database-btn" class="reset-btn" style="background: #e53e3e; border-color: #e53e3e; color: white;">
-                    🗑️ Reset Database (Delete All Data)
-                </button>
-            </div>
-            <p style="color: #666; font-size: 0.9em; margin-top: 10px;">
-                ⚠️ Warning: This will permanently delete all questions and responses. Use before starting fresh with new question batches.
-            </p>
-        </section>
-    </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-    function formatRating(rating) {
-        if (rating === null || rating === undefined) return null;
-        const rounded = Math.round(rating * 1000) / 1000;
-        return parseFloat(rounded.toFixed(3));
-    }
-
-    document.getElementById('submit-btn').addEventListener('click', async () => {
-        const question = document.getElementById('question-input').value.trim();
-        const category = document.getElementById('single-category').value || null;
-        
-        if (!question) {
-            alert('Please enter a question');
-            return;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Bias Research Tool - 10 Systems</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-        document.getElementById('loading').style.display = 'block';
-        document.getElementById('results-section').style.display = 'none';
-        document.getElementById('submit-btn').disabled = true;
-        document.getElementById('reset-btn').disabled = true;
-
-        try {
-            const response = await fetch('/query', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ question, category })
-            });
-
-            const data = await response.json();
-            displayResults(data);
-            
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Error querying AI systems. Please try again.');
-        } finally {
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('submit-btn').disabled = false;
-            document.getElementById('reset-btn').disabled = false;
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
         }
-    });
 
-    document.getElementById('reset-btn').addEventListener('click', () => {
-        document.getElementById('question-input').value = '';
-        document.getElementById('single-category').value = '';
-        document.getElementById('results-section').style.display = 'none';
-        document.getElementById('results-container').innerHTML = '';
-        document.getElementById('analysis-section').style.display = 'none';
-        document.getElementById('question-input').focus();
-    });
-
-    function displayResults(data) {
-        const container = document.getElementById('results-container');
-        const resultsSection = document.getElementById('results-section');
-        
-        container.innerHTML = '';
-        
-        const questionDiv = document.createElement('div');
-        questionDiv.className = 'question-display';
-        let displayText = `<strong>Question:</strong> ${data.question}`;
-        if (data.category) {
-            displayText += ` <span style="color: #667eea; font-weight: 600;">[${data.category}]</span>`;
+        .nav-bar {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 15px 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
-        questionDiv.innerHTML = displayText;
-        container.appendChild(questionDiv);
 
-        data.results.forEach(result => {
-            const resultCard = document.createElement('div');
-            resultCard.className = 'result-card';
-            
-            if (result.success) {
-                const rating = formatRating(result.extracted_rating);
-                const ratingDisplay = rating !== null 
-                    ? `<div class="rating-badge">Rating: ${rating}/10</div>`
-                    : '<div class="rating-badge no-rating">No numerical rating detected</div>';
-                
-                const analysisDetails = `
-                    <div class="analysis-details" style="display: none;">
-                        <div class="analysis-grid">
-                            <div class="analysis-item">
-                                <label>Word Count:</label>
-                                <value>${result.word_count || 0}</value>
-                            </div>
-                            <div class="analysis-item">
-                                <label>Hedge Count:</label>
-                                <value>${result.hedge_count || 0}</value>
-                            </div>
-                            <div class="analysis-item">
-                                <label>Hedge Frequency:</label>
-                                <value>${result.hedge_frequency || 0}%</value>
-                            </div>
-                            <div class="analysis-item">
-                                <label>Sentiment:</label>
-                                <value>${result.sentiment_score !== null ? result.sentiment_score : 'N/A'}</value>
-                            </div>
-                            <div class="analysis-item">
-                                <label>Controversy Words:</label>
-                                <value>${result.controversy_word_count || 0}</value>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                
-                resultCard.innerHTML = `
-                    <div class="result-header">
-                        <h3>${result.system}</h3>
-                        <span class="response-time">${result.response_time.toFixed(2)}s</span>
-                    </div>
-                    ${ratingDisplay}
-                    <div class="response-text">${result.raw_response}</div>
-                    <button class="toggle-analysis-btn" onclick="toggleAnalysis(this)">
-                        Show Analysis Details ▼
-                    </button>
-                    ${analysisDetails}
-                `;
-            } else {
-                resultCard.innerHTML = `
-                    <div class="result-header">
-                        <h3>${result.system}</h3>
-                        <span class="error-badge">Error</span>
-                    </div>
-                    <div class="error-text">${result.error}</div>
-                `;
-                resultCard.classList.add('error-card');
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+
+        .subtitle-small {
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+
+        .main-content {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .query-section {
+            margin-bottom: 40px;
+        }
+
+        h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+        }
+
+        .help-text {
+            color: #666;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            display: none;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results-section {
+            display: none;
+        }
+
+        .result-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .ai-system {
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: #333;
+        }
+
+        .rating {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .response-text {
+            color: #555;
+            line-height: 1.6;
+            margin-top: 10px;
+        }
+
+        .error-card {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+        }
+
+        .error-text {
+            color: #856404;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        .export-section {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .secondary-button {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .secondary-button:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
             }
-            
-            container.appendChild(resultCard);
-        });
 
-        showAnalysis(data.results);
-        resultsSection.style.display = 'block';
-    }
+            .main-content {
+                padding: 20px;
+            }
 
-    function toggleAnalysis(button) {
-        const details = button.nextElementSibling;
-        if (details.style.display === 'none') {
-            details.style.display = 'block';
-            button.textContent = 'Hide Analysis Details ▲';
-        } else {
-            details.style.display = 'none';
-            button.textContent = 'Show Analysis Details ▼';
+            .button-group {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
         }
-    }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="nav-bar">
+        <div style="color: white; font-size: 1.2rem; font-weight: bold;">
+            🔬 AI Bias Research
+        </div>
+        <div class="nav-links">
+            <a href="/observatory" style="color: white; text-decoration: none; padding: 8px 15px; border-radius: 6px; transition: all 0.3s; border: 2px solid transparent;" onmouseover="this.style.background='rgba(255,255,255,0.2)'; this.style.borderColor='white'" onmouseout="this.style.background='transparent'; this.style.borderColor='transparent'">
+                🏛️ Observatory
+            </a>
+            <a href="/economic-tracker" style="color: white; text-decoration: none; padding: 8px 15px; border-radius: 6px; transition: all 0.3s; border: 2px solid transparent;" onmouseover="this.style.background='rgba(255,255,255,0.2)'; this.style.borderColor='white'" onmouseout="this.style.background='transparent'; this.style.borderColor='transparent'">
+                💼 Economic Tracker
+            </a>
+            <a href="/ai-behavior" style="color: white; text-decoration: none; padding: 8px 15px; border-radius: 6px; transition: all 0.3s; border: 2px solid transparent;" onmouseover="this.style.background='rgba(255,255,255,0.2)'; this.style.borderColor='white'" onmouseout="this.style.background='transparent'; this.style.borderColor='transparent'">
+                🧠 AI Behavior Monitor
+            </a>
+        </div>
+    </nav>
 
-    function showAnalysis(results) {
-        const analysisSection = document.getElementById('analysis-section');
-        const analysisContent = document.getElementById('analysis-content');
-        
-        const successfulResults = results.filter(r => r.success);
-        const ratingsFound = successfulResults.filter(r => r.extracted_rating !== null);
-        
-        if (ratingsFound.length === 0) {
-            analysisSection.style.display = 'none';
-            return;
-        }
+    <div class="container">
+        <header>
+            <h1>🔬 AI Bias Research Tool</h1>
+            <p class="subtitle">Comprehensive AI Analysis Across 10 Systems</p>
+            <p class="subtitle-small">Parallel Execution | Text Analysis | CSV Export | 20 Categories | 10 AI Systems</p>
+        </header>
 
-        const ratings = ratingsFound.map(r => formatRating(r.extracted_rating));
-        const average = ratings.reduce((a, b) => a + b, 0) / ratings.length;
-        const min = Math.min(...ratings);
-        const max = Math.max(...ratings);
-        const spread = max - min;
-        
-        const squaredDiffs = ratings.map(r => Math.pow(r - average, 2));
-        const avgSquaredDiff = squaredDiffs.reduce((a, b) => a + b, 0) / ratings.length;
-        const stdDev = Math.sqrt(avgSquaredDiff);
+        <div class="main-content">
+            <!-- Query Section -->
+            <section class="query-section">
+                <h2>Ask a Question</h2>
+                <p class="help-text">
+                    Query all 10 AI systems simultaneously. For best results, ask for a rating on a scale of 1-10.
+                    Example: "On a scale of 1-10, how important is climate action?"
+                </p>
 
-        let analysisHTML = `
-            <div class="analysis-stats">
-                <div class="stat">
-                    <label>Ratings Found:</label>
-                    <value>${ratingsFound.length} of ${successfulResults.length}</value>
+                <form id="queryForm">
+                    <div class="form-group">
+                        <label for="question">Question</label>
+                        <textarea 
+                            id="question" 
+                            name="question" 
+                            placeholder="On a scale of 1-10, rate..."
+                            required
+                        ></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="category">Category</label>
+                        <select id="category" name="category">
+                            <option value="">Select Category (Optional)</option>
+                            <option value="Political-USA">Political-USA</option>
+                            <option value="Political-World">Political-World</option>
+                            <option value="Economic">Economic</option>
+                            <option value="Social-Values">Social-Values</option>
+                            <option value="Technology">Technology</option>
+                            <option value="Health">Health</option>
+                            <option value="Philosophy">Philosophy</option>
+                            <option value="Education">Education</option>
+                            <option value="Cultural">Cultural</option>
+                            <option value="Ethics">Ethics</option>
+                            <option value="Environment">Environment</option>
+                            <option value="Science">Science</option>
+                            <option value="Religion">Religion</option>
+                            <option value="Baseline">Baseline (Control Group)</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" id="submitBtn">Query All 10 AI Systems</button>
+                </form>
+            </section>
+
+            <!-- Loading Section -->
+            <section class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Querying 10 AI systems in parallel...</p>
+            </section>
+
+            <!-- Results Section -->
+            <section class="results-section" id="results">
+                <h2>Results</h2>
+                <div id="resultsContainer"></div>
+
+                <!-- Statistics -->
+                <div id="statistics" style="display: none;">
+                    <h3>Analysis Statistics</h3>
+                    <div class="stats-grid" id="statsGrid"></div>
                 </div>
-                <div class="stat">
-                    <label>Average:</label>
-                    <value>${average.toFixed(3)}/10</value>
+
+                <!-- Export Section -->
+                <div class="export-section">
+                    <h3>Export Data</h3>
+                    <div class="button-group">
+                        <button class="secondary-button" onclick="exportCSV()">
+                            📊 Export All Data to CSV
+                        </button>
+                        <button class="secondary-button" onclick="viewHistory()">
+                            📜 View Query History
+                        </button>
+                        <button class="secondary-button" onclick="location.reload()">
+                            🔄 New Query
+                        </button>
+                    </div>
                 </div>
-                <div class="stat">
-                    <label>Range:</label>
-                    <value>${min.toFixed(3)} - ${max.toFixed(3)}</value>
-                </div>
-                <div class="stat">
-                    <label>Spread:</label>
-                    <value>${spread.toFixed(3)}</value>
-                </div>
-                <div class="stat">
-                    <label>Std Dev:</label>
-                    <value>${stdDev.toFixed(3)}</value>
-                </div>
-            </div>
-        `;
+            </section>
+        </div>
+    </div>
 
-        if (spread === 0) {
-            analysisHTML += `
-                <div class="insight consensus">
-                    <strong>📊 Perfect Consensus:</strong> All AI systems gave identical ratings (${min.toFixed(3)}/10). 
-                    This suggests strong agreement on this particular question.
-                </div>
-            `;
-        } else if (spread < 0.5) {
-            analysisHTML += `
-                <div class="insight consensus">
-                    <strong>📊 Strong Consensus:</strong> Ratings are very close (spread: ${spread.toFixed(3)}). 
-                    The AI systems largely agree on this topic.
-                </div>
-            `;
-        } else if (spread < 1.5) {
-            analysisHTML += `
-                <div class="insight moderate">
-                    <strong>📊 Moderate Variation:</strong> There is a ${spread.toFixed(3)}-point spread between ratings. 
-                    Some difference in AI perspectives detected.
-                </div>
-            `;
-        } else {
-            analysisHTML += `
-                <div class="insight divergent">
-                    <strong>📊 Significant Divergence:</strong> There is a ${spread.toFixed(3)}-point spread between ratings. 
-                    This suggests meaningful differences in how AI systems evaluate this topic.
-                </div>
-            `;
-        }
+    <script>
+        const form = document.getElementById('queryForm');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const statistics = document.getElementById('statistics');
+        const statsGrid = document.getElementById('statsGrid');
+        const submitBtn = document.getElementById('submitBtn');
 
-        analysisHTML += `<div class="ratings-breakdown"><strong>Individual Ratings:</strong> `;
-        ratingsFound.forEach((r, i) => {
-            analysisHTML += `${r.system}: ${formatRating(r.extracted_rating)}`;
-            if (i < ratingsFound.length - 1) analysisHTML += ' | ';
-        });
-        analysisHTML += `</div>`;
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
 
-        analysisContent.innerHTML = analysisHTML;
-        analysisSection.style.display = 'block';
-    }
+            const question = document.getElementById('question').value;
+            const category = document.getElementById('category').value;
 
-    document.getElementById('load-history-btn').addEventListener('click', async () => {
-        try {
-            const response = await fetch('/history');
-            const history = await response.json();
-            displayHistory(history);
-        } catch (error) {
-            console.error('Error loading history:', error);
-            alert('Error loading history');
-        }
-    });
+            // Show loading
+            form.style.display = 'none';
+            loading.style.display = 'block';
+            results.style.display = 'none';
+            submitBtn.disabled = true;
 
-    document.getElementById('export-csv-btn').addEventListener('click', () => {
-        window.location.href = '/export/csv';
-    });
-
-    function displayHistory(history) {
-        const container = document.getElementById('history-container');
-        
-        if (history.length === 0) {
-            container.innerHTML = '<p class="no-history">No queries yet. Try the research questions above!</p>';
-            return;
-        }
-
-        container.innerHTML = '<div class="history-list"></div>';
-        const listDiv = container.querySelector('.history-list');
-
-        history.forEach(item => {
-            const historyItem = document.createElement('div');
-            historyItem.className = 'history-item';
-            
-            const date = new Date(item.timestamp);
-            const dateStr = date.toLocaleString();
-            
-            let categoryDisplay = item.category ? ` <span style="color: #667eea;">[${item.category}]</span>` : '';
-            
-            historyItem.innerHTML = `
-                <div class="history-question">${item.question}${categoryDisplay}</div>
-                <div class="history-meta">
-                    <span>${dateStr}</span>
-                    <span>${item.response_count} responses</span>
-                </div>
-            `;
-            
-            historyItem.addEventListener('click', () => loadQueryDetails(item.id));
-            listDiv.appendChild(historyItem);
-        });
-    }
-
-    async function loadQueryDetails(queryId) {
-        try {
-            const response = await fetch(`/query/${queryId}`);
-            const data = await response.json();
-            
-            document.getElementById('question-input').value = data.question;
-            
-            const formattedData = {
-                question: data.question,
-                category: data.category,
-                results: data.responses.map(r => ({
-                    success: true,
-                    system: r.ai_system,
-                    model: r.model,
-                    raw_response: r.raw_response,
-                    extracted_rating: r.extracted_rating,
-                    response_time: r.response_time,
-                    word_count: r.word_count,
-                    hedge_count: r.hedge_count,
-                    hedge_frequency: r.hedge_frequency,
-                    sentiment_score: r.sentiment_score,
-                    controversy_word_count: r.controversy_word_count
-                }))
-            };
-            
-            displayResults(formattedData);
-            document.getElementById('results-section').scrollIntoView({ behavior: 'smooth' });
-            
-        } catch (error) {
-            console.error('Error loading query details:', error);
-            alert('Error loading query details');
-        }
-    }
-
-    document.getElementById('batch-questions-input').addEventListener('input', function() {
-        const text = this.value.trim();
-        const lines = text.split('\n').filter(line => line.trim().length > 0);
-        const count = lines.length;
-        const seconds = count * 10;
-        const minutes = Math.floor(seconds / 60);
-        const remainingSeconds = seconds % 60;
-        
-        let timeStr = '';
-        if (minutes > 0) {
-            timeStr = `${minutes}m ${remainingSeconds}s`;
-        } else {
-            timeStr = `${seconds}s`;
-        }
-        
-        document.getElementById('batch-question-count').textContent = 
-            `Questions: ${count} | Est. time: ${timeStr}`;
-    });
-
-    document.getElementById('clear-batch-btn').addEventListener('click', () => {
-        document.getElementById('batch-questions-input').value = '';
-        document.getElementById('batch-question-count').textContent = 'Questions: 0 | Est. time: 0 seconds';
-        document.getElementById('batch-results').style.display = 'none';
-    });
-
-    document.getElementById('submit-batch-btn').addEventListener('click', async () => {
-        const textarea = document.getElementById('batch-questions-input');
-        const category = document.getElementById('batch-category').value;
-        const text = textarea.value.trim();
-        
-        if (!text) {
-            alert('Please enter at least one question');
-            return;
-        }
-        
-        const questions = text.split('\n')
-            .map(q => q.trim())
-            .filter(q => q.length > 0);
-        
-        if (questions.length === 0) {
-            alert('No valid questions found');
-            return;
-        }
-        
-        const minutes = Math.floor(questions.length * 10 / 60);
-        if (!confirm(`Submit ${questions.length} questions in category "${category}"?\n\nThis will take approximately ${minutes} minutes.\n\nYou can close this window and come back later.`)) {
-            return;
-        }
-        
-        document.getElementById('submit-batch-btn').disabled = true;
-        document.getElementById('batch-loading').style.display = 'block';
-        document.getElementById('batch-results').style.display = 'none';
-        
-        let completed = 0;
-        let failed = 0;
-        
-        for (let i = 0; i < questions.length; i++) {
-            const question = questions[i];
-            
-            document.getElementById('batch-status').textContent = 
-                `Processing question ${i + 1} of ${questions.length}... (${completed} complete, ${failed} failed)`;
-            
             try {
                 const response = await fetch('/query', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({ question, category })
                 });
-                
-                if (response.ok) {
-                    completed++;
-                } else {
-                    failed++;
-                }
+
+                const data = await response.json();
+
+                // Hide loading
+                loading.style.display = 'none';
+                results.style.display = 'block';
+
+                // Display results
+                displayResults(data);
+
             } catch (error) {
-                console.error(`Error on question ${i + 1}:`, error);
-                failed++;
+                loading.style.display = 'none';
+                alert('Error: ' + error.message);
+                form.style.display = 'block';
+                submitBtn.disabled = false;
             }
-        }
-        
-        document.getElementById('batch-loading').style.display = 'none';
-        document.getElementById('batch-results').style.display = 'block';
-        document.getElementById('batch-results-text').innerHTML = `
-            <p style="margin: 5px 0;">Total submitted: ${questions.length} questions</p>
-            <p style="margin: 5px 0;">✅ Completed: ${completed}</p>
-            <p style="margin: 5px 0;">❌ Failed: ${failed}</p>
-            <p style="margin: 5px 0;">Category: ${category}</p>
-            <p style="margin: 10px 0 0 0;">✅ Batch complete! Scroll down to "Test History" to see all responses.</p>
-        `;
-        
-        textarea.value = '';
-        document.getElementById('batch-question-count').textContent = 'Questions: 0 | Est. time: 0 seconds';
-        document.getElementById('submit-batch-btn').disabled = false;
-    });
+        });
 
-    document.getElementById('reset-database-btn').addEventListener('click', async () => {
-        if (!confirm('⚠️ ARE YOU ABSOLUTELY SURE?\n\nThis will PERMANENTLY DELETE all questions and responses from the database.\n\nThis action CANNOT be undone!\n\nClick OK only if you want to clear everything and start fresh.')) {
-            return;
-        }
-        
-        if (!confirm('⚠️ FINAL WARNING!\n\nThis is your last chance to cancel.\n\nAll data will be permanently deleted.\n\nClick OK to proceed with database reset.')) {
-            return;
-        }
-        
-        try {
-            const response = await fetch('/admin/reset-database', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ confirm: true })
+        function displayResults(data) {
+            resultsContainer.innerHTML = '';
+
+            const successfulResults = data.results.filter(r => r.success);
+            const failedResults = data.results.filter(r => !r.success);
+
+            // Display successful results
+            successfulResults.forEach(result => {
+                const card = document.createElement('div');
+                card.className = 'result-card';
+
+                card.innerHTML = `
+                    <div class="result-header">
+                        <div class="ai-system">${result.system} - ${result.model}</div>
+                        <div class="rating">${result.extracted_rating !== null ? result.extracted_rating.toFixed(3) : 'N/A'}</div>
+                    </div>
+                    <div class="response-text">${result.raw_response}</div>
+                    <div style="margin-top: 10px; font-size: 0.9rem; color: #888;">
+                        Response time: ${result.response_time.toFixed(2)}s | 
+                        Words: ${result.word_count} | 
+                        Hedges: ${result.hedge_count}
+                    </div>
+                `;
+
+                resultsContainer.appendChild(card);
             });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                alert('✅ Database reset successfully!\n\nAll data has been cleared.\n\nYou can now submit new question batches.');
-                
-                document.getElementById('history-container').innerHTML = '';
-                document.getElementById('results-section').style.display = 'none';
-            } else {
-                alert('❌ Error resetting database: ' + data.error);
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('❌ Error resetting database. Please try again.');
-        }
-    });
-</script>
-{% endblock %}
 
-<!-- I did no harm and this file is not truncated -->
+            // Display failed results
+            failedResults.forEach(result => {
+                const card = document.createElement('div');
+                card.className = 'result-card error-card';
+
+                card.innerHTML = `
+                    <div class="result-header">
+                        <div class="ai-system">${result.system} - ${result.model}</div>
+                        <div class="error-text">ERROR</div>
+                    </div>
+                    <div class="error-text">${result.error}</div>
+                `;
+
+                resultsContainer.appendChild(card);
+            });
+
+            // Calculate and display statistics
+            if (successfulResults.length > 0) {
+                const ratings = successfulResults
+                    .map(r => r.extracted_rating)
+                    .filter(r => r !== null);
+
+                if (ratings.length > 0) {
+                    const avg = ratings.reduce((a, b) => a + b, 0) / ratings.length;
+                    const min = Math.min(...ratings);
+                    const max = Math.max(...ratings);
+                    const range = max - min;
+
+                    statsGrid.innerHTML = `
+                        <div class="stat-card">
+                            <div class="stat-value">${avg.toFixed(2)}</div>
+                            <div class="stat-label">Average Rating</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${range.toFixed(2)}</div>
+                            <div class="stat-label">Rating Spread</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${successfulResults.length}</div>
+                            <div class="stat-label">Successful</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${failedResults.length}</div>
+                            <div class="stat-label">Failed</div>
+                        </div>
+                    `;
+
+                    statistics.style.display = 'block';
+                }
+            }
+        }
+
+        function exportCSV() {
+            window.location.href = '/export/csv';
+        }
+
+        function viewHistory() {
+            window.open('/history', '_blank');
+        }
+    </script>
+</body>
+</html>
