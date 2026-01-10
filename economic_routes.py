@@ -1,16 +1,20 @@
 """
 AI Observatory - Economic Threat Tracker Routes
 File: economic_routes.py
-Date: January 4, 2026
-Version: 1.1.0 - ENHANCED WITH COMPREHENSIVE INDICATORS
+Date: January 10, 2026
+Version: 1.2.0 - ADDED LATEST DATA RETRIEVAL FOR PAGE PERSISTENCE
 
-Last modified: January 4, 2026 - Updated /api/economic/update route
+Last modified: January 10, 2026 - Added /api/economic/latest route
+    - NEW: /api/economic/latest endpoint loads previously stored data
+    - Fixes blank page on revisit - shows last known values
+    - Displays timestamp of when data was last updated
+    - All existing functionality preserved (DO NO HARM)
+
+Previous updates:
+    - January 4, 2026 - Updated /api/economic/update route
     - Changed to use fetch_comprehensive_indicators() method
     - Now returns all 8 indicators in one call
     - Added /api/economic/analyze-threat route for clearer naming
-    - All existing routes preserved
-
-Previous updates:
     - January 2, 2026 - Removed hardcoded days_back=30 to use default 730
 
 PURPOSE:
@@ -19,12 +23,13 @@ Flask routes for Economic Threat Tracker integration into AI Bias Research app.
 ROUTES:
 - GET /economic-tracker - Dashboard page
 - GET /api/economic/status - Current threat status JSON
-- POST /api/economic/update - Fetch latest economic data (UPDATED)
+- GET /api/economic/latest - Get latest stored economic data (NEW v1.2.0)
+- POST /api/economic/update - Fetch latest economic data from FRED API
 - POST /api/economic/analyze - Run threat analysis (legacy)
 - POST /api/economic/analyze-threat - Run threat analysis (new)
 - GET /api/economic/history - Historical data
 - GET /api/economic/alerts - Get active alerts
-- POST /api/economic/alert/<id>/acknowledge - Acknowledge alert
+- POST /api/economic/alert/<int:alert_id>/acknowledge - Acknowledge alert
 
 INTEGRATION:
 Add these routes to your existing app.py:
@@ -38,6 +43,7 @@ from flask import Blueprint, render_template, jsonify, request
 from economic_tracker import EconomicThreatTracker
 from datetime import datetime, timedelta
 import json
+import sqlite3
 
 # Create blueprint
 economic_bp = Blueprint('economic', __name__, url_prefix='/economic-tracker')
@@ -75,6 +81,106 @@ def register_economic_routes(app, ai_query_functions):
             })
         except Exception as e:
             print(f"Error in /api/economic/status: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+    
+    @app.route('/api/economic/latest')
+    def economic_latest():
+        """
+        Get latest stored economic data from database
+        
+        NEW in v1.2.0: This route loads previously stored data so the page
+        shows the last known values on revisit instead of being blank.
+        
+        Returns:
+            JSON with latest indicators and timestamp of last update
+        """
+        try:
+            conn = sqlite3.connect(tracker.db_path)
+            cursor = conn.cursor()
+            
+            # Get the most recent indicators grouped by name
+            cursor.execute('''
+                SELECT 
+                    indicator_name,
+                    value,
+                    change_from_previous,
+                    MAX(timestamp) as timestamp
+                FROM economic_indicators
+                GROUP BY indicator_name
+                ORDER BY timestamp DESC
+            ''')
+            
+            rows = cursor.fetchall()
+            
+            if not rows:
+                conn.close()
+                return jsonify({
+                    'success': True,
+                    'has_data': False,
+                    'message': 'No economic data available yet. Click "Update Economic Data" to fetch.'
+                })
+            
+            # Build indicators dict from database
+            indicators = {}
+            last_updated = rows[0][3] if rows else None
+            
+            for row in rows:
+                indicator_name, value, change, timestamp = row
+                
+                # Map database names to frontend keys
+                if indicator_name == 'Unemployment Rate':
+                    indicators['unemployment_rate'] = value
+                    indicators['unemployment_change'] = change if change else 0
+                elif indicator_name == 'Total Nonfarm Employment':
+                    indicators['total_employment'] = value * 1000  # PAYEMS is in thousands
+                    indicators['employment_change'] = (change * 1000) if change else 0
+                elif indicator_name == 'GDP Growth Rate':
+                    indicators['gdp_growth'] = value
+                    indicators['gdp_change'] = value  # Growth rate itself
+                elif indicator_name == 'CPI Inflation Rate':
+                    indicators['inflation_rate'] = value
+                    indicators['inflation_change'] = change if change else 0
+                elif indicator_name == 'Consumer Confidence':
+                    indicators['consumer_confidence'] = value
+                    indicators['confidence_change'] = change if change else 0
+                elif indicator_name == 'Average Hourly Earnings':
+                    indicators['avg_hourly_earnings'] = value
+                    indicators['wages_change'] = change if change else 0
+                elif indicator_name == 'Industrial Production Index':
+                    indicators['industrial_production'] = value
+                    indicators['production_change'] = change if change else 0
+                elif indicator_name == 'Recession Risk Level':
+                    indicators['recession_risk'] = int(value)
+            
+            # Get latest threat assessment if available
+            cursor.execute('''
+                SELECT threat_level, ai_consensus_score, timestamp
+                FROM ai_threat_assessments
+                ORDER BY timestamp DESC
+                LIMIT 1
+            ''')
+            
+            threat_row = cursor.fetchone()
+            if threat_row:
+                indicators['threat_level'] = threat_row[0]
+                indicators['ai_consensus_score'] = threat_row[1]
+            
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'has_data': True,
+                'last_updated': last_updated,
+                **indicators
+            })
+            
+        except Exception as e:
+            print(f"\n❌ ERROR in /api/economic/latest: {str(e)}")
             import traceback
             print(traceback.format_exc())
             return jsonify({
