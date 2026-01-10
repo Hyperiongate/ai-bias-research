@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<!--
+TruthLens - Base Template for AI Bias Research Repository
+Version: 1.0.0 - INITIAL CREATION
+Date: January 10, 2026
+Repository: ai-bias-research.onrender.com
+
+PURPOSE:
+Provides unified navigation across TruthLens ecosystem for AI Bias Research tools.
+Allows users to navigate between factsandfakes.ai and ai-bias-research.onrender.com.
+
+WHAT'S INCLUDED:
+- Full TruthLens navigation (matches factsandfakes.ai)
+- Links to News, Transcripts, AI Council, etc.
+- Local links for Observatory, Economic Tracker, AI Behavior
+- External links back to main TruthLens site
+- Universal progress banner system
+- Responsive mobile menu
+
+Last modified: January 10, 2026 - v1.0.0 Initial Creation
+I did no harm and this file is not truncated.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Page title - override in child templates -->
+    <title>{% block title %}AI Bias Research - TruthLens{% endblock %}</title>
+    
+    <!-- Meta description - override in child templates -->
+    <meta name="description" content="{% block description %}AI Bias Research: Comprehensive tools for analyzing AI behavior, economic threats, and existential risks.{% endblock %}">
+    
+    <!-- Common fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    
+    <!-- NAVIGATION & COMMON STYLES -->
+    <style>
+        /* ===================================================================
+           GLOBAL RESET & BASE STYLES
+           =================================================================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            line-height: 1.6;
+            padding-top: 90px; /* Account for fixed navigation */
+        }
+
+        /* ===================================================================
+           NAVIGATION STYLES (Matches factsandfakes.ai)
+           =================================================================== */
+        .main-navigation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: white;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .nav-container-unified {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .nav-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 800;
+            font-size: 1.4rem;
+            color: #667eea;
+            transition: all 0.3s ease;
+        }
+
+        .nav-logo:hover {
+            color: #764ba2;
+            transform: translateY(-2px);
+        }
+
+        .nav-logo i {
+            font-size: 1.6rem;
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #667eea;
+            cursor: pointer;
+        }
+
+        .nav-menu-container {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .nav-menu-row {
+            display: flex;
+            list-style: none;
+            gap: 5px;
+            padding: 10px 0;
+        }
+
+        .nav-menu-row.top-row {
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            text-decoration: none;
+            color: #64748b;
+            font-weight: 500;
+            font-size: 0.9rem;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .nav-link:hover {
+            background: #f1f5f9;
+            color: #667eea;
+        }
+
+        .nav-link.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .nav-link.external {
+            color: #10b981;
+        }
+
+        .nav-link.external:hover {
+            background: #ecfdf5;
+            color: #059669;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 1200px) {
+            .nav-link {
+                font-size: 0.85rem;
+                padding: 8px 10px;
+                gap: 4px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding-top: 80px;
+            }
+
+            .mobile-menu-toggle {
+                display: block;
+            }
+
+            .nav-menu-container {
+                display: none;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: white;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                padding: 10px 20px;
+            }
+
+            .nav-menu-container.active {
+                display: flex;
+            }
+
+            .nav-menu-row {
+                flex-direction: column;
+                gap: 0;
+            }
+
+            .nav-link {
+                padding: 12px;
+                font-size: 1rem;
+            }
+        }
+
+        /* ===================================================================
+           UNIVERSAL PROGRESS BANNER
+           =================================================================== */
+        #universalProgressBanner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1100;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 20px;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        #universalProgressBanner.visible {
+            transform: translateY(0);
+        }
+
+        .progress-banner-icon {
+            font-size: 1.5rem;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+        }
+
+        .progress-banner-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .progress-banner-message {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .progress-banner-bar-container {
+            background: rgba(255, 255, 255, 0.2);
+            height: 6px;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-banner-bar-fill {
+            background: white;
+            height: 100%;
+            width: 0%;
+            border-radius: 3px;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        .progress-banner-percentage {
+            font-size: 1.25rem;
+            font-weight: 700;
+            min-width: 50px;
+            text-align: right;
+        }
+
+        body.banner-visible {
+            padding-top: 150px !important;
+        }
+    </style>
+    
+    <!-- Page-specific styles - override in child templates -->
+    {% block styles %}{% endblock %}
+</head>
+<body>
+    <!-- ========================================================================
+         UNIVERSAL PROGRESS BANNER - USED BY ALL PAGES
+         ======================================================================== -->
+    <div id="universalProgressBanner">
+        <div class="progress-banner-icon" id="progressBannerIcon">🔍</div>
+        <div class="progress-banner-content">
+            <div class="progress-banner-message" id="progressBannerMessage">Processing...</div>
+            <div class="progress-banner-bar-container">
+                <div class="progress-banner-bar-fill" id="progressBannerBarFill"></div>
+            </div>
+        </div>
+        <div class="progress-banner-percentage" id="progressBannerPercentage">0%</div>
+    </div>
+
+    <!-- ========================================================================
+         NAVIGATION - UNIFIED TRUTHLENS ECOSYSTEM
+         ======================================================================== -->
+    <nav class="main-navigation">
+        <div class="nav-container-unified">
+            <!-- Logo and Mobile Toggle -->
+            <div class="nav-header-row">
+                <a href="https://factsandfakes.ai" class="nav-logo">
+                    <i class="fas fa-shield-check"></i>
+                    <span>TruthLens</span>
+                </a>
+                
+                <button class="mobile-menu-toggle" onclick="toggleMobileMenu()" aria-label="Toggle menu">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            
+            <!-- Two-Row Menu Container -->
+            <div class="nav-menu-container" id="navMenu">
+                <!-- TOP ROW: Main Tools -->
+                <ul class="nav-menu-row top-row">
+                    <li><a href="https://factsandfakes.ai" class="nav-link {% if active_page == 'home' %}active{% endif %}"><i class="fas fa-home"></i> Home</a></li>
+                    <li><a href="https://factsandfakes.ai/about" class="nav-link {% if active_page == 'about' %}active{% endif %}"><i class="fas fa-info-circle"></i> About Us</a></li>
+                    <li><a href="https://factsandfakes.ai/features" class="nav-link {% if active_page == 'features' %}active{% endif %}"><i class="fas fa-star"></i> Features</a></li>
+                    <li><a href="https://factsandfakes.ai/analyze" class="nav-link {% if active_page == 'news' %}active{% endif %}"><i class="fas fa-newspaper"></i> News Analysis</a></li>
+                    <li><a href="https://factsandfakes.ai/transcript" class="nav-link {% if active_page == 'transcript' %}active{% endif %}"><i class="fas fa-file-alt"></i> Transcript Analysis</a></li>
+                    <li><a href="https://factsandfakes.ai/ask-ai" class="nav-link {% if active_page == 'ask-ai' %}active{% endif %}"><i class="fas fa-brain"></i> Ask AI</a></li>
+                    <li><a href="https://factsandfakes.ai/debate-arena" class="nav-link {% if active_page == 'debates' %}active{% endif %}"><i class="fas fa-users"></i> Debate Arena</a></li>
+                </ul>
+                
+                <!-- BOTTOM ROW: Secondary Tools + AI Research Tools -->
+                <ul class="nav-menu-row bottom-row">
+                    <li><a href="https://ai-debate-arena-k8gs.onrender.com" class="nav-link external" target="_blank"><i class="fas fa-robot"></i> AI Debates <i class="fas fa-external-link-alt" style="font-size: 0.7rem;"></i></a></li>
+                    <li><a href="/observatory" class="nav-link {% if active_page == 'observatory' %}active{% endif %}"><i class="fas fa-chart-line"></i> AI Observatory</a></li>
+                    <li><a href="/economic-tracker" class="nav-link {% if active_page == 'economic' %}active{% endif %}"><i class="fas fa-dollar-sign"></i> Economic Tracker</a></li>
+                    <li><a href="/ai-behavior" class="nav-link {% if active_page == 'behavior' %}active{% endif %}"><i class="fas fa-brain"></i> AI Behavior</a></li>
+                    <li><a href="/" class="nav-link {% if active_page == 'research' %}active{% endif %}"><i class="fas fa-microscope"></i> AI Research</a></li>
+                    <li><a href="https://factsandfakes.ai/claim-tracker" class="nav-link {% if active_page == 'claims' %}active{% endif %}"><i class="fas fa-tasks"></i> Claim Tracker</a></li>
+                    <li><a href="https://factsandfakes.ai/quiz" class="nav-link {% if active_page == 'quiz' %}active{% endif %}"><i class="fas fa-question-circle"></i> Quiz</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ========================================================================
+         PAGE CONTENT - CHILD TEMPLATES INSERT THEIR CONTENT HERE
+         ======================================================================== -->
+    {% block content %}
+    <!-- Child templates will override this block -->
+    {% endblock %}
+
+    <!-- ========================================================================
+         UNIVERSAL PROGRESS BANNER JAVASCRIPT
+         ======================================================================== -->
+    <script>
+        // Mobile menu toggle
+        function toggleMobileMenu() {
+            const menu = document.getElementById('navMenu');
+            menu.classList.toggle('active');
+        }
+
+        // Universal Progress Banner System
+        const UniversalProgressBanner = {
+            show: function(message = "Processing...", icon = "🔍") {
+                const banner = document.getElementById('universalProgressBanner');
+                const messageEl = document.getElementById('progressBannerMessage');
+                const iconEl = document.getElementById('progressBannerIcon');
+                
+                messageEl.textContent = message;
+                iconEl.textContent = icon;
+                
+                banner.classList.add('visible');
+                document.body.classList.add('banner-visible');
+            },
+
+            update: function(percentage, message = null) {
+                const barFill = document.getElementById('progressBannerBarFill');
+                const percentageEl = document.getElementById('progressBannerPercentage');
+                const messageEl = document.getElementById('progressBannerMessage');
+                
+                barFill.style.width = percentage + '%';
+                percentageEl.textContent = percentage + '%';
+                
+                if (message) {
+                    messageEl.textContent = message;
+                }
+            },
+
+            hide: function() {
+                const banner = document.getElementById('universalProgressBanner');
+                banner.classList.remove('visible');
+                document.body.classList.remove('banner-visible');
+                
+                // Reset
+                setTimeout(() => {
+                    document.getElementById('progressBannerBarFill').style.width = '0%';
+                    document.getElementById('progressBannerPercentage').textContent = '0%';
+                }, 300);
+            }
+        };
+
+        // Make available globally
+        window.UniversalProgressBanner = UniversalProgressBanner;
+    </script>
+
+    <!-- Page-specific scripts - override in child templates -->
+    {% block scripts %}{% endblock %}
+</body>
+</html>
+
+<!-- 
+I did no harm and this file is not truncated 
+v1.0.0 - January 10, 2026 - Initial creation for AI Bias Research repository
+-->
