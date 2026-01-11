@@ -2,25 +2,21 @@
 
 <!--
 AI Observatory Dashboard - Using TruthLens Base Template
-Version: 3.0.0 - TEMPLATE INHERITANCE + FULL FUNCTIONALITY
+Version: 3.1.0 - FIXED HEADER VISIBILITY
 Date: January 10, 2026
 
 WHAT CHANGED:
-- Now extends base.html for unified TruthLens navigation
-- Set active_page='observatory' for nav highlighting
-- Removed duplicate navigation code
+- FIXED: Header no longer hidden behind navigation bar
+- Added proper body padding-top to match base template
+- Adjusted z-index hierarchy to keep nav on top
 - ALL existing functionality preserved (DO NO HARM ✓)
 
-FEATURES PRESERVED:
-- Real-time threat matrix (5 categories)
-- Color-coded threat levels (1-5 scale)
-- Statistics bar showing live data
-- Active alerts grid
-- Quick action buttons
-- Auto-refresh every 60 seconds
-- API integration with Economic & Behavior monitors
+PREVIOUS CHANGES:
+- v3.0.0: Template inheritance with base.html
+- Full threat monitoring functionality
+- Real-time updates every 60 seconds
 
-Last modified: January 10, 2026 - v3.0.0
+Last modified: January 10, 2026 - v3.1.0
 I did no harm and this file is not truncated.
 -->
 
@@ -33,12 +29,15 @@ I did no harm and this file is not truncated.
     body {
         background: #0a0a0f;
         color: #e2e8f0;
+        padding-top: 90px; /* Match navigation height - CRITICAL FIX */
     }
     
     .observatory-header {
         background: linear-gradient(135deg, #1e1b3b 0%, #0f172a 100%);
         padding: 40px 20px;
         border-bottom: 2px solid #3d3564;
+        position: relative;
+        z-index: 1; /* Below navigation */
     }
     
     .header-content {
@@ -310,6 +309,29 @@ I did no harm and this file is not truncated.
     @keyframes pulse {
         0%, 100% { opacity: 1; }
         50% { opacity: 0.5; }
+    }
+    
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+        body {
+            padding-top: 80px; /* Match mobile navigation height */
+        }
+        
+        h1 {
+            font-size: 2rem;
+        }
+        
+        .tagline {
+            font-size: 1rem;
+        }
+        
+        .threat-matrix {
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        }
+        
+        .alerts-grid {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
 {% endblock %}
@@ -597,5 +619,5 @@ I did no harm and this file is not truncated.
 
 <!-- 
 I did no harm and this file is not truncated 
-v3.0.0 - January 10, 2026 - Template inheritance + full functionality preserved
+v3.1.0 - January 10, 2026 - Fixed header visibility issue
 -->
