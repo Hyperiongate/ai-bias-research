@@ -2,21 +2,26 @@
 
 <!--
 AI Observatory Dashboard - Using TruthLens Base Template
-Version: 3.1.0 - FIXED HEADER VISIBILITY
-Date: January 10, 2026
+Version: 3.2.0 - INCREASED HEADER CLEARANCE
+Date: January 12, 2026
 
 WHAT CHANGED:
-- FIXED: Header no longer hidden behind navigation bar
-- Added proper body padding-top to match base template
-- Adjusted z-index hierarchy to keep nav on top
+v3.2.0 - January 12, 2026:
+- FIXED: Significantly increased body padding-top from 90px to 160px to fully clear navigation bar
+- FIXED: Increased mobile padding from 80px to 140px for consistency
 - ALL existing functionality preserved (DO NO HARM ✓)
 
-PREVIOUS CHANGES:
-- v3.0.0: Template inheritance with base.html
+v3.1.0 - January 10, 2026:
+- Header no longer hidden behind navigation bar
+- Added proper body padding-top to match base template
+- Adjusted z-index hierarchy to keep nav on top
+
+v3.0.0:
+- Template inheritance with base.html
 - Full threat monitoring functionality
 - Real-time updates every 60 seconds
 
-Last modified: January 10, 2026 - v3.1.0
+Last modified: January 12, 2026 - v3.2.0
 I did no harm and this file is not truncated.
 -->
 
@@ -29,7 +34,7 @@ I did no harm and this file is not truncated.
     body {
         background: #0a0a0f;
         color: #e2e8f0;
-        padding-top: 90px; /* Match navigation height - CRITICAL FIX */
+        padding-top: 160px; /* FIXED: Significantly increased from 90px to fully clear navigation */
     }
     
     .observatory-header {
@@ -314,7 +319,7 @@ I did no harm and this file is not truncated.
     /* Mobile responsiveness */
     @media (max-width: 768px) {
         body {
-            padding-top: 80px; /* Match mobile navigation height */
+            padding-top: 140px; /* FIXED: Increased for mobile navigation */
         }
         
         h1 {
@@ -619,5 +624,5 @@ I did no harm and this file is not truncated.
 
 <!-- 
 I did no harm and this file is not truncated 
-v3.1.0 - January 10, 2026 - Fixed header visibility issue
+v3.2.0 - January 12, 2026 - Increased header clearance
 -->
