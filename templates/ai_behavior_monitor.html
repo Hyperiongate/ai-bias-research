@@ -3,14 +3,19 @@
 <!--
 AI Behavior Monitor - Using TruthLens Base Template
 File: ai_behavior_monitor.html
-Date: January 10, 2026
-Version: 2.0.0 - TEMPLATE INHERITANCE
+Date: January 12, 2026
+Version: 2.1.0 - FIXED HEADER VISIBILITY
 
 WHAT CHANGED:
+v2.1.0 - January 12, 2026:
+- FIXED: Added body padding-top of 160px to fully clear navigation bar
+- FIXED: Added mobile padding-top of 140px for consistency
+- ALL existing functionality preserved (DO NO HARM ✓)
+
+v2.0.0 - January 10, 2026:
 - Now extends base.html for unified TruthLens navigation
 - Set active_page='behavior' for nav highlighting
 - Removed duplicate navigation code
-- ALL existing functionality preserved (DO NO HARM ✓)
 
 FEATURES PRESERVED:
 - Real-time anomaly detection dashboard
@@ -22,7 +27,7 @@ FEATURES PRESERVED:
 - Auto-refresh every 30 seconds
 - Complete API integration
 
-Last modified: January 10, 2026 - v2.0.0
+Last modified: January 12, 2026 - v2.1.0
 I did no harm and this file is not truncated.
 -->
 
@@ -44,6 +49,7 @@ I did no harm and this file is not truncated.
         color: #e2e8f0;
         min-height: 100vh;
         padding: 20px;
+        padding-top: 160px; /* FIXED: Added to fully clear navigation bar */
     }
     
     .container {
@@ -330,6 +336,10 @@ I did no harm and this file is not truncated.
     }
     
     @media (max-width: 768px) {
+        body {
+            padding-top: 140px; /* FIXED: Added for mobile navigation */
+        }
+        
         h1 {
             font-size: 1.8rem;
         }
@@ -652,4 +662,7 @@ I did no harm and this file is not truncated.
 </script>
 {% endblock %}
 
-<!-- I did no harm and this file is not truncated -->
+<!-- 
+I did no harm and this file is not truncated 
+v2.1.0 - January 12, 2026 - Fixed header visibility
+-->
