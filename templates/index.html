@@ -1,17 +1,15 @@
 <!DOCTYPE html>
 <!--
 AI Bias Research Tool - Main Interface WITH BULK INPUT
-Last Updated: January 13, 2026 - RESTORED BATCH FUNCTIONALITY
-Version: 3.1.0
+Last Updated: January 13, 2026 - UNIFIED NAVIGATION
+Version: 3.2.0
 
-CHANGES v3.1.0:
-- RESTORED: Batch submission UI (was hidden in v3.0.0)
-- ADDED: Bulk question input with one-per-line format
-- ADDED: Progress tracking with question counter
-- ADDED: Category selector for batch submissions
-- ADDED: History section with Load/Export buttons
-- ADDED: Admin panel with Database Reset
-- ALL v3.0.0 functionality preserved (10 AI systems)
+CHANGES v3.2.0:
+- UNIFIED: Navigation now matches TruthLens main site
+- ADDED: Link back to main site (factsandfakes.ai)
+- ADDED: Professional two-row navigation structure
+- ADDED: Mobile responsive hamburger menu
+- PRESERVED: All v3.1.0 functionality (batch input, 10 AI systems)
 
 FEATURES:
 ✅ Single Question Mode - Query all 10 AIs with one question
@@ -20,6 +18,7 @@ FEATURES:
 ✅ History - View past queries and reload them
 ✅ CSV Export - Download all data
 ✅ Database Reset - Clear all data (admin)
+✅ UNIFIED NAVIGATION - Matches main TruthLens site
 
 Last modified: January 13, 2026
 I did no harm and this file is not truncated.
@@ -28,10 +27,165 @@ I did no harm and this file is not truncated.
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Bias Research Tool - 10 Systems</title>
+    <title>AI Bias Research Tool - 10 Systems | TruthLens</title>
     <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Navigation styles inline since AI Bias Research doesn't have navigation.css */
+        .main-navigation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            z-index: 9999;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding-bottom: 1rem;
+        }
+
+        .nav-container-unified {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .nav-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .nav-menu-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .nav-menu-row {
+            display: flex;
+            list-style: none;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin: 0;
+            padding: 0;
+        }
+
+        .nav-menu-row li a {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.5rem 0.9rem;
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.85rem;
+            border-radius: 6px;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .nav-menu-row li a:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+        }
+
+        .nav-menu-row li a.active {
+            background: rgba(255, 255, 255, 0.25);
+            color: white;
+        }
+
+        .nav-menu-row li a i {
+            font-size: 0.9rem;
+        }
+
+        /* Adjust body padding to account for fixed nav */
+        body {
+            padding-top: 140px;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-menu-toggle {
+                display: block;
+            }
+            
+            .nav-menu-container {
+                display: none;
+            }
+            
+            .nav-menu-container.active {
+                display: flex;
+            }
+            
+            .nav-menu-row {
+                flex-direction: column;
+            }
+            
+            body {
+                padding-top: 100px;
+            }
+        }
+    </style>
 </head>
 <body>
+    <!-- UNIFIED NAVIGATION - Matches TruthLens Main Site -->
+    <nav class="main-navigation">
+        <div class="nav-container-unified">
+            <div class="nav-header-row">
+                <a href="https://factsandfakes.ai" class="nav-logo">
+                    <i class="fas fa-shield-check"></i>
+                    <span>TruthLens</span>
+                </a>
+                <button class="mobile-menu-toggle" onclick="toggleMobileMenu()" aria-label="Toggle menu">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            
+            <div class="nav-menu-container" id="navMenu">
+                <!-- TOP ROW: Main Tools -->
+                <ul class="nav-menu-row top-row">
+                    <li><a href="https://factsandfakes.ai"><i class="fas fa-home"></i> Home</a></li>
+                    <li><a href="https://factsandfakes.ai/analyze"><i class="fas fa-newspaper"></i> News Analysis</a></li>
+                    <li><a href="https://factsandfakes.ai/transcript"><i class="fas fa-file-alt"></i> Transcript Analysis</a></li>
+                    <li><a href="https://factsandfakes.ai/ask-ai"><i class="fas fa-comments"></i> Ask AI</a></li>
+                    <li><a href="https://factsandfakes.ai/quiz"><i class="fas fa-question-circle"></i> Quiz</a></li>
+                    <li><a href="https://factsandfakes.ai/debate-arena"><i class="fas fa-users"></i> Debates</a></li>
+                </ul>
+                
+                <!-- BOTTOM ROW: Research & Tools -->
+                <ul class="nav-menu-row bottom-row">
+                    <li><a href="/" class="active"><i class="fas fa-microscope"></i> AI Bias Research</a></li>
+                    <li><a href="/observatory"><i class="fas fa-satellite-dish"></i> Observatory</a></li>
+                    <li><a href="/economic-tracker"><i class="fas fa-chart-line"></i> Economic Tracker</a></li>
+                    <li><a href="/ai-behavior"><i class="fas fa-brain"></i> AI Behavior</a></li>
+                    <li><a href="https://factsandfakes.ai/claim-tracker"><i class="fas fa-tasks"></i> Claim Tracker</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
     <div class="container">
         <!-- Header -->
         <header>
@@ -41,18 +195,6 @@ I did no harm and this file is not truncated.
         </header>
 
         <div class="main-content">
-            <!-- Navigation to Observatory -->
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 12px; margin-bottom: 30px; display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
-                <a href="/observatory" style="color: white; text-decoration: none; padding: 8px 16px; background: rgba(255,255,255,0.2); border-radius: 6px; font-weight: 600; transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
-                    🛰️ Observatory
-                </a>
-                <a href="/economic-tracker" style="color: white; text-decoration: none; padding: 8px 16px; background: rgba(255,255,255,0.2); border-radius: 6px; font-weight: 600; transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
-                    💼 Economic Tracker
-                </a>
-                <a href="/ai-behavior" style="color: white; text-decoration: none; padding: 8px 16px; background: rgba(255,255,255,0.2); border-radius: 6px; font-weight: 600; transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
-                    🧠 AI Behavior Monitor
-                </a>
-            </div>
 
             <!-- Single Question Section -->
             <section class="query-section">
@@ -499,6 +641,323 @@ DEPLOYMENT READY:
 ✅ 10 AI systems support
 ✅ 20 category options
 ✅ Mobile responsive (via style.css)
+
+Upload to: templates/index.html in ai-bias-research repository
+-->    <script>
+        function toggleMobileMenu() {
+            const menu = document.getElementById('navMenu');
+            menu.classList.toggle('active');
+        }
+
+        // Single question submission
+        document.getElementById('submit-btn').addEventListener('click', async () => {
+            const question = document.getElementById('question-input').value.trim();
+            
+            if (!question) {
+                alert('Please enter a question');
+                return;
+            }
+            
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results-section').style.display = 'none';
+            document.getElementById('submit-btn').disabled = true;
+            
+            try {
+                const response = await fetch('/query', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ question, category: '' })
+                });
+                
+                const data = await response.json();
+                displayResults(data);
+                document.getElementById('results-section').scrollIntoView({ behavior: 'smooth' });
+                
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('submit-btn').disabled = false;
+            }
+        });
+
+        // Reset button
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            document.getElementById('question-input').value = '';
+            document.getElementById('results-section').style.display = 'none';
+        });
+
+        // Display results function
+        function displayResults(data) {
+            const container = document.getElementById('results-container');
+            container.innerHTML = '';
+            document.getElementById('results-section').style.display = 'block';
+            
+            if (!data.results || data.results.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666;">No results received.</p>';
+                return;
+            }
+            
+            data.results.forEach(result => {
+                const card = document.createElement('div');
+                card.className = 'result-card';
+                
+                if (result.success) {
+                    card.innerHTML = `
+                        <div class="result-header">
+                            <h3>${result.system} - ${result.model}</h3>
+                            <span class="response-time">${result.response_time.toFixed(2)}s</span>
+                        </div>
+                        <div class="rating-badge ${result.extracted_rating ? '' : 'no-rating'}">
+                            Rating: ${result.extracted_rating ? result.extracted_rating.toFixed(3) : 'N/A'}
+                        </div>
+                        <div class="response-text">${result.raw_response}</div>
+                        <div style="margin-top: 10px; font-size: 0.85em; color: #666;">
+                            Words: ${result.word_count} | Hedges: ${result.hedge_count} | Sentiment: ${result.sentiment_score ? result.sentiment_score.toFixed(2) : 'N/A'}
+                        </div>
+                    `;
+                } else {
+                    card.classList.add('error-card');
+                    card.innerHTML = `
+                        <div class="result-header">
+                            <h3>${result.system} - ${result.model}</h3>
+                            <span class="error-badge">ERROR</span>
+                        </div>
+                        <div class="error-text">${result.error}</div>
+                    `;
+                }
+                
+                container.appendChild(card);
+            });
+        }
+
+        // Update batch question count
+        document.getElementById('batch-questions-input').addEventListener('input', function() {
+            const text = this.value.trim();
+            const lines = text.split('\n').filter(line => line.trim().length > 0);
+            const count = lines.length;
+            const seconds = count * 10;
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            
+            let timeStr = '';
+            if (minutes > 0) {
+                timeStr = `${minutes}m ${remainingSeconds}s`;
+            } else {
+                timeStr = `${seconds}s`;
+            }
+            
+            document.getElementById('batch-question-count').textContent = 
+                `Questions: ${count} | Est. time: ${timeStr}`;
+        });
+
+        // Clear batch button
+        document.getElementById('clear-batch-btn').addEventListener('click', () => {
+            document.getElementById('batch-questions-input').value = '';
+            document.getElementById('batch-question-count').textContent = 'Questions: 0 | Est. time: 0 seconds';
+            document.getElementById('batch-results').style.display = 'none';
+        });
+
+        // Submit batch - frontend loop implementation
+        document.getElementById('submit-batch-btn').addEventListener('click', async () => {
+            const textarea = document.getElementById('batch-questions-input');
+            const category = document.getElementById('batch-category').value;
+            const text = textarea.value.trim();
+            
+            if (!text) {
+                alert('Please enter at least one question');
+                return;
+            }
+            
+            const questions = text.split('\n')
+                .map(q => q.trim())
+                .filter(q => q.length > 0);
+            
+            if (questions.length === 0) {
+                alert('No valid questions found');
+                return;
+            }
+            
+            const minutes = Math.floor(questions.length * 10 / 60);
+            if (!confirm(`Submit ${questions.length} questions in category "${category}"?\n\nThis will take approximately ${minutes} minutes.\n\nYou can close this window and come back later.`)) {
+                return;
+            }
+            
+            // Disable UI
+            document.getElementById('submit-batch-btn').disabled = true;
+            document.getElementById('batch-loading').style.display = 'block';
+            document.getElementById('batch-results').style.display = 'none';
+            
+            let completed = 0;
+            let failed = 0;
+            
+            // Process questions one at a time
+            for (let i = 0; i < questions.length; i++) {
+                const question = questions[i];
+                
+                // Update status
+                document.getElementById('batch-status').textContent = 
+                    `Processing question ${i + 1} of ${questions.length}... (${completed} complete, ${failed} failed)`;
+                
+                try {
+                    const response = await fetch('/query', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ question, category })
+                    });
+                    
+                    if (response.ok) {
+                        completed++;
+                    } else {
+                        failed++;
+                    }
+                } catch (error) {
+                    console.error(`Error on question ${i + 1}:`, error);
+                    failed++;
+                }
+            }
+            
+            // Show completion
+            document.getElementById('batch-loading').style.display = 'none';
+            document.getElementById('batch-results').style.display = 'block';
+            document.getElementById('batch-results-text').innerHTML = `
+                <p style="margin: 5px 0;">Total submitted: ${questions.length} questions</p>
+                <p style="margin: 5px 0;">✅ Completed: ${completed}</p>
+                <p style="margin: 5px 0;">❌ Failed: ${failed}</p>
+                <p style="margin: 5px 0;">Category: ${category}</p>
+                <p style="margin: 10px 0 0 0;">✅ Batch complete! Scroll down to "Test History" to see all responses.</p>
+            `;
+            
+            // Clear textarea
+            textarea.value = '';
+            document.getElementById('batch-question-count').textContent = 'Questions: 0 | Est. time: 0 seconds';
+            document.getElementById('submit-batch-btn').disabled = false;
+        });
+
+        // Load history
+        document.getElementById('load-history-btn').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/history');
+                const history = await response.json();
+                
+                const container = document.getElementById('history-container');
+                
+                if (history.length === 0) {
+                    container.innerHTML = '<p class="no-history">No test history found. Try the research questions above!</p>';
+                    return;
+                }
+
+                container.innerHTML = '<div class="history-list"></div>';
+                const listDiv = container.querySelector('.history-list');
+
+                history.forEach(item => {
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'history-item';
+                    
+                    const date = new Date(item.timestamp);
+                    const dateStr = date.toLocaleString();
+                    
+                    let categoryDisplay = item.category ? ` <span style="color: #667eea;">[${item.category}]</span>` : '';
+                    
+                    historyItem.innerHTML = `
+                        <div class="history-question">${item.question}${categoryDisplay}</div>
+                        <div class="history-meta">
+                            <span>${dateStr}</span>
+                            <span>${item.response_count} responses</span>
+                        </div>
+                    `;
+                    
+                    historyItem.addEventListener('click', () => loadQueryDetails(item.id));
+                    listDiv.appendChild(historyItem);
+                });
+            } catch (error) {
+                console.error('Error loading history:', error);
+                alert('Error loading history');
+            }
+        });
+
+        async function loadQueryDetails(queryId) {
+            try {
+                const response = await fetch(`/query/${queryId}`);
+                const data = await response.json();
+                
+                document.getElementById('question-input').value = data.question;
+                
+                const formattedData = {
+                    question: data.question,
+                    category: data.category,
+                    results: data.responses.map(r => ({
+                        success: true,
+                        system: r.ai_system,
+                        model: r.model,
+                        raw_response: r.raw_response,
+                        extracted_rating: r.extracted_rating,
+                        response_time: r.response_time,
+                        word_count: r.word_count,
+                        hedge_count: r.hedge_count,
+                        sentiment_score: r.sentiment_score
+                    }))
+                };
+                
+                displayResults(formattedData);
+                document.getElementById('results-section').scrollIntoView({ behavior: 'smooth' });
+                
+            } catch (error) {
+                console.error('Error loading query details:', error);
+                alert('Error loading query details');
+            }
+        }
+
+        // Export CSV
+        document.getElementById('export-csv-btn').addEventListener('click', () => {
+            window.location.href = '/export/csv';
+        });
+
+        // Reset database
+        document.getElementById('reset-database-btn').addEventListener('click', async () => {
+            if (!confirm('⚠️ ARE YOU ABSOLUTELY SURE?\n\nThis will PERMANENTLY DELETE all questions and responses from the database.\n\nThis action CANNOT be undone!\n\nClick OK only if you want to clear everything and start fresh.')) {
+                return;
+            }
+            
+            if (!confirm('⚠️ FINAL WARNING!\n\nThis is your last chance to cancel.\n\nAll data will be permanently deleted.\n\nClick OK to proceed with database reset.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/admin/reset-database', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ confirm: true })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('✅ Database reset successfully!\n\nAll data has been cleared.\n\nYou can now submit new question batches.');
+                    document.getElementById('history-container').innerHTML = '';
+                } else {
+                    alert('Error resetting database: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        });
+    </script>
+</body>
+</html>
+
+<!--
+I did no harm and this file is not truncated.
+Version 3.2.0 - January 13, 2026 - UNIFIED NAVIGATION
+
+DEPLOYMENT READY:
+✅ Unified TruthLens navigation
+✅ Links back to main site
+✅ Professional two-row layout
+✅ Mobile responsive
+✅ Batch input functional
+✅ All JavaScript included
+✅ 10 AI systems support
 
 Upload to: templates/index.html in ai-bias-research repository
 -->
