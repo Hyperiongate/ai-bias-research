@@ -1,16 +1,37 @@
 {% extends "base.html" %}
 
 <!--
+================================================================================
 AI Behavior Monitor - Using TruthLens Base Template
 File: ai_behavior_monitor.html
-Date: January 12, 2026
-Version: 2.1.0 - FIXED HEADER VISIBILITY
+Date: January 14, 2026
+Version: 2.2.0 - FIXED NAVIGATION CLEARANCE
+================================================================================
 
 WHAT CHANGED:
-v2.1.0 - January 12, 2026:
-- FIXED: Added body padding-top of 160px to fully clear navigation bar
-- FIXED: Added mobile padding-top of 140px for consistency
+v2.2.0 - January 14, 2026:
+- FIXED: Increased body padding-top from 160px to 230px to fully clear 3-row navigation
+- FIXED: Increased mobile padding-top from 140px to 200px
+- Navigation has 3 rows: Logo + Top Menu + Bottom Menu = ~200-210px height
+- Added 20px buffer for safety
 - ALL existing functionality preserved (DO NO HARM ✓)
+
+================================================================================
+NAVIGATION HEIGHT REFERENCE (for future fixes):
+================================================================================
+The AI Bias Research site navigation has 3 rows:
+  1. TruthLens logo row (~50px)
+  2. Top menu row: Home, About, Features, etc. (~50px)
+  3. Bottom menu row: AI Debates, Observatory, etc. (~50px)
+  + Padding/margins (~50px)
+  = Total: ~200-210px
+
+ALWAYS use padding-top: 230px (desktop) and 200px (mobile) to clear it!
+================================================================================
+
+v2.1.0 - January 12, 2026:
+- Added body padding-top of 160px (INSUFFICIENT - caused header overlap)
+- Added mobile padding-top of 140px
 
 v2.0.0 - January 10, 2026:
 - Now extends base.html for unified TruthLens navigation
@@ -27,7 +48,7 @@ FEATURES PRESERVED:
 - Auto-refresh every 30 seconds
 - Complete API integration
 
-Last modified: January 12, 2026 - v2.1.0
+Last modified: January 14, 2026 - v2.2.0
 I did no harm and this file is not truncated.
 -->
 
@@ -49,7 +70,14 @@ I did no harm and this file is not truncated.
         color: #e2e8f0;
         min-height: 100vh;
         padding: 20px;
-        padding-top: 160px; /* FIXED: Added to fully clear navigation bar */
+        /*
+         * CRITICAL: Navigation Clearance
+         * ==============================
+         * The navigation bar is ~200-210px tall (3 rows).
+         * Using 230px to ensure full clearance with buffer.
+         * DO NOT reduce this value or the header will be hidden!
+         */
+        padding-top: 230px;
     }
     
     .container {
@@ -335,9 +363,15 @@ I did no harm and this file is not truncated.
         opacity: 0.5;
     }
     
+    /*
+     * MOBILE STYLES
+     * =============
+     * Mobile navigation is shorter but still needs clearance.
+     * Using 200px for mobile devices.
+     */
     @media (max-width: 768px) {
         body {
-            padding-top: 140px; /* FIXED: Added for mobile navigation */
+            padding-top: 200px; /* FIXED: Increased for mobile navigation */
         }
         
         h1 {
@@ -662,7 +696,30 @@ I did no harm and this file is not truncated.
 </script>
 {% endblock %}
 
-<!-- 
-I did no harm and this file is not truncated 
-v2.1.0 - January 12, 2026 - Fixed header visibility
+<!--
+================================================================================
+END OF FILE - DEPLOYMENT VERIFICATION
+================================================================================
+
+I did no harm and this file is not truncated.
+
+DEPLOYMENT READY FOR GITHUB/RENDER
+Version: 2.2.0 - January 14, 2026
+
+================================================================================
+NAVIGATION CLEARANCE REFERENCE
+================================================================================
+The AI Bias Research site has a 3-row navigation:
+  Row 1: TruthLens logo
+  Row 2: Main menu (Home, About, Features, News, Transcript, Ask AI, Debate)
+  Row 3: Secondary menu (AI Debates, Observatory, Economic, Behavior, Research, Claims, Quiz)
+
+Total height: ~200-210px
+
+Required padding-top values:
+  Desktop: 230px
+  Mobile: 200px
+
+If the header is still hidden, INCREASE these values, do not decrease!
+================================================================================
 -->
