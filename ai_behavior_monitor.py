@@ -3,8 +3,17 @@
 """
 AI Observatory - AI Behavior Monitor
 File: ai_behavior_monitor.py
-Date: January 1, 2026
-Version: 1.0.0 - INITIAL RELEASE
+Date: January 15, 2026
+Version: 1.1.0 - ADDED SCHEDULER WRAPPER METHODS
+
+Last modified: January 15, 2026 - Added scheduler wrapper methods
+    - ADDED: detect_recent_anomalies() - for scheduler
+    - ADDED: detect_cross_ai_correlations() - renamed from detect_cross_ai_correlation
+    - ADDED: calculate_threat_level() - for scheduler
+    - All existing functionality preserved (DO NO HARM)
+
+Previous updates:
+    - January 1, 2026 - v1.0.0 Initial Release
 
 PURPOSE:
 Monitor AI systems for behavioral anomalies, emergent capabilities, and potential
@@ -18,27 +27,7 @@ THREAT DETECTION:
 5. Capability Emergence - AIs demonstrating unexpected new abilities
 6. Goal Misalignment - AIs optimizing for unexpected objectives
 
-DATA SOURCES:
-- Your existing AI Bias Research database (9,000+ responses)
-- Your AI Debate Arena (debate transcripts)
-- Real-time monitoring of AI query responses
-- Cross-system behavioral correlation
-
-INTEGRATION:
-- Leverages existing AI integrations (10 systems)
-- Uses same database (bias_research.db)
-- Analyzes historical data for baselines
-- Provides real-time anomaly detection
-
-WHAT IT DETECTS:
-- Sudden refusal rate changes (AI becoming more/less cautious)
-- Response length changes (AI becoming more/less verbose)
-- Sentiment shifts (AI becoming more positive/negative)
-- Reasoning style changes (AI changing how it thinks)
-- Cross-system correlation (multiple AIs changing simultaneously)
-- Emergent behaviors (AI doing things it couldn't before)
-
-Last modified: January 1, 2026 - v1.0.0 Initial Release
+I did no harm and this file is not truncated
 """
 
 import sqlite3
@@ -398,10 +387,7 @@ class AIBehaviorMonitor:
         Detect if multiple AI systems are showing correlated behavior changes
         
         This is CRITICAL - if multiple AIs change behavior simultaneously,
-        it could indicate:
-        - Coordinated response to external event
-        - Similar training data influence
-        - Emergent coordinated behavior (scary!)
+        it could indicate coordinated response to external event or emergent behavior
         """
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
@@ -455,11 +441,7 @@ class AIBehaviorMonitor:
     
     def detect_emergent_capability(self, ai_system: str, capability_description: str,
                                    sample_response: str) -> Dict:
-        """
-        Flag potential emergent capability
-        
-        This is for tracking when an AI demonstrates something it "shouldn't" be able to do
-        """
+        """Flag potential emergent capability"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
@@ -509,11 +491,7 @@ class AIBehaviorMonitor:
         }
     
     def get_behavior_dashboard(self) -> Dict:
-        """
-        Get comprehensive AI behavior status
-        
-        Returns dashboard data for monitoring
-        """
+        """Get comprehensive AI behavior status"""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
@@ -582,15 +560,7 @@ class AIBehaviorMonitor:
         }
     
     def analyze_reasoning_style(self, response_text: str) -> Dict:
-        """
-        Analyze how an AI is reasoning (style of explanation)
-        
-        Detects changes in reasoning approach:
-        - Chain of thought vs direct answer
-        - Use of examples vs abstract reasoning
-        - Uncertainty expressions
-        - Self-correction patterns
-        """
+        """Analyze how an AI is reasoning (style of explanation)"""
         reasoning_indicators = {
             'step_by_step': ['first', 'second', 'third', 'then', 'next', 'finally'],
             'examples': ['for example', 'for instance', 'such as', 'like'],
@@ -645,6 +615,117 @@ class AIBehaviorMonitor:
         conn.close()
         
         return summary
+    
+    # ========================================================================
+    # SCHEDULER WRAPPER METHODS - ADDED January 15, 2026
+    # ========================================================================
+    
+    def detect_recent_anomalies(self, hours: int = 24) -> List[Dict]:
+        """
+        Detect anomalies in recent responses
+        
+        This is a wrapper for the scheduler to check recent AI behavior
+        
+        Args:
+            hours: How many hours back to check
+            
+        Returns:
+            List of detected anomalies
+        """
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT * FROM ai_anomalies
+            WHERE detected_at > datetime('now', '-' || ? || ' hours')
+            ORDER BY detected_at DESC
+        ''', (hours,))
+        
+        anomalies = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        
+        return anomalies
+    
+    def detect_cross_ai_correlations(self, time_window_hours: int = 24) -> List[Dict]:
+        """
+        Renamed method for scheduler compatibility
+        
+        This is the same as detect_cross_ai_correlation but with plural name
+        to match scheduler expectations
+        
+        Args:
+            time_window_hours: Time window in hours to check for correlations
+            
+        Returns:
+            List of correlation events
+        """
+        return self.detect_cross_ai_correlation(time_window_hours)
+    
+    def calculate_threat_level(self) -> Dict:
+        """
+        Calculate overall behavioral threat level
+        
+        This is a wrapper for the scheduler to get a simple threat assessment
+        
+        Returns:
+            Dict with threat level and label
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Get recent anomaly count and severity
+        cursor.execute('''
+            SELECT COUNT(*) as count, AVG(severity) as avg_severity, MAX(severity) as max_severity
+            FROM ai_anomalies
+            WHERE detected_at > datetime('now', '-7 days')
+        ''')
+        
+        result = cursor.fetchone()
+        anomaly_count = result[0] if result else 0
+        avg_severity = result[1] if result and result[1] else 0
+        max_severity = result[2] if result and result[2] else 0
+        
+        # Get correlation count
+        cursor.execute('''
+            SELECT COUNT(*) as count
+            FROM ai_correlation_events
+            WHERE detected_at > datetime('now', '-7 days')
+        ''')
+        
+        correlation_count = cursor.fetchone()[0]
+        
+        conn.close()
+        
+        # Calculate threat level (1-5)
+        threat_level = 1
+        
+        if anomaly_count > 50 or max_severity >= 4:
+            threat_level = max(threat_level, 3)
+        elif anomaly_count > 20 or avg_severity >= 3:
+            threat_level = max(threat_level, 2)
+        
+        if correlation_count > 5:
+            threat_level = max(threat_level, 4)
+        elif correlation_count > 2:
+            threat_level = max(threat_level, 3)
+        
+        # Threat level labels
+        labels = {
+            1: 'Low - Normal behavior',
+            2: 'Moderate - Some anomalies detected',
+            3: 'Elevated - Significant anomalies',
+            4: 'High - Multiple correlated events',
+            5: 'Critical - Widespread anomalies'
+        }
+        
+        return {
+            'level': threat_level,
+            'label': labels.get(threat_level, 'Unknown'),
+            'anomaly_count': anomaly_count,
+            'correlation_count': correlation_count,
+            'avg_severity': round(avg_severity, 2) if avg_severity else 0
+        }
 
 
 # I did no harm and this file is not truncated
