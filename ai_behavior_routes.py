@@ -1,8 +1,8 @@
 """
 AI Observatory - AI Behavior Monitor Routes
 File: ai_behavior_routes.py
-Date: January 1, 2026
-Version: 1.0.0
+Date: January 15, 2026
+Version: 1.1.0
 
 PURPOSE:
 Flask routes for AI Behavior Monitoring integration
@@ -12,15 +12,22 @@ ROUTES:
 - GET /api/ai-behavior/status - Current behavior status
 - POST /api/ai-behavior/analyze - Analyze AI response
 - GET /api/ai-behavior/anomalies - Recent anomalies
+- GET /api/ai-behavior/alerts - Get active alerts (NEW v1.1.0)
 - GET /api/ai-behavior/correlations - Cross-AI correlation events
+- GET /api/ai-behavior/emergent-capabilities - Get emergent capabilities
 - POST /api/ai-behavior/recalculate-baselines - Recalculate all baselines
+- GET /api/ai-behavior/summary - Get summary statistics
 
-Last modified: January 1, 2026 - v1.0.0
+Last modified: January 15, 2026 - v1.1.0
+    - ADDED /api/ai-behavior/alerts endpoint (was causing 404 errors)
+    - Fixes Observatory dashboard alert loading
+
+Previous: January 1, 2026 - v1.0.0 - Initial version
 """
 
 from flask import Blueprint, render_template, jsonify, request
 from ai_behavior_monitor import AIBehaviorMonitor
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 
 def register_ai_behavior_routes(app):
@@ -118,6 +125,51 @@ def register_ai_behavior_routes(app):
             return jsonify({
                 'success': False,
                 'error': str(e)
+            }), 500
+    
+    @app.route('/api/ai-behavior/alerts')
+    def get_ai_behavior_alerts():
+        """
+        Get active AI behavior alerts
+        NEW in v1.1.0 - Was missing, causing 404 errors in Observatory dashboard
+        
+        Returns high-severity anomalies from the last 7 days
+        """
+        try:
+            import sqlite3
+            conn = sqlite3.connect(monitor.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            # Get recent high-severity anomalies as alerts
+            cursor.execute('''
+                SELECT 
+                    id,
+                    ai_system,
+                    anomaly_type as alert_type,
+                    description,
+                    severity,
+                    detected_at,
+                    metadata
+                FROM ai_anomalies
+                WHERE severity >= 3
+                AND detected_at > datetime('now', '-7 days')
+                ORDER BY severity DESC, detected_at DESC
+                LIMIT 50
+            ''')
+            
+            alerts = [dict(row) for row in cursor.fetchall()]
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'alerts': alerts
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'alerts': []
             }), 500
     
     @app.route('/api/ai-behavior/correlations')
