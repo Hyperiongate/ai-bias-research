@@ -690,7 +690,7 @@ ai_query_functions = [
 ]
 
 # Register Observatory routes
-register_economic_routes(app, ai_query_functions)
+register_economic_routes(app, ai_query_functions, db_path=DATABASE)
 register_ai_behavior_routes(app)
 
 @app.route('/observatory')
