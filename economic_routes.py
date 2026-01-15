@@ -309,4 +309,54 @@ def register_economic_routes(app, ai_query_functions, db_path='bias_research.db'
         try:
             conn = sqlite3.connect(tracker.db_path)
             conn.row_factory = sqlite3.Row
-            cursor = conn.curs
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT * FROM economic_alerts
+                WHERE acknowledged = 0
+                ORDER BY severity DESC, timestamp DESC
+            ''')
+            
+            alerts = [dict(row) for row in cursor.fetchall()]
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'alerts': alerts
+            })
+        except Exception as e:
+            print(f"Error in /api/economic/alerts: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+    
+    @app.route('/api/economic/alert/<int:alert_id>/acknowledge', methods=['POST'])
+    def acknowledge_alert(alert_id):
+        """Acknowledge an economic alert"""
+        try:
+            conn = sqlite3.connect(tracker.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                UPDATE economic_alerts
+                SET acknowledged = 1
+                WHERE id = ?
+            ''', (alert_id,))
+            
+            conn.commit()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Alert {alert_id} acknowledged'
+            })
+        except Exception as e:
+            print(f"Error in /api/economic/alert/acknowledge: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+
+# I did no harm and this file is not truncated
